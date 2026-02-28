@@ -1,57 +1,24 @@
 /**
  * Dashboard page — main overview screen.
- * Stats grid, file upload zone, recent activity table, and AI assistant.
+ * Stats grid (4 cards), AI accuracy chart, activity timeline, recent activity table,
+ * file upload zone, and floating AI assistant.
+ * Data sourced from mock data service.
  */
 
-import { useState, useEffect, useCallback, type ReactElement } from 'react'
+import { useState, useMemo, type ReactElement } from 'react'
 import { StatCard } from '../components/StatCard'
 import { FileDropZone } from '../components/FileDropZone'
 import { DataTable } from '../components/DataTable'
-import type { AuraDocument, DashboardStats } from '../../../shared/types/document.types'
+import { AccuracyChart } from '../components/AccuracyChart'
+import { ActivityTimeline } from '../components/ActivityTimeline'
+import { getDashboardData } from '../data/mock-data.service'
 
 export function Dashboard(): ReactElement {
-    const [stats, setStats] = useState<DashboardStats | null>(null)
-    const [documents, setDocuments] = useState<AuraDocument[]>([])
     const [showBubble, setShowBubble] = useState(true)
 
-    const loadData = useCallback(async () => {
-        try {
-            const statsResult = await window.documentAPI.getStats()
-            if (statsResult.success) {
-                setStats(statsResult.data)
-            }
-
-            const docsResult = await window.documentAPI.list()
-            if (docsResult.success) {
-                setDocuments(docsResult.data)
-            }
-        } catch {
-            console.warn('[Dashboard] Failed to load data — running in offline mode')
-        }
-    }, [])
-
-    useEffect(() => {
-        loadData()
-    }, [loadData])
-
-    const handleFilesSelected = useCallback(
-        async (files: FileList) => {
-            for (const file of Array.from(files)) {
-                try {
-                    await window.documentAPI.create({
-                        name: file.name,
-                        type: 'other',
-                        mimeType: file.type as 'application/pdf',
-                        filePath: file.name,
-                        fileSize: file.size
-                    })
-                } catch {
-                    console.error('[Dashboard] Failed to create document for', file.name)
-                }
-            }
-            loadData()
-        },
-        [loadData]
+    const { stats, chartData, activityTimeline, recentDocuments } = useMemo(
+        () => getDashboardData(),
+        []
     )
 
     return (
@@ -61,8 +28,7 @@ export function Dashboard(): ReactElement {
                 <div>
                     <h2>Overview</h2>
                     <p>
-                        Good morning, Alex. Aura AI is performing at{' '}
-                        {stats ? `${stats.accuracyRate}%` : '—'} accuracy today.
+                        Good morning, Alex. Aura AI is performing at {stats.accuracyRate}% accuracy today.
                     </p>
                 </div>
                 <div className="user-chip">
@@ -78,39 +44,54 @@ export function Dashboard(): ReactElement {
                 </div>
             </header>
 
-            {/* Stats Grid */}
+            {/* Stats Grid — 4 cards per design */}
             <div className="stats-grid">
                 <StatCard
                     icon="📄"
-                    label="Documents Processed"
-                    value={stats ? stats.totalDocuments.toLocaleString() : '—'}
-                    change={stats?.documentsProcessedChange ?? 0}
+                    label="Total Documents"
+                    value={stats.totalDocuments.toLocaleString()}
+                    change={stats.documentsProcessedChange}
                     glowColor="cyan"
                     iconColor="cyan"
                 />
                 <StatCard
                     icon="✓"
-                    label="Accuracy Rate"
-                    value={stats ? `${stats.accuracyRate}%` : '—'}
-                    change={stats?.accuracyChange ?? 0}
+                    label="Accuracy %"
+                    value={`${stats.accuracyRate}%`}
+                    change={stats.accuracyChange}
                     glowColor="purple"
                     iconColor="purple"
                 />
                 <StatCard
                     icon="⏱"
-                    label="Manual Time Saved"
-                    value={stats ? `${stats.manualTimeSaved} hrs` : '—'}
-                    change={stats?.timeSavedChange ?? 0}
+                    label="Avg. Processing Time"
+                    value={`${stats.avgProcessingTime}s`}
+                    change={stats.processingTimeChange}
                     glowColor="cyan"
                     iconColor="cyan"
                 />
+                <StatCard
+                    icon="⚡"
+                    label="Active Pipelines"
+                    value={String(stats.activePipelines)}
+                    change={stats.pipelinesChange}
+                    glowColor="emerald"
+                    iconColor="emerald"
+                    isStatic={stats.pipelinesChange === 0}
+                />
+            </div>
+
+            {/* Chart + Timeline row */}
+            <div className="dashboard-middle-row">
+                <AccuracyChart data={chartData} />
+                <ActivityTimeline events={activityTimeline} />
             </div>
 
             {/* Upload Zone */}
-            <FileDropZone onFilesSelected={handleFilesSelected} />
+            <FileDropZone />
 
             {/* Recent Activity Table */}
-            <DataTable documents={documents} />
+            <DataTable documents={recentDocuments} title="Recent Documents" showViewAll />
 
             {/* Floating AI Assistant */}
             <div className="ai-assistant">
@@ -120,8 +101,8 @@ export function Dashboard(): ReactElement {
                         onClick={() => setShowBubble(false)}
                     >
                         <p>
-                            I&apos;ve detected <span className="highlight">3 anomalies</span>{' '}
-                            in your legal documents. Would you like to review them now?
+                            I&apos;ve detected <span className="highlight">3 anomalies</span> in your legal
+                            documents. Would you like to review them now?
                         </p>
                     </div>
                 )}

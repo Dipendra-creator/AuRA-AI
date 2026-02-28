@@ -1,47 +1,58 @@
 /**
- * Documents page — document list with search and analysis view.
+ * Documents page — document list with search, filters, and analysis view.
+ * When a document is clicked, shows the split-view analysis panel.
+ * Data sourced from mock data service.
  */
 
-import { useState, useEffect, useCallback, type ReactElement } from 'react'
+import { useState, useMemo, type ReactElement } from 'react'
 import { DataTable } from '../components/DataTable'
+import { DocumentAnalysis } from '../components/DocumentAnalysis'
+import { FileDropZone } from '../components/FileDropZone'
+import { getDocumentsData } from '../data/mock-data.service'
 import type { AuraDocument } from '../../../shared/types/document.types'
 
+type FilterType = 'all' | 'processed' | 'reviewing' | 'pending' | 'error'
+
 export function Documents(): ReactElement {
-    const [documents, setDocuments] = useState<AuraDocument[]>([])
     const [searchQuery, setSearchQuery] = useState('')
+    const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+    const [selectedDocument, setSelectedDocument] = useState<AuraDocument | null>(null)
 
-    const loadDocuments = useCallback(async () => {
-        try {
-            const result = await window.documentAPI.list()
-            if (result.success) {
-                setDocuments(result.data)
-            }
-        } catch {
-            console.warn('[Documents] Failed to load documents')
+    const { documents } = useMemo(() => getDocumentsData(), [])
+
+    const filteredDocuments = useMemo(() => {
+        let result = documents.filter((doc) =>
+            doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        if (activeFilter !== 'all') {
+            result = result.filter((d) => d.status === activeFilter)
         }
-    }, [])
-
-    useEffect(() => {
-        loadDocuments()
-    }, [loadDocuments])
-
-    const filteredDocuments = documents.filter((doc) =>
-        doc.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+        return result
+    }, [documents, searchQuery, activeFilter])
 
     const processedCount = documents.filter((d) => d.status === 'processed').length
     const reviewingCount = documents.filter((d) => d.status === 'reviewing').length
+    const pendingCount = documents.filter((d) => d.status === 'pending' || d.status === 'processing').length
+
+    // When a document is selected, show analysis view
+    if (selectedDocument) {
+        return <DocumentAnalysis document={selectedDocument} onClose={() => setSelectedDocument(null)} />
+    }
+
+    const filters: { readonly id: FilterType; readonly label: string; readonly count: number }[] = [
+        { id: 'all', label: 'All', count: documents.length },
+        { id: 'processed', label: 'Processed', count: processedCount },
+        { id: 'reviewing', label: 'Reviewing', count: reviewingCount },
+        { id: 'pending', label: 'Pending', count: pendingCount }
+    ]
 
     return (
         <>
             {/* Header */}
             <header className="page-header">
                 <div>
-                    <h2>Documents</h2>
-                    <p>
-                        {documents.length} total documents · {processedCount} processed ·{' '}
-                        {reviewingCount} reviewing
-                    </p>
+                    <h2>Document Analysis</h2>
+                    <p>Upload invoices or contracts for instant AI processing</p>
                 </div>
                 <div className="search-bar">
                     <span className="icon">🔍</span>
@@ -54,23 +65,27 @@ export function Documents(): ReactElement {
                 </div>
             </header>
 
+            {/* Upload Zone */}
+            <FileDropZone />
+
             {/* Filter Chips */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-                <button className="btn-primary" style={{ fontSize: '12px', padding: '6px 16px' }}>
-                    All ({documents.length})
-                </button>
-                <button className="btn-ghost" style={{ fontSize: '12px', padding: '6px 16px' }}>
-                    Processed ({processedCount})
-                </button>
-                <button className="btn-ghost" style={{ fontSize: '12px', padding: '6px 16px' }}>
-                    Reviewing ({reviewingCount})
-                </button>
+            <div className="filter-chips">
+                {filters.map((filter) => (
+                    <button
+                        key={filter.id}
+                        className={`filter-chip ${activeFilter === filter.id ? 'active' : ''}`}
+                        onClick={() => setActiveFilter(filter.id)}
+                    >
+                        {filter.label} ({filter.count})
+                    </button>
+                ))}
             </div>
 
             {/* Documents Table */}
             <DataTable
                 documents={filteredDocuments}
                 title="All Documents"
+                onDocumentClick={(doc) => setSelectedDocument(doc)}
             />
         </>
     )

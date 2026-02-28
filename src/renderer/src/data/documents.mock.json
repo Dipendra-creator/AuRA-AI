@@ -1,0 +1,142 @@
+{
+  "documents": [
+    {
+      "_id": "doc-001",
+      "name": "Invoice_2023_001.pdf",
+      "type": "invoice",
+      "mimeType": "application/pdf",
+      "status": "processed",
+      "confidence": 99.8,
+      "filePath": "/documents/Invoice_2023_001.pdf",
+      "fileSize": 245000,
+      "extractedFields": [
+        { "fieldName": "Invoice Number", "value": "INV-2024-0042", "confidence": 0.99, "verified": true },
+        { "fieldName": "Vendor Name", "value": "Acme Global Solutions Inc.", "confidence": 0.97, "verified": true },
+        { "fieldName": "Due Date", "value": "Oct 24, 2024", "confidence": 0.88, "verified": false },
+        { "fieldName": "Tax ID", "value": "77-XXX-91", "confidence": 0.64, "verified": false },
+        { "fieldName": "Total Amount", "value": "12,450.00", "confidence": 0.99, "verified": true }
+      ],
+      "createdAt": "2023-10-24T10:30:00Z",
+      "updatedAt": "2023-10-24T10:31:00Z"
+    },
+    {
+      "_id": "doc-002",
+      "name": "Agreement_Draft_v4.pdf",
+      "type": "contract",
+      "mimeType": "application/pdf",
+      "status": "reviewing",
+      "confidence": 82.4,
+      "filePath": "/documents/Agreement_Draft_v4.pdf",
+      "fileSize": 890000,
+      "extractedFields": [
+        { "fieldName": "Party A", "value": "GlobalCorp Industries", "confidence": 0.95, "verified": true },
+        { "fieldName": "Party B", "value": "Quantum Systems Inc.", "confidence": 0.93, "verified": true },
+        { "fieldName": "Effective Date", "value": "2023-11-01", "confidence": 0.78, "verified": false },
+        { "fieldName": "Contract Value", "value": "$250,000.00", "confidence": 0.85, "verified": false }
+      ],
+      "createdAt": "2023-10-24T09:15:00Z",
+      "updatedAt": "2023-10-24T09:20:00Z"
+    },
+    {
+      "_id": "doc-003",
+      "name": "Receipt_Uber_X12.jpg",
+      "type": "expense",
+      "mimeType": "image/jpeg",
+      "status": "processed",
+      "confidence": 96.1,
+      "filePath": "/documents/Receipt_Uber_X12.jpg",
+      "fileSize": 120000,
+      "extractedFields": [
+        { "fieldName": "Vendor", "value": "Uber Technologies", "confidence": 0.99, "verified": true },
+        { "fieldName": "Amount", "value": "$34.50", "confidence": 0.97, "verified": true },
+        { "fieldName": "Date", "value": "2023-10-23", "confidence": 0.95, "verified": true }
+      ],
+      "createdAt": "2023-10-23T14:00:00Z",
+      "updatedAt": "2023-10-23T14:01:00Z"
+    },
+    {
+      "_id": "doc-004",
+      "name": "Bank_Statement_Oct.pdf",
+      "type": "other",
+      "mimeType": "application/pdf",
+      "status": "processing",
+      "confidence": 0,
+      "filePath": "/documents/Bank_Statement_Oct.pdf",
+      "fileSize": 560000,
+      "extractedFields": [],
+      "createdAt": "2023-10-23T12:00:00Z",
+      "updatedAt": "2023-10-23T12:00:00Z"
+    },
+    {
+      "_id": "doc-005",
+      "name": "Contract_Legal_Draft_V4.docx",
+      "type": "contract",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "status": "reviewing",
+      "confidence": 82.5,
+      "filePath": "/documents/Contract_Legal_Draft_V4.docx",
+      "fileSize": 340000,
+      "extractedFields": [
+        { "fieldName": "Document Title", "value": "Service Level Agreement", "confidence": 0.91, "verified": true },
+        { "fieldName": "Renewal Date", "value": "2024-01-15", "confidence": 0.72, "verified": false },
+        { "fieldName": "Monthly Fee", "value": "$8,500.00", "confidence": 0.88, "verified": false }
+      ],
+      "createdAt": "2023-10-22T16:30:00Z",
+      "updatedAt": "2023-10-22T16:35:00Z"
+    },
+    {
+      "_id": "doc-006",
+      "name": "Invoice_29482_Acme.pdf",
+      "type": "invoice",
+      "mimeType": "application/pdf",
+      "status": "processed",
+      "confidence": 99.2,
+      "filePath": "/documents/Invoice_29482_Acme.pdf",
+      "fileSize": 198000,
+      "extractedFields": [
+        { "fieldName": "Invoice Number", "value": "INV-29482", "confidence": 0.99, "verified": true },
+        { "fieldName": "Vendor Name", "value": "Acme Corp", "confidence": 0.98, "verified": true },
+        { "fieldName": "Total Amount", "value": "$5,234.00", "confidence": 1.0, "verified": true },
+        { "fieldName": "Due Date", "value": "2023-11-15", "confidence": 0.96, "verified": true }
+      ],
+      "createdAt": "2023-10-21T08:00:00Z",
+      "updatedAt": "2023-10-21T08:05:00Z"
+    },
+    {
+      "_id": "doc-007",
+      "name": "Receipt_Starbucks_662.jpg",
+      "type": "receipt",
+      "mimeType": "image/jpeg",
+      "status": "processed",
+      "confidence": 98.1,
+      "filePath": "/documents/Receipt_Starbucks_662.jpg",
+      "fileSize": 85000,
+      "extractedFields": [
+        { "fieldName": "Vendor", "value": "Starbucks", "confidence": 0.99, "verified": true },
+        { "fieldName": "Amount", "value": "$6.75", "confidence": 0.98, "verified": true },
+        { "fieldName": "Date", "value": "2023-10-20", "confidence": 0.97, "verified": true }
+      ],
+      "createdAt": "2023-10-20T11:30:00Z",
+      "updatedAt": "2023-10-20T11:31:00Z"
+    },
+    {
+      "_id": "doc-008",
+      "name": "NDA_Quantum_Systems.pdf",
+      "type": "contract",
+      "mimeType": "application/pdf",
+      "status": "error",
+      "confidence": 0,
+      "filePath": "/documents/NDA_Quantum_Systems.pdf",
+      "fileSize": 420000,
+      "extractedFields": [],
+      "createdAt": "2023-10-19T15:00:00Z",
+      "updatedAt": "2023-10-19T15:02:00Z"
+    }
+  ],
+  "analysisView": {
+    "overallConfidence": 98.2,
+    "modelVersion": "v4.2 PRO",
+    "ocrActive": true,
+    "stableModel": "Stable Model 4.2"
+  }
+}

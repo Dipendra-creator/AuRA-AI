@@ -1,6 +1,6 @@
 /**
  * DataTable — glassmorphism document activity table.
- * Displays documents with status badges, confidence bars, and actions.
+ * Displays documents with status badges, confidence bars, dates, and actions.
  */
 
 import { type ReactElement } from 'react'
@@ -9,9 +9,12 @@ import type { AuraDocument } from '../../../shared/types/document.types'
 interface DataTableProps {
     readonly documents: readonly AuraDocument[]
     readonly title?: string
+    readonly showViewAll?: boolean
     readonly onViewAll?: () => void
+    readonly onDocumentClick?: (doc: AuraDocument) => void
 }
 
+/** Maps mime type to document icon */
 function getDocumentIcon(mimeType: string): string {
     if (mimeType.includes('pdf')) return '📕'
     if (mimeType.includes('image')) return '🖼️'
@@ -19,43 +22,55 @@ function getDocumentIcon(mimeType: string): string {
     return '📄'
 }
 
+/** Maps document type to readable label */
+function getTypeLabel(type: string): string {
+    const map: Record<string, string> = {
+        invoice: 'Invoice',
+        contract: 'Contract',
+        receipt: 'Receipt',
+        expense: 'Expense',
+        other: 'Document'
+    }
+    return map[type] ?? 'Document'
+}
+
+/** Returns confidence level class name */
 function getConfidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
     if (confidence >= 90) return 'high'
     if (confidence >= 70) return 'medium'
     return 'low'
 }
 
-function formatRelativeTime(dateStr: string): string {
+/** Formats ISO date to readable format */
+function formatDate(dateStr: string): string {
     const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins} mins ago`
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export function DataTable({
     documents,
     title = 'Recent Activity',
-    onViewAll
+    showViewAll = false,
+    onViewAll,
+    onDocumentClick
 }: DataTableProps): ReactElement {
     return (
-        <section>
+        <section className="animate-fade-in">
             <div className="table-header">
                 <h4>{title}</h4>
-                {onViewAll && <button onClick={onViewAll}>View All Documents</button>}
+                {(showViewAll || onViewAll) && (
+                    <button className="table-view-all" onClick={onViewAll}>
+                        View all
+                    </button>
+                )}
             </div>
 
             <div className="glass-panel" style={{ overflow: 'hidden' }}>
                 <table className="data-table">
                     <thead>
                         <tr>
-                            <th>Document Name</th>
+                            <th>Name</th>
+                            <th>Type</th>
                             <th>Status</th>
                             <th>Confidence</th>
                             <th>Date</th>
@@ -63,43 +78,49 @@ export function DataTable({
                         </tr>
                     </thead>
                     <tbody>
-                        {documents.map((doc) => (
-                            <tr key={doc._id}>
+                        {documents.map((doc, index) => (
+                            <tr
+                                key={doc._id}
+                                className="table-row-animate"
+                                style={{ animationDelay: `${index * 50}ms` }}
+                                onClick={() => onDocumentClick?.(doc)}
+                            >
                                 <td>
                                     <div className="document-name-cell">
-                                        <span className="document-icon">
-                                            {getDocumentIcon(doc.mimeType)}
-                                        </span>
+                                        <span className="document-icon">{getDocumentIcon(doc.mimeType)}</span>
                                         <span className="document-filename">{doc.name}</span>
                                     </div>
                                 </td>
                                 <td>
+                                    <span className="document-type-label">{getTypeLabel(doc.type)}</span>
+                                </td>
+                                <td>
                                     <span className={`status-badge ${doc.status}`}>
-                                        {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                        {doc.status.toUpperCase()}
                                     </span>
                                 </td>
                                 <td>
                                     <div className="confidence-cell">
                                         <div className="confidence-bar">
                                             <div
-                                                className={`confidence-bar-fill ${getConfidenceLevel(doc.confidence)}`}
-                                                style={{ width: `${doc.confidence}%` }}
+                                                className={`confidence-bar-fill ${getConfidenceLevel(doc.confidence)} animate-bar-fill`}
+                                                style={{ '--target-width': `${doc.confidence}%` } as React.CSSProperties}
                                             />
                                         </div>
                                         <span className="confidence-value">{doc.confidence}%</span>
                                     </div>
                                 </td>
-                                <td className="date-cell">
-                                    {formatRelativeTime(doc.createdAt)}
-                                </td>
+                                <td className="date-cell">{formatDate(doc.createdAt)}</td>
                                 <td className="actions-cell">
-                                    <button className="actions-btn" title="More actions">⋯</button>
+                                    <button className="actions-btn" title="More actions">
+                                        ⋮
+                                    </button>
                                 </td>
                             </tr>
                         ))}
                         {documents.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', padding: '48px' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', padding: '48px' }}>
                                     <div className="empty-state">
                                         <span className="empty-state-icon">📄</span>
                                         <h3>No documents yet</h3>

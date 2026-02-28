@@ -129,9 +129,54 @@ All communication between Main ↔ Renderer **must** use the typed contract patt
 
 ---
 
+## 🚀 Go Backend Rules
+
+### Architecture
+
+The Go backend lives in `backend/` and follows **clean architecture**:
+
+| Layer | Path | Responsibilities |
+|-------|------|-----------------|
+| **Domain** | `internal/domain/` | Business entities, common types, errors — **no external imports** |
+| **Repository** | `internal/repository/` | MongoDB data access — returns domain types only |
+| **Service** | `internal/service/` | Business logic, validation, orchestration |
+| **Handler** | `internal/handler/` | HTTP request/response — calls services, writes JSON |
+| **Middleware** | `internal/middleware/` | CORS, logging, recovery, request ID, timeout |
+
+### API Conventions
+
+1. **REST + JSON** — All endpoints return `{ success, data, error, meta }` envelope
+2. **Versioned Routes** — All routes prefixed with `/api/v1/`
+3. **Go 1.22+ Routing** — Use `"METHOD /path/{param}"` syntax on `http.ServeMux`
+4. **No External Frameworks** — stdlib `net/http` only. External deps: MongoDB driver, godotenv
+5. **Soft Delete** — Documents use `deleted_at` field, never hard delete
+6. **Pagination** — List endpoints accept `?page=1&limit=10`, return `meta` object
+
+### Backend Naming
+
+| Item | Convention | Example |
+|------|-----------|---------|
+| Files | `snake_case.go` | `document_repo.go` |
+| JSON tags | `camelCase` | `json:"fieldName"` |
+| BSON tags | `snake_case` | `bson:"field_name"` |
+| Collections | `snake_case` plural | `documents`, `activity_events` |
+
+### Backend Quality
+
+1. **`go build ./...`** — Must compile with zero errors
+2. **`go vet ./...`** — Must pass with zero warnings
+3. **Structured Logging** — Use `log/slog` for all logging, never `fmt.Println`
+4. **Error Types** — Return `*domain.AppError` with HTTP status codes
+5. **Graceful Shutdown** — Handle SIGINT/SIGTERM, drain connections, disconnect DB
+
+---
+
 ## 🧭 Development Workflow
 
 1. **Design First** — Check `designs/` for existing Stitch mockups before building UI
 2. **Contracts First** — Define shared types and IPC contracts before implementing handlers or UI
-3. **Run Dev** — Use `npm run dev` (electron-vite HMR) for development
-4. **Build** — Use `npm run build:mac` for macOS production build
+3. **Run Frontend** — Use `npm run dev` (electron-vite HMR) for development
+4. **Run Backend** — Use `cd backend && make run` to start the Go API server
+5. **Seed Data** — Use `cd backend && make seed` to populate mock data
+6. **Build Frontend** — Use `npm run build:mac` for macOS production build
+7. **Build Backend** — Use `cd backend && make build` for Go binary

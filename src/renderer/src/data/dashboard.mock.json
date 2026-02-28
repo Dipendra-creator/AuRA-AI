@@ -1,0 +1,131 @@
+{
+  "stats": {
+    "totalDocuments": 42850,
+    "accuracyRate": 99.8,
+    "avgProcessingTime": 1.2,
+    "activePipelines": 24,
+    "documentsProcessedChange": 12.5,
+    "accuracyChange": 0.2,
+    "processingTimeChange": -15,
+    "pipelinesChange": 0
+  },
+  "chartData": [
+    { "date": "Oct 01", "value": 92.1 },
+    { "date": "Oct 03", "value": 93.4 },
+    { "date": "Oct 05", "value": 93.0 },
+    { "date": "Oct 07", "value": 94.2 },
+    { "date": "Oct 08", "value": 95.8 },
+    { "date": "Oct 10", "value": 96.1 },
+    { "date": "Oct 12", "value": 96.5 },
+    { "date": "Oct 14", "value": 97.0 },
+    { "date": "Oct 15", "value": 97.8 },
+    { "date": "Oct 17", "value": 97.5 },
+    { "date": "Oct 18", "value": 98.1 },
+    { "date": "Oct 20", "value": 98.4 },
+    { "date": "Oct 22", "value": 98.8 },
+    { "date": "Oct 24", "value": 99.0 },
+    { "date": "Oct 26", "value": 99.3 },
+    { "date": "Oct 28", "value": 99.8 }
+  ],
+  "activityTimeline": [
+    {
+      "id": "evt-001",
+      "type": "processed",
+      "title": "Invoice_7892.pdf processed",
+      "timestamp": "2 mins ago",
+      "source": "Finance Pipeline",
+      "icon": "check"
+    },
+    {
+      "id": "evt-002",
+      "type": "system",
+      "title": "Pipeline Alpha updated",
+      "timestamp": "15 mins ago",
+      "source": "System",
+      "icon": "refresh"
+    },
+    {
+      "id": "evt-003",
+      "type": "created",
+      "title": "New Template Created",
+      "timestamp": "1 hour ago",
+      "source": "Alex Rivers",
+      "icon": "plus"
+    },
+    {
+      "id": "evt-004",
+      "type": "review",
+      "title": "Review required: Contract_v2",
+      "timestamp": "3 hours ago",
+      "source": "Legal Pipeline",
+      "icon": "warning"
+    }
+  ],
+  "recentDocuments": [
+    {
+      "_id": "doc-001",
+      "name": "Invoice_2023_001.pdf",
+      "type": "invoice",
+      "mimeType": "application/pdf",
+      "status": "processed",
+      "confidence": 99.8,
+      "filePath": "/documents/Invoice_2023_001.pdf",
+      "fileSize": 245000,
+      "extractedFields": [],
+      "createdAt": "2023-10-24T10:30:00Z",
+      "updatedAt": "2023-10-24T10:31:00Z"
+    },
+    {
+      "_id": "doc-002",
+      "name": "Agreement_Draft_v4.pdf",
+      "type": "contract",
+      "mimeType": "application/pdf",
+      "status": "reviewing",
+      "confidence": 82.4,
+      "filePath": "/documents/Agreement_Draft_v4.pdf",
+      "fileSize": 890000,
+      "extractedFields": [],
+      "createdAt": "2023-10-24T09:15:00Z",
+      "updatedAt": "2023-10-24T09:20:00Z"
+    },
+    {
+      "_id": "doc-003",
+      "name": "Receipt_Uber_X12.jpg",
+      "type": "expense",
+      "mimeType": "image/jpeg",
+      "status": "processed",
+      "confidence": 96.1,
+      "filePath": "/documents/Receipt_Uber_X12.jpg",
+      "fileSize": 120000,
+      "extractedFields": [],
+      "createdAt": "2023-10-23T14:00:00Z",
+      "updatedAt": "2023-10-23T14:01:00Z"
+    },
+    {
+      "_id": "doc-004",
+      "name": "Bank_Statement_Oct.pdf",
+      "type": "other",
+      "mimeType": "application/pdf",
+      "status": "processing",
+      "confidence": 0,
+      "filePath": "/documents/Bank_Statement_Oct.pdf",
+      "fileSize": 560000,
+      "extractedFields": [],
+      "createdAt": "2023-10-23T12:00:00Z",
+      "updatedAt": "2023-10-23T12:00:00Z"
+    },
+    {
+      "_id": "doc-005",
+      "name": "Contract_Legal_Draft_V4.docx",
+      "type": "contract",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "status": "reviewing",
+      "confidence": 82.5,
+      "filePath": "/documents/Contract_Legal_Draft_V4.docx",
+      "fileSize": 340000,
+      "extractedFields": [],
+      "createdAt": "2023-10-22T16:30:00Z",
+      "updatedAt": "2023-10-22T16:35:00Z"
+    }
+  ]
+}
