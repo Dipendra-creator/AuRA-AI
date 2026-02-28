@@ -1,0 +1,9 @@
+{"time":"2026-02-28T20:32:01.969776+05:30","level":"INFO","msg":"starting Aura AI server","port":"8080","mongo_db":"aura_ai"}
+{"time":"2026-02-28T20:32:01.971869+05:30","level":"INFO","msg":"connected to MongoDB","db":"aura_ai"}
+{"time":"2026-02-28T20:32:01.971934+05:30","level":"INFO","msg":"server listening","addr":":8080"}
+{"time":"2026-02-28T20:32:13.543465+05:30","level":"INFO","msg":"request","method":"GET","path":"/api/v1/health","status":200,"duration":"211.542µs","request_id":"9747bc2d5cbb9095"}
+{"time":"2026-02-28T20:32:32.591456+05:30","level":"INFO","msg":"request","method":"GET","path":"/api/v1/documents","status":200,"duration":"47.648083ms","request_id":"ebf0059799e9a5c2"}
+{"time":"2026-02-28T20:32:32.60119+05:30","level":"INFO","msg":"request","method":"GET","path":"/api/v1/dashboard/stats","status":200,"duration":"2.158542ms","request_id":"21db83a38084058f"}
+{"time":"2026-02-28T20:32:32.620692+05:30","level":"INFO","msg":"request","method":"GET","path":"/api/v1/pipelines","status":200,"duration":"416.958µs","request_id":"ee960f2dd10cae2e"}
+{"time":"2026-02-28T20:32:32.641561+05:30","level":"INFO","msg":"request","method":"GET","path":"/api/v1/activity","status":200,"duration":"375.917µs","request_id":"f39225f3d2e1f8c6"}
+signal: killed

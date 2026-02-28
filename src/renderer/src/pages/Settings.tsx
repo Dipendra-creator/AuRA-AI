@@ -1,10 +1,21 @@
 /**
- * Settings page — app configuration and database connection status.
+ * Settings page — app configuration and backend connection status.
+ * Checks real backend health on mount.
  */
 
-import { type ReactElement } from 'react'
+import { useState, useEffect, type ReactElement } from 'react'
+import { checkBackendHealth, type HealthStatus } from '../data/data-service'
 
 export function Settings(): ReactElement {
+    const [health, setHealth] = useState<HealthStatus | null | undefined>(undefined) // undefined = loading
+
+    useEffect(() => {
+        checkBackendHealth().then(setHealth)
+    }, [])
+
+    const isConnected = health !== null && health !== undefined
+    const isLoading = health === undefined
+
     return (
         <>
             {/* Header */}
@@ -15,6 +26,44 @@ export function Settings(): ReactElement {
                 </div>
             </header>
 
+            {/* Backend Connection */}
+            <div className="settings-section">
+                <h3>Backend Server</h3>
+                <div className="settings-card glass-panel">
+                    <div className="settings-row">
+                        <span className="settings-label">Go API Server</span>
+                        <div className="settings-status">
+                            {isLoading ? (
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Checking...</span>
+                            ) : (
+                                <>
+                                    <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`} />
+                                    <span style={{ color: isConnected ? 'var(--color-accent-emerald)' : 'var(--color-accent-red, #ef4444)' }}>
+                                        {isConnected ? 'Connected' : 'Disconnected'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    <div className="settings-row">
+                        <span className="settings-label">API Base URL</span>
+                        <span className="settings-value">http://localhost:8080/api/v1</span>
+                    </div>
+                    <div className="settings-row">
+                        <span className="settings-label">Status</span>
+                        <span className="settings-value">
+                            {isLoading ? '...' : isConnected ? health.status : 'Unreachable'}
+                        </span>
+                    </div>
+                    {isConnected && health.database && (
+                        <div className="settings-row">
+                            <span className="settings-label">Database</span>
+                            <span className="settings-value">{health.database}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Database Connection */}
             <div className="settings-section">
                 <h3>Database Connection</h3>
@@ -22,8 +71,10 @@ export function Settings(): ReactElement {
                     <div className="settings-row">
                         <span className="settings-label">MongoDB</span>
                         <div className="settings-status">
-                            <span className="status-dot connected" />
-                            <span style={{ color: 'var(--color-accent-emerald)' }}>Connected</span>
+                            <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`} />
+                            <span style={{ color: isConnected ? 'var(--color-accent-emerald)' : 'var(--color-accent-red, #ef4444)' }}>
+                                {isLoading ? 'Checking...' : isConnected ? 'Connected' : 'Disconnected'}
+                            </span>
                         </div>
                     </div>
                     <div className="settings-row">
@@ -32,7 +83,9 @@ export function Settings(): ReactElement {
                     </div>
                     <div className="settings-row">
                         <span className="settings-label">Database</span>
-                        <span className="settings-value">development</span>
+                        <span className="settings-value">
+                            {isConnected && health.database ? health.database : 'aura_ai'}
+                        </span>
                     </div>
                     <div className="settings-row">
                         <span className="settings-label">Collection</span>

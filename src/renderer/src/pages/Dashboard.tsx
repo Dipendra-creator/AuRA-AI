@@ -2,24 +2,63 @@
  * Dashboard page — main overview screen.
  * Stats grid (4 cards), AI accuracy chart, activity timeline, recent activity table,
  * file upload zone, and floating AI assistant.
- * Data sourced from mock data service.
+ * Data sourced from Go backend API with mock data fallback.
  */
 
-import { useState, useMemo, type ReactElement } from 'react'
+import { useState, useEffect, useCallback, type ReactElement } from 'react'
 import { StatCard } from '../components/StatCard'
 import { FileDropZone } from '../components/FileDropZone'
 import { DataTable } from '../components/DataTable'
 import { AccuracyChart } from '../components/AccuracyChart'
 import { ActivityTimeline } from '../components/ActivityTimeline'
-import { getDashboardData } from '../data/mock-data.service'
+import { LoadingSpinner } from '../components/LoadingSpinner'
+import { getDashboardData, uploadDocument, type DashboardDataBundle } from '../data/data-service'
+import type { ToastType } from '../components/Toast'
 
-export function Dashboard(): ReactElement {
+interface DashboardProps {
+    readonly addToast: (type: ToastType, text: string) => void
+}
+
+export function Dashboard({ addToast }: DashboardProps): ReactElement {
     const [showBubble, setShowBubble] = useState(true)
+    const [data, setData] = useState<DashboardDataBundle | null>(null)
+    const [loading, setLoading] = useState(true)
 
-    const { stats, chartData, activityTimeline, recentDocuments } = useMemo(
-        () => getDashboardData(),
-        []
+    const loadData = useCallback(() => {
+        getDashboardData().then((result) => {
+            setData(result)
+            setLoading(false)
+        })
+    }, [])
+
+    useEffect(() => {
+        loadData()
+        // Auto-refresh every 30 seconds
+        const interval = setInterval(loadData, 30_000)
+        return () => clearInterval(interval)
+    }, [loadData])
+
+    const handleFilesSelected = useCallback(
+        async (files: FileList) => {
+            for (const file of Array.from(files)) {
+                try {
+                    await uploadDocument(file)
+                    addToast('success', `Uploaded "${file.name}" successfully`)
+                } catch (err) {
+                    addToast('error', `Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
+                }
+            }
+            // Refresh dashboard after uploads
+            loadData()
+        },
+        [addToast, loadData]
     )
+
+    if (loading || !data) {
+        return <LoadingSpinner message="Loading dashboard..." />
+    }
+
+    const { stats, chartData, activityTimeline, recentDocuments } = data
 
     return (
         <>
@@ -88,7 +127,7 @@ export function Dashboard(): ReactElement {
             </div>
 
             {/* Upload Zone */}
-            <FileDropZone />
+            <FileDropZone onFilesSelected={handleFilesSelected} />
 
             {/* Recent Activity Table */}
             <DataTable documents={recentDocuments} title="Recent Documents" showViewAll />

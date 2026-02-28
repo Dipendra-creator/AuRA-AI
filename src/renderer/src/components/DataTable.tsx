@@ -12,6 +12,7 @@ interface DataTableProps {
     readonly showViewAll?: boolean
     readonly onViewAll?: () => void
     readonly onDocumentClick?: (doc: AuraDocument) => void
+    readonly onDocumentDelete?: (doc: AuraDocument) => void
 }
 
 /** Maps mime type to document icon */
@@ -52,7 +53,8 @@ export function DataTable({
     title = 'Recent Activity',
     showViewAll = false,
     onViewAll,
-    onDocumentClick
+    onDocumentClick,
+    onDocumentDelete
 }: DataTableProps): ReactElement {
     return (
         <section className="animate-fade-in">
@@ -112,6 +114,18 @@ export function DataTable({
                                 </td>
                                 <td className="date-cell">{formatDate(doc.createdAt)}</td>
                                 <td className="actions-cell">
+                                    {onDocumentDelete && (
+                                        <button
+                                            className="actions-btn actions-btn-delete"
+                                            title="Delete document"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                onDocumentDelete(doc)
+                                            }}
+                                        >
+                                            🗑
+                                        </button>
+                                    )}
                                     <button className="actions-btn" title="More actions">
                                         ⋮
                                     </button>

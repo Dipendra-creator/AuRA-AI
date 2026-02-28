@@ -1,0 +1,258 @@
+/**
+ * Data Service — Central data provider for Aura AI MVP.
+ *
+ * Primary: fetches from Go backend API (http://localhost:8080/api/v1).
+ * Fallback: on network failure, returns mock JSON data for read-only operations.
+ * Mutations (create, update, delete, upload) always go through the API and fail
+ * loudly if the backend is unavailable.
+ */
+
+import type {
+  AuraDocument,
+  DashboardStats,
+  ChartDataPoint,
+  ActivityEvent,
+  PipelineNode,
+  PipelineMetadata,
+  AnalysisViewMeta,
+  CreateDocumentInput
+} from '../../../shared/types/document.types'
+
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData } from './api-client'
+
+import dashboardMock from './dashboard.mock.json'
+import documentsMock from './documents.mock.json'
+import workflowsMock from './workflows.mock.json'
+
+// ─── Bundle Types ────────────────────────────────────────────────
+
+/** Dashboard data bundle */
+export interface DashboardDataBundle {
+  readonly stats: DashboardStats
+  readonly chartData: readonly ChartDataPoint[]
+  readonly activityTimeline: readonly ActivityEvent[]
+  readonly recentDocuments: readonly AuraDocument[]
+}
+
+/** Documents data bundle */
+export interface DocumentsDataBundle {
+  readonly documents: readonly AuraDocument[]
+  readonly analysisView: AnalysisViewMeta
+}
+
+/** Workflows data bundle */
+export interface WorkflowsDataBundle {
+  readonly pipeline: PipelineMetadata
+  readonly nodes: readonly PipelineNode[]
+}
+
+/** Health status from backend */
+export interface HealthStatus {
+  readonly status: string
+  readonly database: string
+  readonly uptime?: string
+}
+
+// ─── Read Operations (with mock fallback) ────────────────────────
+
+/**
+ * Fetches dashboard data from the API with mock fallback.
+ */
+export async function getDashboardData(): Promise<DashboardDataBundle> {
+  try {
+    const [stats, chartData, activityTimeline, recentDocuments] = await Promise.all([
+      apiGet<DashboardStats>('/dashboard/stats'),
+      apiGet<ChartDataPoint[]>('/dashboard/chart'),
+      apiGet<ActivityEvent[]>('/activity'),
+      apiGet<AuraDocument[]>('/dashboard/recent')
+    ])
+    return { stats, chartData, activityTimeline, recentDocuments }
+  } catch {
+    console.warn('[DataService] API unavailable, using mock data for dashboard')
+    return {
+      stats: dashboardMock.stats as DashboardStats,
+      chartData: dashboardMock.chartData as ChartDataPoint[],
+      activityTimeline: dashboardMock.activityTimeline as unknown as ActivityEvent[],
+      recentDocuments: dashboardMock.recentDocuments as unknown as AuraDocument[]
+    }
+  }
+}
+
+/**
+ * Fetches document list from the API with mock fallback.
+ * Supports optional filter parameters for server-side filtering.
+ */
+export async function getDocumentsData(params?: {
+  status?: string
+  type?: string
+  search?: string
+  page?: number
+  limit?: number
+}): Promise<DocumentsDataBundle> {
+  try {
+    const query = new URLSearchParams()
+    if (params?.status && params.status !== 'all') query.set('status', params.status)
+    if (params?.type) query.set('type', params.type)
+    if (params?.search) query.set('search', params.search)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.limit) query.set('limit', String(params.limit))
+
+    const queryStr = query.toString()
+    const path = queryStr ? `/documents?${queryStr}` : '/documents'
+    const documents = await apiGet<AuraDocument[]>(path)
+    return {
+      documents,
+      analysisView: documentsMock.analysisView as AnalysisViewMeta
+    }
+  } catch {
+    console.warn('[DataService] API unavailable, using mock data for documents')
+    return {
+      documents: documentsMock.documents as unknown as AuraDocument[],
+      analysisView: documentsMock.analysisView as AnalysisViewMeta
+    }
+  }
+}
+
+/**
+ * Fetches workflow/pipeline data from the API with mock fallback.
+ */
+export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
+  try {
+    const pipelines = await apiGet<
+      Array<{
+        _id: string
+        name: string
+        status: string
+        latency: string
+        workspace: string
+        version: string
+        nodes: PipelineNode[]
+      }>
+    >('/pipelines')
+    const first = pipelines[0]
+    if (!first) throw new Error('No pipelines found')
+    return {
+      pipeline: {
+        id: first._id,
+        name: first.name,
+        status: first.status,
+        latency: first.latency,
+        workspace: first.workspace,
+        version: first.version
+      },
+      nodes: first.nodes ?? []
+    }
+  } catch {
+    console.warn('[DataService] API unavailable, using mock data for workflows')
+    return {
+      pipeline: workflowsMock.pipeline as PipelineMetadata,
+      nodes: workflowsMock.nodes as unknown as PipelineNode[]
+    }
+  }
+}
+
+// ─── Mutation Operations (NO mock fallback — fail loudly) ────────
+
+/**
+ * Creates a new document record via the API.
+ */
+export async function createDocument(input: CreateDocumentInput): Promise<AuraDocument> {
+  return apiPost<AuraDocument>('/documents', input)
+}
+
+/**
+ * Updates a document (e.g. status, confidence, extracted fields).
+ */
+export async function updateDocument(
+  id: string,
+  updates: {
+    status?: string
+    confidence?: number
+    extractedFields?: AuraDocument['extractedFields']
+  }
+): Promise<AuraDocument> {
+  return apiPatch<AuraDocument>(`/documents/${id}`, updates)
+}
+
+/**
+ * Deletes a document by ID.
+ */
+export async function deleteDocument(id: string): Promise<void> {
+  return apiDelete(`/documents/${id}`)
+}
+
+/**
+ * Triggers AI analysis on a document.
+ */
+export async function analyzeDocument(id: string): Promise<AuraDocument> {
+  return apiPost<AuraDocument>(`/documents/${id}/analyze`, {})
+}
+
+/**
+ * Uploads a file and creates a document record.
+ */
+export async function uploadDocument(file: File): Promise<AuraDocument> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiPostFormData<AuraDocument>('/documents/upload', formData)
+}
+
+/**
+ * Creates a new pipeline.
+ */
+export async function createPipeline(input: {
+  name: string
+  workspace: string
+  nodes?: PipelineNode[]
+}): Promise<unknown> {
+  return apiPost('/pipelines', input)
+}
+
+/**
+ * Updates a pipeline (name, status, nodes, etc).
+ */
+export async function updatePipeline(
+  id: string,
+  updates: {
+    name?: string
+    status?: string
+    latency?: string
+    version?: string
+    nodes?: PipelineNode[]
+  }
+): Promise<unknown> {
+  return apiPatch(`/pipelines/${id}`, updates)
+}
+
+/**
+ * Deletes a pipeline by ID.
+ */
+export async function deletePipeline(id: string): Promise<void> {
+  return apiDelete(`/pipelines/${id}`)
+}
+
+/**
+ * Creates an activity event.
+ */
+export async function createActivity(input: {
+  type: string
+  title: string
+  source: string
+  icon: string
+}): Promise<unknown> {
+  return apiPost('/activity', input)
+}
+
+// ─── Health Check ────────────────────────────────────────────────
+
+/**
+ * Checks if the backend is healthy and returns status info.
+ * Returns null if the backend is unreachable.
+ */
+export async function checkBackendHealth(): Promise<HealthStatus | null> {
+  try {
+    return await apiGet<HealthStatus>('/health')
+  } catch {
+    return null
+  }
+}
