@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aura AI - Auto-Schema Discovery</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#21d5ed",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#0F172A",
+                        "emerald-vivid": "#10B981",
+                        "purple-glow": "#8B5CF6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .ai-glow-purple {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        }
+        .ai-glow-emerald {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display text-slate-100 min-h-screen overflow-x-hidden">
+<div class="relative flex min-h-screen flex-col">
+<!-- Header -->
+<header class="flex items-center justify-between border-b border-white/10 px-8 py-4 sticky top-0 z-50 bg-background-dark/80 backdrop-blur-md">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-background-dark">
+<span class="material-symbols-outlined font-bold">storm</span>
+</div>
+<h2 class="text-xl font-black tracking-tight">AURA AI</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+<a class="hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="text-white border-b-2 border-primary pb-1" href="#">Schemas</a>
+<a class="hover:text-primary transition-colors" href="#">Integrations</a>
+<a class="hover:text-primary transition-colors" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="bg-white/5 border-white/10 rounded-full pl-10 pr-4 py-1.5 text-sm focus:ring-primary focus:border-primary w-64" placeholder="Search schemas..." type="text"/>
+</div>
+<button class="bg-primary text-background-dark px-5 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity">
+                    Export Data
+                </button>
+<div class="size-9 rounded-full bg-gradient-to-tr from-primary to-purple-glow p-0.5">
+<div class="w-full h-full rounded-full bg-background-dark flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">person</span>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-8">
+<!-- Breadcrumbs & Title -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 text-slate-500 text-sm mb-2">
+<span>Projects</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-slate-300">Invoice Schema Discovery</span>
+</div>
+<h1 class="text-4xl font-black tracking-tight text-white flex items-center gap-3">
+                        Auto-Schema Discovery
+                        <span class="bg-purple-glow/20 text-purple-glow text-xs font-bold px-3 py-1 rounded-full border border-purple-glow/30 uppercase tracking-widest">AI Core v2.4</span>
+</h1>
+<p class="text-slate-400 mt-2">Intelligent field extraction for <span class="text-primary font-mono">INV-2024-001.pdf</span></p>
+</div>
+<button class="ai-glow-purple bg-purple-glow hover:bg-purple-500 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined">auto_fix_high</span>
+                    Auto-Optimize Schema
+                </button>
+</div>
+<!-- Main Discovery Split View -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[700px]">
+<!-- Left: Document Preview -->
+<div class="glass-panel rounded-xl overflow-hidden flex flex-col relative group">
+<div class="absolute top-4 right-4 z-10 flex gap-2">
+<button class="bg-background-dark/60 p-2 rounded-lg backdrop-blur-md border border-white/10 hover:bg-background-dark transition-colors">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+<button class="bg-background-dark/60 p-2 rounded-lg backdrop-blur-md border border-white/10 hover:bg-background-dark transition-colors">
+<span class="material-symbols-outlined">fullscreen</span>
+</button>
+</div>
+<div class="p-4 border-b border-white/10 flex items-center gap-2 bg-white/5">
+<span class="material-symbols-outlined text-slate-400">description</span>
+<span class="text-sm font-medium text-slate-300">INV-2024-001.pdf</span>
+</div>
+<div class="flex-1 overflow-y-auto p-12 custom-scrollbar bg-slate-900/50">
+<!-- Simulated Invoice Content -->
+<div class="bg-white text-slate-900 p-10 shadow-2xl rounded-sm min-h-[900px] relative">
+<div class="flex justify-between items-start mb-12">
+<div>
+<div class="font-black text-2xl tracking-tighter mb-1">STRATOS INC.</div>
+<div class="text-xs text-slate-500 leading-relaxed">
+                                        123 Innovation Drive<br/>
+                                        Silicon Valley, CA 94025
+                                    </div>
+</div>
+<div class="text-right">
+<div class="text-4xl font-light text-slate-300 mb-2">INVOICE</div>
+<div class="text-sm font-bold">#INV-2024-001</div>
+<div class="text-xs text-slate-500">Date: Oct 24, 2024</div>
+</div>
+</div>
+<div class="border-y border-slate-100 py-6 my-8 grid grid-cols-2 gap-8">
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Bill To</div>
+<div class="font-bold text-sm">Aura AI Platforms</div>
+<div class="text-xs text-slate-500">Global Headquarters, Building 7</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Due Date</div>
+<div class="font-bold text-sm">Nov 24, 2024</div>
+</div>
+</div>
+<table class="w-full text-left text-sm mb-12">
+<thead class="border-b-2 border-slate-900">
+<tr>
+<th class="py-3 font-bold uppercase text-[10px]">Description</th>
+<th class="py-3 font-bold uppercase text-[10px] text-right">Qty</th>
+<th class="py-3 font-bold uppercase text-[10px] text-right">Price</th>
+<th class="py-3 font-bold uppercase text-[10px] text-right">Total</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr>
+<td class="py-4 font-medium">Cloud Infrastructure Deployment</td>
+<td class="py-4 text-right">1</td>
+<td class="py-4 text-right">$12,500.00</td>
+<td class="py-4 text-right">$12,500.00</td>
+</tr>
+<tr>
+<td class="py-4 font-medium">AI Model Training (Token-based)</td>
+<td class="py-4 text-right">50</td>
+<td class="py-4 text-right">$45.00</td>
+<td class="py-4 text-right">$2,250.00</td>
+</tr>
+</tbody>
+</table>
+<div class="flex justify-end pt-6 border-t border-slate-900">
+<div class="w-1/2 space-y-2">
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Subtotal</span>
+<span class="font-bold">$14,750.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Tax (8.5%)</span>
+<span class="font-bold">$1,253.75</span>
+</div>
+<div class="flex justify-between text-lg pt-2 border-t border-slate-100">
+<span class="font-black">Total Due</span>
+<span class="font-black text-primary">$16,003.75</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Proposed Schema Panel -->
+<div class="glass-panel rounded-xl flex flex-col overflow-hidden">
+<div class="p-6 border-b border-white/10 flex items-center justify-between">
+<div>
+<h3 class="font-bold text-xl">Proposed Schema</h3>
+<p class="text-xs text-slate-400">AI found 6 key attributes</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-white/5 rounded-lg transition-colors">
+<span class="material-symbols-outlined">add</span>
+</button>
+<button class="p-2 hover:bg-white/5 rounded-lg transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+<!-- Field Row: Validated -->
+<div class="group bg-white/5 border border-white/10 rounded-xl p-4 hover:border-emerald-vivid/50 transition-all">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-emerald-vivid/10 flex items-center justify-center text-emerald-vivid">
+<span class="material-symbols-outlined text-sm">verified</span>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-500 uppercase tracking-tighter">Field Name</div>
+<input class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-40" type="text" value="Invoice Number"/>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-emerald-vivid uppercase mb-1">Confidence 98%</div>
+<div class="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-emerald-vivid ai-glow-emerald" style="width: 98%"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Detected Value</div>
+<div class="text-sm font-mono text-emerald-vivid">INV-2024-001</div>
+</div>
+<div class="space-y-1 text-right">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Mapping</div>
+<select class="bg-white/5 border-none text-[11px] font-medium py-1 px-2 rounded focus:ring-0 cursor-pointer">
+<option>ERP: Invoice_ID</option>
+<option>CRM: Ref_Num</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Field Row: AI Suggested -->
+<div class="group bg-white/5 border border-purple-glow/30 rounded-xl p-4 hover:border-purple-glow transition-all ai-glow-purple/20">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-purple-glow/10 flex items-center justify-center text-purple-glow">
+<span class="material-symbols-outlined text-sm">psychology</span>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-500 uppercase tracking-tighter">Field Name</div>
+<input class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-40" type="text" value="Service Description"/>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-purple-glow uppercase mb-1">AI Suggestion</div>
+<div class="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-purple-glow ai-glow-purple" style="width: 72%"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Detected Value</div>
+<div class="text-sm font-medium text-slate-200">Cloud Infrastructure...</div>
+</div>
+<div class="space-y-1 text-right">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Mapping</div>
+<select class="bg-white/5 border-none text-[11px] font-medium py-1 px-2 rounded focus:ring-0 cursor-pointer">
+<option>ERP: Description</option>
+<option>ERP: Line_Item</option>
+</select>
+</div>
+</div>
+</div>
+<!-- More Fields -->
+<div class="group bg-white/5 border border-white/10 rounded-xl p-4 hover:border-emerald-vivid/50 transition-all">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-emerald-vivid/10 flex items-center justify-center text-emerald-vivid">
+<span class="material-symbols-outlined text-sm">verified</span>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-500 uppercase tracking-tighter">Field Name</div>
+<input class="bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 w-40" type="text" value="Total Amount"/>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-emerald-vivid uppercase mb-1">Confidence 100%</div>
+<div class="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-emerald-vivid ai-glow-emerald" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Detected Value</div>
+<div class="text-sm font-mono text-emerald-vivid">$16,003.75</div>
+</div>
+<div class="space-y-1 text-right">
+<div class="text-[10px] font-bold text-slate-500 uppercase">Mapping</div>
+<select class="bg-white/5 border-none text-[11px] font-medium py-1 px-2 rounded focus:ring-0 cursor-pointer">
+<option>ERP: Grand_Total</option>
+<option>CRM: Deal_Value</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+<div class="p-6 bg-white/5 border-t border-white/10">
+<div class="flex gap-3">
+<button class="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition-all">
+                                Discard All
+                            </button>
+<button class="flex-1 bg-primary text-background-dark font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary/20 hover:scale-[1.02]">
+                                Approve Schema
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom: Data Preview Table -->
+<div class="glass-panel rounded-xl overflow-hidden">
+<div class="p-6 border-b border-white/10 bg-white/5 flex items-center justify-between">
+<h3 class="font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">table_view</span>
+                        Data Export Preview
+                    </h3>
+<div class="flex gap-2">
+<button class="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">download</span>
+                            CSV
+                        </button>
+<button class="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">download</span>
+                            XLSX
+                        </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead>
+<tr class="bg-white/5 border-b border-white/10">
+<th class="px-6 py-4 font-bold text-slate-300">Invoice #</th>
+<th class="px-6 py-4 font-bold text-slate-300">Vendor</th>
+<th class="px-6 py-4 font-bold text-slate-300">Date</th>
+<th class="px-6 py-4 font-bold text-slate-300">Amount</th>
+<th class="px-6 py-4 font-bold text-slate-300">Tax</th>
+<th class="px-6 py-4 font-bold text-slate-300">Currency</th>
+<th class="px-6 py-4 font-bold text-slate-300">ERP Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/5 transition-colors">
+<td class="px-6 py-4 font-mono text-primary">INV-2024-001</td>
+<td class="px-6 py-4">Stratos Inc.</td>
+<td class="px-6 py-4">2024-10-24</td>
+<td class="px-6 py-4">$16,003.75</td>
+<td class="px-6 py-4">$1,253.75</td>
+<td class="px-6 py-4">USD</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-emerald-vivid/10 text-emerald-vivid text-[10px] font-black uppercase rounded border border-emerald-vivid/20">Ready</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors">
+<td class="px-6 py-4 font-mono text-primary">INV-2024-002</td>
+<td class="px-6 py-4">Lumina Digital</td>
+<td class="px-6 py-4">2024-10-25</td>
+<td class="px-6 py-4">$4,120.00</td>
+<td class="px-6 py-4">$329.60</td>
+<td class="px-6 py-4">USD</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-purple-glow/10 text-purple-glow text-[10px] font-black uppercase rounded border border-purple-glow/20">Pending AI</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors opacity-50">
+<td class="px-6 py-4 font-mono text-primary">INV-2024-003</td>
+<td class="px-6 py-4">Zenith Ops</td>
+<td class="px-6 py-4">2024-10-26</td>
+<td class="px-6 py-4">$1,890.00</td>
+<td class="px-6 py-4">$151.20</td>
+<td class="px-6 py-4">USD</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-emerald-vivid/10 text-emerald-vivid text-[10px] font-black uppercase rounded border border-emerald-vivid/20">Ready</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-white/5 flex items-center justify-between text-xs text-slate-500">
+<span>Showing 3 of 152 documents</span>
+<div class="flex gap-4">
+<button class="hover:text-white transition-colors">Previous</button>
+<button class="hover:text-white transition-colors font-bold text-primary">1</button>
+<button class="hover:text-white transition-colors">2</button>
+<button class="hover:text-white transition-colors">3</button>
+<button class="hover:text-white transition-colors">Next</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="p-8 mt-12 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+<div class="flex items-center gap-4">
+<div class="size-6 bg-white/10 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+</div>
+<p class="text-xs text-slate-500 font-medium tracking-tight">System Status: <span class="text-emerald-vivid">Operational</span> • Aura AI Core v2.4.0-pro</p>
+</div>
+<div class="flex items-center gap-8 text-xs font-bold text-slate-500 uppercase tracking-widest">
+<a class="hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="hover:text-primary transition-colors" href="#">Security</a>
+<a class="hover:text-primary transition-colors" href="#">API Keys</a>
+</div>
+</footer>
+</div>
+</body></html>

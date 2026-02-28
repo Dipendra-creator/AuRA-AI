@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aura AI - Document Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#21d5ed",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#080c0d",
+                        "surface": "#111b1d",
+                        "accent-emerald": "#10b981",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: radial-gradient(at 0% 0%, rgba(33, 213, 237, 0.05) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+        }
+        .frosted-glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 w-full border-b border-slate-200/10 bg-background-dark/80 backdrop-blur-md">
+<div class="max-w-[1440px] mx-auto flex items-center justify-between px-6 py-3">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-8 flex items-center justify-center rounded-lg bg-primary/10">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight">Aura AI</h2>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Dashboard</a>
+<a class="text-primary text-sm font-medium transition-colors" href="#">Documents</a>
+<a class="text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Models</a>
+<a class="text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+<input class="bg-surface border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary ring-offset-0 focus:outline-none placeholder:text-slate-600" placeholder="Search knowledge..." type="text"/>
+</div>
+<button class="p-2 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="size-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="User profile avatar portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBamtyBNG-PvIuK9BLuWr-Y1Kn5voHyl6bSeLrrNmESPLP7b_p4AgNxX8KAQymTnhnix9TfhMVzxhmZvkiRhkJmTaEW-thjMD8621avMZLUTarYCzXerNv2NKz68WObei3p8Ox3B8Vo1IPzjAhdWxjHcknR_s0BT0IA-OVxHGto0LwmAoqXAAVNTS5GCs1kSMwYGn-aA7u9S7HOam6GJ7axINnPEjybJXnkSIlXG-pejd5QVnAbeZ8Vdo9IpN9-Apvqb9kGc_jE_mg"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Breadcrumbs -->
+<div class="px-6 py-4 flex items-center gap-2 text-xs uppercase tracking-widest text-slate-500 border-b border-slate-200/5 bg-background-dark/40">
+<a class="hover:text-primary transition-colors" href="#">Home</a>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">Processing Queue</a>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-semibold">INV-7892_GlobalCorp.pdf</span>
+<div class="ml-auto flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-accent-emerald/10 text-accent-emerald border border-accent-emerald/20 text-[10px] font-bold">STABLE MODEL 4.2</span>
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">OCR ACTIVE</span>
+</div>
+</div>
+<!-- Main Content: Split Screen -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left Side: Document Viewer -->
+<section class="w-3/5 p-6 flex flex-col bg-slate-900/20">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">description</span>
+<h1 class="text-lg font-semibold">Invoice_7892.pdf</h1>
+</div>
+<div class="flex items-center bg-surface p-1 rounded-lg border border-slate-700/50">
+<button class="p-1 text-slate-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-xl">zoom_out</span></button>
+<span class="px-3 text-sm text-slate-300 border-x border-slate-700/50">100%</span>
+<button class="p-1 text-slate-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-xl">zoom_in</span></button>
+</div>
+</div>
+<div class="flex-1 frosted-glass rounded-xl relative overflow-hidden flex justify-center p-8 overflow-y-auto custom-scrollbar">
+<!-- Mock PDF Content -->
+<div class="w-full max-w-[600px] bg-white text-slate-900 p-12 shadow-2xl rounded-sm min-h-[800px] flex flex-col relative">
+<!-- AI Recognition Highlight Boxes -->
+<div class="absolute top-12 left-12 w-32 h-10 border-2 border-primary bg-primary/10 rounded pointer-events-none ring-2 ring-primary/30"></div>
+<div class="absolute top-32 right-12 w-48 h-8 border-2 border-primary bg-primary/10 rounded pointer-events-none ring-2 ring-primary/30"></div>
+<div class="absolute bottom-24 right-12 w-32 h-10 border-2 border-accent-emerald bg-accent-emerald/10 rounded pointer-events-none ring-2 ring-accent-emerald/30"></div>
+<div class="flex justify-between items-start mb-16">
+<div>
+<h2 class="text-3xl font-black italic tracking-tighter mb-1">GLOBALCORP</h2>
+<p class="text-[10px] text-slate-500 leading-tight">123 Innovation Drive<br/>Silicon Valley, CA 94025<br/>United States</p>
+</div>
+<div class="text-right">
+<h3 class="text-xl font-bold uppercase tracking-widest text-slate-400 mb-2">Invoice</h3>
+<p class="text-sm font-semibold">#INV-7892</p>
+<p class="text-xs text-slate-500">October 14, 2023</p>
+</div>
+</div>
+<div class="border-t-2 border-slate-100 py-6 mb-8 flex justify-between">
+<div>
+<p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Bill To</p>
+<p class="font-bold text-sm">Quantum Systems Inc.</p>
+<p class="text-[10px] text-slate-500">45 Tech Plaza, Suite 200<br/>Austin, TX 78701</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Due Date</p>
+<p class="text-sm font-semibold">November 14, 2023</p>
+</div>
+</div>
+<table class="w-full text-left mb-auto">
+<thead>
+<tr class="text-[10px] uppercase text-slate-400 border-b border-slate-100">
+<th class="py-3 font-bold">Description</th>
+<th class="py-3 font-bold text-right">Qty</th>
+<th class="py-3 font-bold text-right">Price</th>
+<th class="py-3 font-bold text-right">Total</th>
+</tr>
+</thead>
+<tbody class="text-xs">
+<tr class="border-b border-slate-50">
+<td class="py-4 font-medium">Enterprise Cloud Suite - Annual Subscription</td>
+<td class="py-4 text-right">1</td>
+<td class="py-4 text-right">$12,000.00</td>
+<td class="py-4 text-right">$12,000.00</td>
+</tr>
+<tr class="border-b border-slate-50">
+<td class="py-4 font-medium">Neural Engine Training Credits (Block of 50k)</td>
+<td class="py-4 text-right">4</td>
+<td class="py-4 text-right">$1,250.00</td>
+<td class="py-4 text-right">$5,000.00</td>
+</tr>
+</tbody>
+</table>
+<div class="border-t-2 border-slate-900 pt-6 flex flex-col items-end">
+<div class="w-48 space-y-2">
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Subtotal</span>
+<span class="font-semibold">$17,000.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Tax (8.25%)</span>
+<span class="font-semibold">$1,402.50</span>
+</div>
+<div class="flex justify-between border-t border-slate-100 pt-2 text-base font-black">
+<span>TOTAL</span>
+<span class="text-primary">$18,402.50</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Side: AI Analysis Panel -->
+<aside class="w-2/5 border-l border-slate-200/10 flex flex-col bg-surface overflow-y-auto">
+<div class="p-6 border-b border-slate-200/5">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">analytics</span>
+                        Extracted Data
+                    </h3>
+<span class="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded tracking-widest">v4.2 PRO</span>
+</div>
+<!-- Field Card -->
+<div class="space-y-4">
+<!-- Entity -->
+<div class="group p-4 rounded-xl border border-slate-700/50 hover:border-primary/50 bg-slate-800/20 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor Name</p>
+<span class="text-[10px] font-bold text-accent-emerald flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span> 99.8% Conf.
+                            </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-lg font-semibold text-slate-100">GlobalCorp</span>
+<button class="text-slate-500 hover:text-primary transition-colors"><span class="material-symbols-outlined text-base">edit</span></button>
+</div>
+<div class="mt-3 w-full bg-slate-700 h-1 rounded-full overflow-hidden">
+<div class="bg-accent-emerald h-full w-[99.8%] shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+</div>
+</div>
+<!-- Date -->
+<div class="group p-4 rounded-xl border border-slate-700/50 hover:border-primary/50 bg-slate-800/20 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Invoice Date</p>
+<span class="text-[10px] font-bold text-accent-emerald flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span> 98.2% Conf.
+                            </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-lg font-semibold text-slate-100">2023-10-14</span>
+<button class="text-slate-500 hover:text-primary transition-colors"><span class="material-symbols-outlined text-base">edit</span></button>
+</div>
+<div class="mt-3 w-full bg-slate-700 h-1 rounded-full overflow-hidden">
+<div class="bg-accent-emerald h-full w-[98.2%] shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+</div>
+</div>
+<!-- Amount -->
+<div class="group p-4 rounded-xl border border-primary/40 bg-primary/5 transition-all cursor-pointer ring-1 ring-primary/20">
+<div class="flex justify-between items-start mb-2">
+<p class="text-[10px] font-bold text-primary uppercase tracking-widest">Total Amount</p>
+<span class="text-[10px] font-bold text-accent-emerald flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span> 100% Conf.
+                            </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-2xl font-black text-white">$18,402.50</span>
+<button class="text-primary hover:text-white transition-colors"><span class="material-symbols-outlined text-base">check_circle</span></button>
+</div>
+<div class="mt-3 w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[100%] shadow-[0_0_12px_rgba(33,213,237,0.7)]"></div>
+</div>
+</div>
+<!-- Tax -->
+<div class="group p-4 rounded-xl border border-slate-700/50 hover:border-primary/50 bg-slate-800/20 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tax (VAT/Sales)</p>
+<span class="text-[10px] font-bold text-orange-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">warning</span> 82.4% Conf.
+                            </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-lg font-semibold text-slate-100">$1,402.50</span>
+<button class="text-slate-500 hover:text-primary transition-colors"><span class="material-symbols-outlined text-base">edit</span></button>
+</div>
+<div class="mt-3 w-full bg-slate-700 h-1 rounded-full overflow-hidden">
+<div class="bg-orange-400 h-full w-[82.4%] shadow-[0_0_8px_rgba(251,146,60,0.5)]"></div>
+</div>
+</div>
+<!-- Category -->
+<div class="group p-4 rounded-xl border border-slate-700/50 hover:border-primary/50 bg-slate-800/20 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Predicted Category</p>
+<span class="text-[10px] font-bold text-accent-emerald flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span> 94.0% Conf.
+                            </span>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-3 py-1 bg-surface border border-slate-700 rounded-full text-xs font-medium text-primary">Software/SaaS</div>
+<span class="text-[10px] text-slate-500 italic">GL Code: 4022-EXT</span>
+<button class="ml-auto text-slate-500 hover:text-primary transition-colors"><span class="material-symbols-outlined text-base">sync_alt</span></button>
+</div>
+<div class="mt-4 w-full bg-slate-700 h-1 rounded-full overflow-hidden">
+<div class="bg-accent-emerald h-full w-[94%] shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+</div>
+</div>
+</div>
+<!-- Footer Section in Panel -->
+<div class="mt-8 pt-6 border-t border-slate-200/5 space-y-4">
+<h4 class="text-xs font-bold text-slate-500 uppercase">Contextual Analysis</h4>
+<p class="text-xs text-slate-400 leading-relaxed italic">
+                        "This invoice matches existing contract #C-1029. Amounts are within the expected monthly variance for Neural Engine credits."
+                    </p>
+</div>
+</div>
+</aside>
+</main>
+<!-- Floating Action Buttons Container -->
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-background-dark/80 backdrop-blur-xl p-3 rounded-full border border-primary/20 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50">
+<button class="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700 font-bold text-sm transition-all">
+<span class="material-symbols-outlined text-lg">category</span>
+            Re-classify
+        </button>
+<button class="flex items-center gap-2 px-8 py-2.5 rounded-full bg-primary text-background-dark font-black text-sm hover:scale-105 transition-all shadow-[0_0_20px_rgba(33,213,237,0.4)]">
+<span class="material-symbols-outlined text-lg">done_all</span>
+            Approve Analysis
+        </button>
+<button class="flex items-center gap-2 px-6 py-2.5 rounded-full bg-surface text-primary border border-primary/30 font-bold text-sm hover:bg-primary/10 transition-all">
+<span class="material-symbols-outlined text-lg">ios_share</span>
+            Export
+        </button>
+<div class="w-px h-8 bg-slate-700 mx-2"></div>
+<button class="p-2.5 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all" title="Flag for manual review">
+<span class="material-symbols-outlined text-lg">flag</span>
+</button>
+</div>
+</body></html>

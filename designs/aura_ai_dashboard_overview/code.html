@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#21d5ed",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#0F172A",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-hover:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border: 0.5px solid rgba(33, 213, 237, 0.3);
+            box-shadow: 0 0 20px rgba(33, 213, 237, 0.1);
+        }
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(33, 213, 237, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display text-slate-100 min-h-screen relative overflow-x-hidden">
+<!-- Abstract Background Shapes -->
+<div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 glass border-r border-white/10 flex flex-col z-20">
+<div class="p-6 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center neon-glow">
+<span class="material-symbols-outlined text-background-dark font-bold">auto_awesome</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight text-slate-100">Aura AI</h1>
+<p class="text-[10px] uppercase tracking-widest text-primary font-semibold">Automation</p>
+</div>
+</div>
+<nav class="flex-1 px-4 py-4 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/20" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">description</span>
+<span class="font-medium">Documents</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">account_tree</span>
+<span class="font-medium">Pipelines</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">layers</span>
+<span class="font-medium">Templates</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">api</span>
+<span class="font-medium">API</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-slate-100 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">settings</span>
+<span class="font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-white/5">
+<div class="glass p-4 rounded-xl">
+<p class="text-xs text-slate-400 mb-2">Usage Limit</p>
+<div class="w-full bg-white/10 h-1.5 rounded-full mb-2">
+<div class="bg-primary h-full w-[75%] rounded-full neon-glow"></div>
+</div>
+<p class="text-[10px] text-slate-300">7,500 / 10,000 docs</p>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-y-auto relative z-10">
+<!-- Navbar -->
+<header class="glass h-16 flex items-center justify-between px-8 sticky top-0 z-30">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 px-3 py-1.5 glass rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+<div class="w-5 h-5 rounded bg-indigo-500 flex items-center justify-center text-[10px] font-bold">G</div>
+<span class="text-sm font-medium">Global Corp</span>
+<span class="material-symbols-outlined text-sm">unfold_more</span>
+</div>
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+<input class="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none transition-all placeholder:text-slate-500" placeholder="Search operations..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors relative">
+<span class="material-symbols-outlined text-slate-400">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full neon-glow"></span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-white/10">
+<div class="text-right">
+<p class="text-sm font-medium text-slate-100">Alex Rivers</p>
+<p class="text-[10px] text-primary">Pro Plan</p>
+</div>
+<div class="w-10 h-10 rounded-full bg-cover border border-white/20" data-alt="User profile avatar of Alex Rivers" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCtMGf1eVC-WaT9OQfJR2BbL4-5m1o2qJvcVDleWdLAPz22_-o-rsjJL8PZaYVYXHm2PTkXf2Q3GLzLXto6gqGpCgTHMz6INJPd2r2jLXccWTBvneb5nXjWZIr0LOAR6UamGCBUq7JNYaAfQeCCdXLeMCoJGqwThNmFtfAKqBvcdzX9sHJH3333YGV_mBGjfKQDfIcsjWdz0qt7ArXl4UC5zMAhlzo2jscMdm3Khdzd87svF7awwD6dYWFQm-8QcvlBHzA2N0QVvF4')"></div>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-8">
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="glass glass-hover p-6 rounded-xl transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">description</span>
+</div>
+<span class="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">+12.5%</span>
+</div>
+<p class="text-slate-400 text-sm font-medium">Total Documents</p>
+<h3 class="text-2xl font-bold text-slate-100">42,850</h3>
+</div>
+<div class="glass glass-hover p-6 rounded-xl transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">fact_check</span>
+</div>
+<span class="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">+0.2%</span>
+</div>
+<p class="text-slate-400 text-sm font-medium">Accuracy %</p>
+<h3 class="text-2xl font-bold text-slate-100">99.8%</h3>
+</div>
+<div class="glass glass-hover p-6 rounded-xl transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">timer</span>
+</div>
+<span class="text-xs font-medium text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">-15%</span>
+</div>
+<p class="text-slate-400 text-sm font-medium">Avg. Processing Time</p>
+<h3 class="text-2xl font-bold text-slate-100">1.2s</h3>
+</div>
+<div class="glass glass-hover p-6 rounded-xl transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">hub</span>
+</div>
+<span class="text-xs font-medium text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">Static</span>
+</div>
+<p class="text-slate-400 text-sm font-medium">Active Pipelines</p>
+<h3 class="text-2xl font-bold text-slate-100">24</h3>
+</div>
+</div>
+<!-- Middle Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Chart Section -->
+<div class="lg:col-span-2 glass p-6 rounded-xl relative overflow-hidden">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h4 class="text-lg font-bold text-slate-100">AI Extraction Accuracy</h4>
+<p class="text-sm text-slate-400">Performance metrics over the last 30 days</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 rounded-lg text-xs bg-primary/20 text-primary border border-primary/30">Day</button>
+<button class="px-3 py-1 rounded-lg text-xs hover:bg-white/5 transition-colors">Week</button>
+<button class="px-3 py-1 rounded-lg text-xs hover:bg-white/5 transition-colors">Month</button>
+</div>
+</div>
+<div class="h-64 w-full relative">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 1000 200">
+<defs>
+<lineargradient id="gradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#21d5ed" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#21d5ed" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,150 Q100,140 200,160 T400,120 T600,80 T800,100 T1000,40 V200 H0 Z" fill="url(#gradient)"></path>
+<path d="M0,150 Q100,140 200,160 T400,120 T600,80 T800,100 T1000,40" fill="none" stroke="#21d5ed" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="flex justify-between mt-4 px-2">
+<span class="text-[10px] text-slate-500">Oct 01</span>
+<span class="text-[10px] text-slate-500">Oct 08</span>
+<span class="text-[10px] text-slate-500">Oct 15</span>
+<span class="text-[10px] text-slate-500">Oct 22</span>
+<span class="text-[10px] text-slate-500">Oct 29</span>
+</div>
+</div>
+</div>
+<!-- Timeline Section -->
+<div class="glass p-6 rounded-xl flex flex-col">
+<h4 class="text-lg font-bold text-slate-100 mb-6">Activity Timeline</h4>
+<div class="space-y-6 flex-1 overflow-y-auto pr-2">
+<div class="flex gap-4">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 border border-emerald-500/30">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+</div>
+<div class="absolute top-8 left-1/2 -translate-x-1/2 w-[1px] h-full bg-white/10"></div>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-100">Invoice_7892.pdf processed</p>
+<p class="text-[11px] text-slate-500">2 mins ago • Finance Pipeline</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
+<span class="material-symbols-outlined text-sm">sync</span>
+</div>
+<div class="absolute top-8 left-1/2 -translate-x-1/2 w-[1px] h-full bg-white/10"></div>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-100">Pipeline Alpha updated</p>
+<p class="text-[11px] text-slate-500">15 mins ago • System</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-500 border border-indigo-500/30">
+<span class="material-symbols-outlined text-sm">add_box</span>
+</div>
+<div class="absolute top-8 left-1/2 -translate-x-1/2 w-[1px] h-full bg-white/10"></div>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-100">New Template Created</p>
+<p class="text-[11px] text-slate-500">1 hour ago • Alex Rivers</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="relative">
+<div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30">
+<span class="material-symbols-outlined text-sm">error</span>
+</div>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-100">Review required: Contract_v2</p>
+<p class="text-[11px] text-slate-500">3 hours ago • Legal Pipeline</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Recent Documents Table -->
+<div class="glass rounded-xl overflow-hidden">
+<div class="p-6 border-b border-white/10 flex justify-between items-center">
+<h4 class="text-lg font-bold text-slate-100">Recent Documents</h4>
+<button class="text-sm text-primary hover:underline font-medium">View all</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-white/5">
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Confidence</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<span class="text-sm font-medium">Invoice_2023_001.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Invoice</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-tight border border-emerald-500/20">Processed</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 bg-white/10 h-1 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full w-[99%]"></div>
+</div>
+<span class="text-xs text-slate-300">99.8%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Oct 24, 2023</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">more_vert</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<span class="text-sm font-medium">Agreement_Draft_v4.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Contract</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase tracking-tight border border-amber-500/20">Reviewing</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 bg-white/10 h-1 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full w-[82%]"></div>
+</div>
+<span class="text-xs text-slate-300">82.4%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Oct 24, 2023</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">more_vert</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">description</span>
+<span class="text-sm font-medium">Receipt_Uber_X12.jpg</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Expense</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-tight border border-emerald-500/20">Processed</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 bg-white/10 h-1 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full w-[96%]"></div>
+</div>
+<span class="text-xs text-slate-300">96.1%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Oct 23, 2023</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">more_vert</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<span class="text-sm font-medium">Bank_Statement_Oct.pdf</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Financial</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-tight border border-emerald-500/20">Processed</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 bg-white/10 h-1 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full w-[99.9%]"></div>
+</div>
+<span class="text-xs text-slate-300">99.9%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-400">Oct 23, 2023</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">more_vert</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
