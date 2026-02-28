@@ -3,7 +3,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -144,6 +148,88 @@ func (h *DocumentHandler) Analyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(doc))
+}
+
+// Upload handles POST /api/v1/documents/upload
+// Accepts multipart form data with a "file" field.
+func (h *DocumentHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	// Limit upload size to 50MB
+	r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
+
+	if err := r.ParseMultipartForm(50 << 20); err != nil {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("file too large (max 50MB)"))
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("missing 'file' field"))
+		return
+	}
+	defer file.Close()
+
+	// Ensure uploads directory exists
+	uploadsDir := "uploads"
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("failed to create uploads directory"))
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(header.Filename)
+	uniqueName := fmt.Sprintf("%s%s", bson.NewObjectID().Hex(), ext)
+	destPath := filepath.Join(uploadsDir, uniqueName)
+
+	// Save file to disk
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("failed to save file"))
+		return
+	}
+	defer destFile.Close()
+
+	if _, err := io.Copy(destFile, file); err != nil {
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("failed to write file"))
+		return
+	}
+
+	// Detect document type from extension
+	docType := detectDocType(ext)
+	mimeType := header.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	// Create document record in the database
+	input := domain.CreateDocumentInput{
+		Name:     header.Filename,
+		Type:     docType,
+		MimeType: mimeType,
+		FilePath: destPath,
+		FileSize: header.Size,
+	}
+
+	doc, err := h.svc.Create(r.Context(), input)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	domain.WriteJSON(w, http.StatusCreated, domain.SuccessResponse(doc))
+}
+
+// detectDocType guesses a DocumentType from the file extension.
+func detectDocType(ext string) domain.DocumentType {
+	switch strings.ToLower(ext) {
+	case ".pdf":
+		return domain.TypeOther // will be classified later by AI
+	case ".jpg", ".jpeg", ".png":
+		return domain.TypeReceipt
+	case ".docx":
+		return domain.TypeContract
+	default:
+		return domain.TypeOther
+	}
 }
 
 // parseObjectID extracts and validates an ObjectID from the URL path.

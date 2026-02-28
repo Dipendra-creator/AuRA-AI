@@ -2,19 +2,97 @@
  * Workflow Builder page — visual pipeline canvas with side panel.
  * Side-by-side layout: Canvas (left) + Node Configuration (right).
  * Includes top toolbar, left tool sidebar, zoom controls, and status bar.
- * Data sourced from mock data service.
+ * Save and Deploy buttons now wired to the Go backend API.
  */
 
-import { useState, useMemo, type ReactElement } from 'react'
-import { getWorkflowsData } from '../data/mock-data.service'
+import { useState, useEffect, useCallback, type ReactElement } from 'react'
+import { LoadingSpinner } from '../components/LoadingSpinner'
+import { getWorkflowsData, updatePipeline, type WorkflowsDataBundle } from '../data/data-service'
 import type { PipelineNode } from '../../../shared/types/document.types'
+import type { ToastType } from '../components/Toast'
 
-export function Workflows(): ReactElement {
-    const { pipeline, nodes } = useMemo(() => getWorkflowsData(), [])
-    const [activeNodeId, setActiveNodeId] = useState<string>(nodes[2]?.id ?? '')
+interface WorkflowsProps {
+    readonly addToast: (type: ToastType, text: string) => void
+}
+
+export function Workflows({ addToast }: WorkflowsProps): ReactElement {
+    const [data, setData] = useState<WorkflowsDataBundle | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [activeNodeId, setActiveNodeId] = useState<string>('')
     const [designMode, setDesignMode] = useState<'design' | 'monitor'>('design')
+    // Local mutable copy of nodes for editing
+    const [editedNodes, setEditedNodes] = useState<PipelineNode[]>([])
 
-    const activeNode: PipelineNode | undefined = nodes.find((n) => n.id === activeNodeId)
+    useEffect(() => {
+        getWorkflowsData().then((result) => {
+            setData(result)
+            setEditedNodes([...result.nodes] as PipelineNode[])
+            setActiveNodeId(result.nodes[2]?.id ?? '')
+            setLoading(false)
+        })
+    }, [])
+
+    /** Update a node's config toggle */
+    const handleToggle = useCallback(
+        (nodeId: string, configKey: keyof PipelineNode['config']) => {
+            setEditedNodes((prev) =>
+                prev.map((node) =>
+                    node.id === nodeId
+                        ? {
+                            ...node,
+                            config: {
+                                ...node.config,
+                                [configKey]: !node.config[configKey]
+                            }
+                        }
+                        : node
+                )
+            )
+        },
+        []
+    )
+
+    /** Save pipeline changes to backend */
+    const handleSave = useCallback(async () => {
+        if (!data?.pipeline.id) {
+            addToast('error', 'Cannot save — no pipeline ID (using mock data)')
+            return
+        }
+        setSaving(true)
+        try {
+            await updatePipeline(data.pipeline.id, { nodes: editedNodes })
+            addToast('success', 'Pipeline saved successfully')
+        } catch (err) {
+            addToast('error', `Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        } finally {
+            setSaving(false)
+        }
+    }, [data, editedNodes, addToast])
+
+    /** Deploy pipeline */
+    const handleDeploy = useCallback(async () => {
+        if (!data?.pipeline.id) {
+            addToast('error', 'Cannot deploy — no pipeline ID (using mock data)')
+            return
+        }
+        setSaving(true)
+        try {
+            await updatePipeline(data.pipeline.id, { status: 'deployed', nodes: editedNodes })
+            addToast('success', 'Pipeline deployed successfully 🚀')
+        } catch (err) {
+            addToast('error', `Deploy failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        } finally {
+            setSaving(false)
+        }
+    }, [data, editedNodes, addToast])
+
+    if (loading || !data) {
+        return <LoadingSpinner message="Loading pipelines..." />
+    }
+
+    const { pipeline } = data
+    const activeNode: PipelineNode | undefined = editedNodes.find((n) => n.id === activeNodeId)
 
     /** Get icon character for node type */
     function getNodeIcon(icon: string): string {
@@ -63,14 +141,22 @@ export function Workflows(): ReactElement {
                     </div>
                 </div>
                 <div className="toolbar-right">
-                    <button className="btn-ghost toolbar-btn">
-                        💾 Save
+                    <button
+                        className="btn-ghost toolbar-btn"
+                        onClick={handleSave}
+                        disabled={saving}
+                    >
+                        {saving ? '⏳ Saving...' : '💾 Save'}
                     </button>
                     <button className="btn-ghost toolbar-btn toolbar-btn-test">
                         🔴 Test Pipeline
                     </button>
-                    <button className="btn-primary toolbar-btn">
-                        🚀 Deploy
+                    <button
+                        className="btn-primary toolbar-btn"
+                        onClick={handleDeploy}
+                        disabled={saving}
+                    >
+                        {saving ? '⏳ Deploying...' : '🚀 Deploy'}
                     </button>
                 </div>
             </div>
@@ -100,7 +186,7 @@ export function Workflows(): ReactElement {
                     <div className="workflow-canvas glass-panel">
                         <div className="workflow-canvas-grid" />
                         <div className="workflow-nodes">
-                            {nodes.map((node, index) => (
+                            {editedNodes.map((node, index) => (
                                 <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
                                     <div
                                         className={`workflow-node ${activeNodeId === node.id ? 'active' : ''} animate-scale-in`}
@@ -115,7 +201,7 @@ export function Workflows(): ReactElement {
                                         </span>
                                         <span className="workflow-node-name">{node.name}</span>
                                     </div>
-                                    {index < nodes.length - 1 && (
+                                    {index < editedNodes.length - 1 && (
                                         <div className="workflow-connector">
                                             <div className="connector-line" />
                                             <div className="connector-pulse" />
@@ -159,19 +245,28 @@ export function Workflows(): ReactElement {
                         {/* Validation Rules */}
                         <div className="config-section">
                             <h5 className="config-section-title">VALIDATION RULES</h5>
-                            <div className="config-toggle-row">
+                            <div
+                                className="config-toggle-row"
+                                onClick={() => handleToggle(activeNode.id, 'strictJsonSchema')}
+                            >
                                 <span>Strict JSON Schema</span>
                                 <div className={`toggle-switch ${activeNode.config.strictJsonSchema ? 'on' : 'off'}`}>
                                     <div className="toggle-thumb" />
                                 </div>
                             </div>
-                            <div className="config-toggle-row">
+                            <div
+                                className="config-toggle-row"
+                                onClick={() => handleToggle(activeNode.id, 'dataTypeMatching')}
+                            >
                                 <span>Data Type Matching</span>
                                 <div className={`toggle-switch ${activeNode.config.dataTypeMatching ? 'on' : 'off'}`}>
                                     <div className="toggle-thumb" />
                                 </div>
                             </div>
-                            <div className="config-toggle-row">
+                            <div
+                                className="config-toggle-row"
+                                onClick={() => handleToggle(activeNode.id, 'handleNullValues')}
+                            >
                                 <span>Handle NULL values</span>
                                 <div className={`toggle-switch ${activeNode.config.handleNullValues ? 'on' : 'off'}`}>
                                     <div className="toggle-thumb" />
@@ -200,8 +295,12 @@ export function Workflows(): ReactElement {
                         )}
 
                         {/* Apply Button */}
-                        <button className="btn-primary config-apply-btn">
-                            Apply Changes ✓
+                        <button
+                            className="btn-primary config-apply-btn"
+                            onClick={handleSave}
+                            disabled={saving}
+                        >
+                            {saving ? '⏳ Saving...' : 'Apply Changes ✓'}
                         </button>
                     </div>
                 )}

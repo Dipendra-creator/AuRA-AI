@@ -40,6 +40,7 @@ func NewRouter(db *mongo.Database, corsOrigins string) http.Handler {
 	mux.HandleFunc("GET /api/v1/documents", docH.List)
 	mux.HandleFunc("GET /api/v1/documents/{id}", docH.GetByID)
 	mux.HandleFunc("POST /api/v1/documents", docH.Create)
+	mux.HandleFunc("POST /api/v1/documents/upload", docH.Upload)
 	mux.HandleFunc("PATCH /api/v1/documents/{id}", docH.Update)
 	mux.HandleFunc("DELETE /api/v1/documents/{id}", docH.Delete)
 	mux.HandleFunc("POST /api/v1/documents/{id}/analyze", docH.Analyze)

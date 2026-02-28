@@ -2,14 +2,17 @@
  * DocumentAnalysis — split-view document analysis panel.
  * Left: Document preview placeholder. Right: Extracted data fields with confidence.
  * Matches the document_upload_analysis design.
+ * Re-scan and Approve buttons now wired to the backend API.
  */
 
-import { type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import type { AuraDocument } from '../../../shared/types/document.types'
 
 interface DocumentAnalysisProps {
     readonly document: AuraDocument
     readonly onClose: () => void
+    readonly onRescan?: () => void
+    readonly onApprove?: () => void
 }
 
 /** Determines confidence color class */
@@ -31,7 +34,10 @@ function getConfidenceIcon(confidence: number): string {
     return '▲'
 }
 
-export function DocumentAnalysis({ document, onClose }: DocumentAnalysisProps): ReactElement {
+export function DocumentAnalysis({ document, onClose, onRescan, onApprove }: DocumentAnalysisProps): ReactElement {
+    const [rescanning, setRescanning] = useState(false)
+    const [approving, setApproving] = useState(false)
+
     const overallConfidence = document.extractedFields.length > 0
         ? Math.round(
             (document.extractedFields.reduce((sum, f) => sum + f.confidence, 0) /
@@ -39,6 +45,26 @@ export function DocumentAnalysis({ document, onClose }: DocumentAnalysisProps): 
             1000
         ) / 10
         : 0
+
+    const handleRescan = async (): Promise<void> => {
+        if (!onRescan) return
+        setRescanning(true)
+        try {
+            onRescan()
+        } finally {
+            setRescanning(false)
+        }
+    }
+
+    const handleApprove = async (): Promise<void> => {
+        if (!onApprove) return
+        setApproving(true)
+        try {
+            onApprove()
+        } finally {
+            setApproving(false)
+        }
+    }
 
     return (
         <div className="doc-analysis animate-fade-in">
@@ -166,14 +192,22 @@ export function DocumentAnalysis({ document, onClose }: DocumentAnalysisProps): 
                 <button className="btn-ghost action-btn">
                     ⚙️ Schema Customization
                 </button>
-                <button className="btn-ghost action-btn">
-                    🔄 Re-scan
+                <button
+                    className="btn-ghost action-btn"
+                    onClick={handleRescan}
+                    disabled={rescanning}
+                >
+                    {rescanning ? '⏳ Scanning...' : '🔄 Re-scan'}
                 </button>
-                <button className="btn-ghost action-btn">
+                <button className="btn-ghost action-btn" onClick={onClose}>
                     Dismiss
                 </button>
-                <button className="btn-primary action-btn action-btn-primary">
-                    Approve & Export 📤
+                <button
+                    className="btn-primary action-btn action-btn-primary"
+                    onClick={handleApprove}
+                    disabled={approving}
+                >
+                    {approving ? '⏳ Approving...' : 'Approve & Export 📤'}
                 </button>
             </div>
         </div>

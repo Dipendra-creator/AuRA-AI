@@ -3,6 +3,7 @@
  *
  * Manages page routing via state (not react-router for simplicity in Electron).
  * Renders sidebar + content pane layout matching macOS patterns.
+ * Provides toast notification context for all pages.
  */
 
 import { useState, type ReactElement } from 'react'
@@ -12,17 +13,21 @@ import { Dashboard } from './pages/Dashboard'
 import { Documents } from './pages/Documents'
 import { Workflows } from './pages/Workflows'
 import { Settings } from './pages/Settings'
+import { ToastContainer, useToast, type ToastType } from './components/Toast'
 
 type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings'
 
-function renderPage(page: PageId): ReactElement {
+function renderPage(
+  page: PageId,
+  addToast: (type: ToastType, text: string) => void
+): ReactElement {
   switch (page) {
     case 'dashboard':
-      return <Dashboard />
+      return <Dashboard addToast={addToast} />
     case 'documents':
-      return <Documents />
+      return <Documents addToast={addToast} />
     case 'workflows':
-      return <Workflows />
+      return <Workflows addToast={addToast} />
     case 'settings':
       return <Settings />
     case 'ai-models':
@@ -58,19 +63,21 @@ function renderPage(page: PageId): ReactElement {
         </div>
       )
     default:
-      return <Dashboard />
+      return <Dashboard addToast={addToast} />
   }
 }
 
 export default function App(): ReactElement {
   const [activePage, setActivePage] = useState<PageId>('dashboard')
+  const { toasts, addToast, dismissToast } = useToast()
 
   return (
     <div className="app-layout">
       <Sidebar activePage={activePage} onNavigate={(page) => setActivePage(page as PageId)} />
       <main className="main-content">
-        {renderPage(activePage)}
+        {renderPage(activePage, addToast)}
       </main>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
 }

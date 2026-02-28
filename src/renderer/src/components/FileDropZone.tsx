@@ -1,6 +1,7 @@
 /**
  * FileDropZone — drag and drop file upload area.
  * Displays upload instructions and handles drag events with visual feedback.
+ * Shows upload progress state and file count.
  */
 
 import { useState, useCallback, type ReactElement, type DragEvent } from 'react'
@@ -11,6 +12,7 @@ interface FileDropZoneProps {
 
 export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactElement {
     const [isDragging, setIsDragging] = useState(false)
+    const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
 
     const handleDragOver = useCallback((e: DragEvent) => {
         e.preventDefault()
@@ -24,6 +26,22 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
         setIsDragging(false)
     }, [])
 
+    const handleFiles = useCallback(
+        async (files: FileList) => {
+            if (!onFilesSelected || files.length === 0) return
+            setUploadState('uploading')
+            try {
+                await onFilesSelected(files)
+                setUploadState('success')
+                setTimeout(() => setUploadState('idle'), 3000)
+            } catch {
+                setUploadState('error')
+                setTimeout(() => setUploadState('idle'), 4000)
+            }
+        },
+        [onFilesSelected]
+    )
+
     const handleDrop = useCallback(
         (e: DragEvent) => {
             e.preventDefault()
@@ -31,43 +49,69 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
             setIsDragging(false)
 
             if (e.dataTransfer.files.length > 0) {
-                onFilesSelected?.(e.dataTransfer.files)
+                handleFiles(e.dataTransfer.files)
             }
         },
-        [onFilesSelected]
+        [handleFiles]
     )
 
     const handleClick = useCallback(() => {
+        if (uploadState === 'uploading') return
         const input = document.createElement('input')
         input.type = 'file'
         input.multiple = true
         input.accept = '.pdf,.jpg,.jpeg,.png,.docx'
         input.onchange = (): void => {
             if (input.files && input.files.length > 0) {
-                onFilesSelected?.(input.files)
+                handleFiles(input.files)
             }
         }
         input.click()
-    }, [onFilesSelected])
+    }, [handleFiles, uploadState])
+
+    const stateIcon = {
+        idle: '☁️',
+        uploading: '⏳',
+        success: '✓',
+        error: '✕'
+    }[uploadState]
+
+    const stateMessage = {
+        idle: 'Drop files here to process',
+        uploading: 'Uploading files...',
+        success: 'Upload complete!',
+        error: 'Upload failed — is the backend running?'
+    }[uploadState]
 
     return (
         <div
-            className={`drop-zone glass-panel ${isDragging ? 'active' : ''}`}
+            className={`drop-zone glass-panel ${isDragging ? 'active' : ''} ${uploadState !== 'idle' ? `drop-zone-${uploadState}` : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={handleClick}
         >
             <div className="drop-zone-icon">
-                <span>☁️</span>
+                <span>{stateIcon}</span>
             </div>
-            <h4>Drop files here to process</h4>
-            <p>
-                Upload PDF, JPG, PNG or DOCX. Aura AI will automatically extract data
-                and route it to your workflows.
-            </p>
-            <button className="drop-zone-btn" onClick={(e) => e.stopPropagation()}>
-                Select Files
+            <h4>{stateMessage}</h4>
+            {uploadState === 'idle' && (
+                <p>
+                    Upload PDF, JPG, PNG or DOCX. Aura AI will automatically extract data
+                    and route it to your workflows.
+                </p>
+            )}
+            {uploadState === 'uploading' && (
+                <div className="drop-zone-progress">
+                    <div className="drop-zone-progress-bar" />
+                </div>
+            )}
+            <button
+                className="drop-zone-btn"
+                onClick={(e) => e.stopPropagation()}
+                disabled={uploadState === 'uploading'}
+            >
+                {uploadState === 'uploading' ? 'Uploading...' : 'Select Files'}
             </button>
         </div>
     )

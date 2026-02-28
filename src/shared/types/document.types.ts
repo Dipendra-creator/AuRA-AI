@@ -111,6 +111,7 @@ export interface PipelineNode {
 
 /** Pipeline metadata */
 export interface PipelineMetadata {
+  readonly id?: string
   readonly name: string
   readonly status: string
   readonly latency: string
