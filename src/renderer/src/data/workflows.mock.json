@@ -1,0 +1,87 @@
+{
+  "pipeline": {
+    "name": "DATA PIPELINE V2.4",
+    "status": "operational",
+    "latency": "24ms",
+    "workspace": "AURA PRIME",
+    "version": "8.4.2-STABLE"
+  },
+  "nodes": [
+    {
+      "id": "IN-240-A1",
+      "label": "INGEST",
+      "name": "Intake Node",
+      "type": "process",
+      "icon": "download",
+      "config": {
+        "strictJsonSchema": false,
+        "dataTypeMatching": true,
+        "handleNullValues": false,
+        "apiIntegration": "File System Watcher",
+        "successRedirect": "Extract Node"
+      }
+    },
+    {
+      "id": "EX-240-B2",
+      "label": "PROCESS",
+      "name": "Extract Node",
+      "type": "process",
+      "icon": "extract",
+      "config": {
+        "strictJsonSchema": true,
+        "dataTypeMatching": true,
+        "handleNullValues": false,
+        "apiIntegration": "OCR Engine v4.2",
+        "successRedirect": "Validate Node"
+      }
+    },
+    {
+      "id": "VN-240-X9",
+      "label": "REVIEW",
+      "name": "Validate Node",
+      "type": "review",
+      "icon": "validate",
+      "config": {
+        "strictJsonSchema": true,
+        "dataTypeMatching": true,
+        "handleNullValues": false,
+        "apiIntegration": "Main Oracle Database",
+        "successRedirect": "Transform Node"
+      }
+    },
+    {
+      "id": "TN-240-C3",
+      "label": "PROCESS",
+      "name": "Transform Node",
+      "type": "process",
+      "icon": "transform",
+      "config": {
+        "strictJsonSchema": true,
+        "dataTypeMatching": true,
+        "handleNullValues": true,
+        "apiIntegration": "Data Normalizer",
+        "successRedirect": "Export Node"
+      }
+    },
+    {
+      "id": "EP-240-D4",
+      "label": "EXPORT",
+      "name": "Export Node",
+      "type": "export",
+      "icon": "upload",
+      "config": {
+        "strictJsonSchema": false,
+        "dataTypeMatching": false,
+        "handleNullValues": false,
+        "apiIntegration": "S3 Bucket Output",
+        "successRedirect": ""
+      }
+    }
+  ],
+  "toolbarItems": [
+    { "id": "node-tool", "icon": "node", "label": "Add Node" },
+    { "id": "trigger-tool", "icon": "trigger", "label": "Triggers" },
+    { "id": "connector-tool", "icon": "connector", "label": "Connectors" },
+    { "id": "code-tool", "icon": "code", "label": "Custom Code" }
+  ]
+}

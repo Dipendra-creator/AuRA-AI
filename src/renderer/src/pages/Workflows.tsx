@@ -1,180 +1,223 @@
 /**
- * Workflow Builder page — visual pipeline canvas.
- * Shows a node-based workflow editor matching the design mockup.
+ * Workflow Builder page — visual pipeline canvas with side panel.
+ * Side-by-side layout: Canvas (left) + Node Configuration (right).
+ * Includes top toolbar, left tool sidebar, zoom controls, and status bar.
+ * Data sourced from mock data service.
  */
 
-import { useState, type ReactElement } from 'react'
-
-interface WorkflowNode {
-    readonly id: string
-    readonly label: string
-    readonly name: string
-    readonly icon: string
-    readonly type: 'process' | 'review' | 'export'
-}
-
-const sampleNodes: readonly WorkflowNode[] = [
-    { id: '1', label: 'PROCESS', name: 'Extract Node', icon: '⬇️', type: 'process' },
-    { id: '2', label: 'REVIEW', name: 'Validate Node', icon: '✅', type: 'review' },
-    { id: '3', label: 'PROCESS', name: 'Transform Node', icon: '🔄', type: 'process' },
-    { id: '4', label: 'EXPORT', name: 'Export Node', icon: '📤', type: 'export' }
-]
+import { useState, useMemo, type ReactElement } from 'react'
+import { getWorkflowsData } from '../data/mock-data.service'
+import type { PipelineNode } from '../../../shared/types/document.types'
 
 export function Workflows(): ReactElement {
-    const [activeNode, setActiveNode] = useState<string>('2')
+    const { pipeline, nodes } = useMemo(() => getWorkflowsData(), [])
+    const [activeNodeId, setActiveNodeId] = useState<string>(nodes[2]?.id ?? '')
+    const [designMode, setDesignMode] = useState<'design' | 'monitor'>('design')
+
+    const activeNode: PipelineNode | undefined = nodes.find((n) => n.id === activeNodeId)
+
+    /** Get icon character for node type */
+    function getNodeIcon(icon: string): string {
+        const iconMap: Record<string, string> = {
+            download: '⬇',
+            extract: '⟐',
+            validate: '✓',
+            transform: '⟳',
+            upload: '⬆'
+        }
+        return iconMap[icon] ?? '●'
+    }
+
+    /** Get label color class by node type */
+    function getNodeLabelClass(type: PipelineNode['type']): string {
+        switch (type) {
+            case 'review':
+                return 'node-label-cyan'
+            case 'process':
+                return 'node-label-purple'
+            case 'export':
+                return 'node-label-emerald'
+            default:
+                return 'node-label-cyan'
+        }
+    }
 
     return (
-        <>
-            {/* Header */}
-            <header className="page-header">
-                <div>
-                    <h2>Workflow Builder</h2>
-                    <p>Design and manage your document processing pipelines.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-ghost">
-                        🧪 Test Pipeline
-                    </button>
-                    <button className="btn-primary">
-                        🚀 Deploy
-                    </button>
-                </div>
-            </header>
-
-            {/* Pipeline Info */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <div
-                    style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        background: 'var(--color-accent-emerald)',
-                        boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)'
-                    }}
-                />
-                <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                    CANVAS ACTIVE: DATA PIPELINE V2.4
-                </span>
-            </div>
-
-            {/* Workflow Canvas */}
-            <div className="workflow-canvas glass-panel">
-                <div className="workflow-canvas-grid" />
-                <div className="workflow-nodes">
-                    {sampleNodes.map((node, index) => (
-                        <div key={node.id} style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-                            <div
-                                className={`workflow-node ${activeNode === node.id ? 'active' : ''}`}
-                                onClick={() => setActiveNode(node.id)}
-                            >
-                                <span className="workflow-node-icon">{node.icon}</span>
-                                <span className="workflow-node-label">{node.label}</span>
-                                <span className="workflow-node-name">{node.name}</span>
-                            </div>
-                            {index < sampleNodes.length - 1 && (
-                                <div className="workflow-connector" />
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Node Configuration Panel */}
-            {activeNode && (
-                <div
-                    className="glass-panel animate-fade-in"
-                    style={{ marginTop: '24px', padding: '24px' }}
-                >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'white' }}>Node Configuration</h3>
-                        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                            ID: ND-{activeNode}45-98
-                        </span>
-                    </div>
-                    <div className="settings-row">
-                        <span className="settings-label">Strict JSON Schema</span>
-                        <div
-                            style={{
-                                width: '44px',
-                                height: '24px',
-                                borderRadius: '12px',
-                                background: 'var(--color-primary)',
-                                position: 'relative',
-                                cursor: 'pointer'
-                            }}
+        <div className="workflow-page">
+            {/* Top Toolbar */}
+            <div className="workflow-toolbar">
+                <div className="toolbar-left">
+                    <div className="toolbar-mode-toggle">
+                        <button
+                            className={`mode-btn ${designMode === 'design' ? 'active' : ''}`}
+                            onClick={() => setDesignMode('design')}
                         >
-                            <div
-                                style={{
-                                    width: '18px',
-                                    height: '18px',
-                                    borderRadius: '50%',
-                                    background: 'white',
-                                    position: 'absolute',
-                                    top: '3px',
-                                    right: '3px',
-                                    transition: 'all 0.2s'
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <span className="settings-label">Data Type Matching</span>
-                        <div
-                            style={{
-                                width: '44px',
-                                height: '24px',
-                                borderRadius: '12px',
-                                background: 'var(--color-primary)',
-                                position: 'relative',
-                                cursor: 'pointer'
-                            }}
+                            Design
+                        </button>
+                        <button
+                            className={`mode-btn ${designMode === 'monitor' ? 'active' : ''}`}
+                            onClick={() => setDesignMode('monitor')}
                         >
-                            <div
-                                style={{
-                                    width: '18px',
-                                    height: '18px',
-                                    borderRadius: '50%',
-                                    background: 'white',
-                                    position: 'absolute',
-                                    top: '3px',
-                                    right: '3px'
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <span className="settings-label">Handle NULL values</span>
-                        <div
-                            style={{
-                                width: '44px',
-                                height: '24px',
-                                borderRadius: '12px',
-                                background: 'var(--color-bg-surface)',
-                                border: '1px solid var(--glass-border)',
-                                position: 'relative',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: '18px',
-                                    height: '18px',
-                                    borderRadius: '50%',
-                                    background: 'var(--color-text-muted)',
-                                    position: 'absolute',
-                                    top: '3px',
-                                    left: '3px'
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div style={{ marginTop: '16px' }}>
-                        <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                            Apply Changes →
+                            Monitor
                         </button>
                     </div>
                 </div>
-            )}
-        </>
+                <div className="toolbar-right">
+                    <button className="btn-ghost toolbar-btn">
+                        💾 Save
+                    </button>
+                    <button className="btn-ghost toolbar-btn toolbar-btn-test">
+                        🔴 Test Pipeline
+                    </button>
+                    <button className="btn-primary toolbar-btn">
+                        🚀 Deploy
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content: Tool sidebar + Canvas + Config Panel */}
+            <div className="workflow-main">
+                {/* Left Tool Sidebar */}
+                <div className="workflow-tool-sidebar">
+                    <button className="tool-icon active" title="Add Node">🔲</button>
+                    <button className="tool-icon" title="Triggers">⚡</button>
+                    <button className="tool-icon" title="Connectors">🔗</button>
+                    <button className="tool-icon" title="Custom Code">{'</>'}</button>
+                    <div className="tool-separator" />
+                    <button className="tool-icon" title="Settings">⚙️</button>
+                    <button className="tool-icon" title="Help">❓</button>
+                </div>
+
+                {/* Canvas Area */}
+                <div className="workflow-canvas-area">
+                    {/* Pipeline Status */}
+                    <div className="pipeline-status-badge">
+                        <span className="pipeline-status-dot" />
+                        <span>CANVAS ACTIVE: {pipeline.name}</span>
+                    </div>
+
+                    {/* Canvas */}
+                    <div className="workflow-canvas glass-panel">
+                        <div className="workflow-canvas-grid" />
+                        <div className="workflow-nodes">
+                            {nodes.map((node, index) => (
+                                <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
+                                    <div
+                                        className={`workflow-node ${activeNodeId === node.id ? 'active' : ''} animate-scale-in`}
+                                        style={{ animationDelay: `${index * 100}ms` }}
+                                        onClick={() => setActiveNodeId(node.id)}
+                                    >
+                                        <div className={`workflow-node-icon-circle ${getNodeLabelClass(node.type)}`}>
+                                            <span>{getNodeIcon(node.icon)}</span>
+                                        </div>
+                                        <span className={`workflow-node-label ${getNodeLabelClass(node.type)}`}>
+                                            {node.label}
+                                        </span>
+                                        <span className="workflow-node-name">{node.name}</span>
+                                    </div>
+                                    {index < nodes.length - 1 && (
+                                        <div className="workflow-connector">
+                                            <div className="connector-line" />
+                                            <div className="connector-pulse" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Zoom Controls */}
+                    <div className="workflow-zoom-controls">
+                        <button className="zoom-ctrl-btn" title="Zoom In">🔍+</button>
+                        <button className="zoom-ctrl-btn" title="Zoom Out">🔍−</button>
+                        <div className="zoom-separator" />
+                        <button className="zoom-ctrl-btn" title="Fit to Screen">⛶</button>
+                    </div>
+                </div>
+
+                {/* Right Config Panel */}
+                {activeNode && (
+                    <div className="workflow-config-panel glass-panel animate-slide-in-right">
+                        <div className="config-panel-header">
+                            <h3>Node Configuration</h3>
+                            <button className="config-close-btn" onClick={() => setActiveNodeId('')}>
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Node Identity */}
+                        <div className="config-node-identity glass-panel">
+                            <div className={`config-node-icon ${getNodeLabelClass(activeNode.type)}`}>
+                                {getNodeIcon(activeNode.icon)}
+                            </div>
+                            <div className="config-node-info">
+                                <h4 className="config-node-name">{activeNode.name.toUpperCase()}</h4>
+                                <p className="config-node-id">ID: {activeNode.id}</p>
+                            </div>
+                        </div>
+
+                        {/* Validation Rules */}
+                        <div className="config-section">
+                            <h5 className="config-section-title">VALIDATION RULES</h5>
+                            <div className="config-toggle-row">
+                                <span>Strict JSON Schema</span>
+                                <div className={`toggle-switch ${activeNode.config.strictJsonSchema ? 'on' : 'off'}`}>
+                                    <div className="toggle-thumb" />
+                                </div>
+                            </div>
+                            <div className="config-toggle-row">
+                                <span>Data Type Matching</span>
+                                <div className={`toggle-switch ${activeNode.config.dataTypeMatching ? 'on' : 'off'}`}>
+                                    <div className="toggle-thumb" />
+                                </div>
+                            </div>
+                            <div className="config-toggle-row">
+                                <span>Handle NULL values</span>
+                                <div className={`toggle-switch ${activeNode.config.handleNullValues ? 'on' : 'off'}`}>
+                                    <div className="toggle-thumb" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* API Integration */}
+                        <div className="config-section">
+                            <h5 className="config-section-title">API INTEGRATION</h5>
+                            <div className="config-select">
+                                <span>{activeNode.config.apiIntegration}</span>
+                                <span className="select-chevron">▾</span>
+                            </div>
+                        </div>
+
+                        {/* Success Redirect */}
+                        {activeNode.config.successRedirect && (
+                            <div className="config-section">
+                                <h5 className="config-section-title">SUCCESS REDIRECT</h5>
+                                <div className="config-redirect">
+                                    <span>{activeNode.config.successRedirect}</span>
+                                    <button className="redirect-link-btn" title="Go to node">🔗</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Apply Button */}
+                        <button className="btn-primary config-apply-btn">
+                            Apply Changes ✓
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom Status Bar */}
+            <div className="workflow-status-bar">
+                <div className="status-bar-left">
+                    <span className="status-bar-label">STATUS: OPERATIONAL</span>
+                    <span className="status-bar-latency">LATENCY: {pipeline.latency}</span>
+                </div>
+                <div className="status-bar-right">
+                    <span>ENTERPRISE WORKSPACE: {pipeline.workspace}</span>
+                    <span>VERSION: {pipeline.version}</span>
+                </div>
+            </div>
+        </div>
     )
 }

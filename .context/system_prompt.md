@@ -16,10 +16,12 @@ You are working on **Aura AI** (`anti-docu-read`), a desktop application for bul
 |-------|-----------|
 | Desktop Shell | Electron 39 (`electron-vite`) |
 | Frontend | React 19, TypeScript 5, Vanilla CSS |
-| Backend (Main) | Node.js, MongoDB 7 driver |
-| Validation | Zod 4 |
-| Routing | react-router-dom 7 (state-based in Electron) |
-| Build | electron-builder, cross-platform |
+| Backend (API) | Go 1.22+, `net/http` stdlib, MongoDB Go Driver v2 |
+| Backend (Electron Main) | Node.js — window management, IPC bridge |
+| Database | MongoDB 7 |
+| Validation | Zod 4 (frontend), Go struct validation (backend) |
+| Routing | react-router-dom 7 (frontend), `http.ServeMux` (backend) |
+| Build | electron-builder (frontend), `go build` (backend) |
 
 ## Key Architectural Decisions
 
@@ -28,9 +30,12 @@ You are working on **Aura AI** (`anti-docu-read`), a desktop application for bul
 - **Result Pattern**: No thrown errors across IPC; all ops return `Result<T>`
 - **macOS-First Design**: Native title bar, vibrancy, Apple HIG compliance
 - **Offline Capable**: App works without MongoDB connection (graceful degradation)
+- **Clean Architecture Backend**: Go backend follows domain → repository → service → handler layering
+- **API Envelope**: All endpoints return `{ success, data, error, meta }` JSON response
 
 ## Reference Files
 
 - Rules: `.antigravity/rules.md`
-- Coding Style: `.context/coding_style.md`
+- Frontend Coding Style: `.context/coding_style.md`
+- Backend Coding Style: `.context/backend_coding_style.md`
 - Designs: `designs/` (Stitch exports)
