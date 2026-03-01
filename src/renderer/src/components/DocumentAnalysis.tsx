@@ -6,12 +6,17 @@
  * Export to CSV/Excel supported.
  */
 
-import { useState, useMemo, useCallback, type ReactElement } from 'react'
+import { useState, useMemo, useCallback, type ReactElement, type ReactNode } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import type { AuraDocument } from '../../../shared/types/document.types'
 import { exportDocument } from '../data/data-service'
+import {
+    FileText, BarChart3, FileSearch, Brain, CheckCircle, XCircle, AlignLeft,
+    Pencil, Settings, RefreshCw, FileDown, Loader2, Check, AlertTriangle,
+    Search, ArrowLeft
+} from './Icons'
 
 // Configure PDF.js worker — served from public/ directory
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -58,12 +63,12 @@ function getFileUrl(filePath: string): string {
     return `${API_BASE}/files/${filename}`
 }
 
-function getStepLabel(step: string): string {
-    const map: Record<string, string> = {
-        extracting_text: '📝 Extracting text from document...',
-        ai_analysis: '🧠 AI is analyzing the extracted text...',
-        complete: '✅ Analysis complete',
-        failed: '❌ Analysis failed'
+function getStepLabel(step: string): ReactNode {
+    const map: Record<string, ReactNode> = {
+        extracting_text: <><FileSearch size={14} /> Extracting text from document...</>,
+        ai_analysis: <><Brain size={14} /> AI is analyzing the extracted text...</>,
+        complete: <><CheckCircle size={14} /> Analysis complete</>,
+        failed: <><XCircle size={14} /> Analysis failed</>
     }
     return map[step] ?? step
 }
@@ -167,7 +172,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
         <div className="doc-analysis animate-fade-in">
             {/* Top Bar */}
             <div className="doc-analysis-topbar">
-                <button className="doc-analysis-back" onClick={onClose}>← Back to Documents</button>
+                <button className="doc-analysis-back" onClick={onClose}><ArrowLeft size={16} /> Back to Documents</button>
                 <div className="doc-analysis-badges">
                     <span className="badge-model">MINIMAX M2.5</span>
                     <span className="badge-ocr">OCR ACTIVE</span>
@@ -194,7 +199,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                 <div className="doc-analysis-preview">
                     <div className="doc-preview-header">
                         <div className="doc-preview-title">
-                            <span>📄</span>
+                            <span><FileText size={16} /></span>
                             <span>Document Preview</span>
                         </div>
                         <div className="doc-preview-controls">
@@ -211,7 +216,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                                     className={`btn-ghost raw-text-toggle ${showRawText ? 'active' : ''}`}
                                     onClick={() => setShowRawText(!showRawText)}
                                 >
-                                    {showRawText ? '📄 Show PDF' : '📝 Show Text'}
+                                    {showRawText ? <><FileText size={14} /> Show PDF</> : <><AlignLeft size={14} /> Show Text</>}
                                 </button>
                             )}
                         </div>
@@ -244,7 +249,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                                     }
                                     error={
                                         <div className="pdf-error">
-                                            <p>⚠️ Could not load PDF preview</p>
+                                            <p><AlertTriangle size={16} /> Could not load PDF preview</p>
                                             {pdfError && <p className="pdf-error-detail">{pdfError}</p>}
                                         </div>
                                     }
@@ -285,7 +290,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                 <div className="doc-analysis-extracted">
                     <div className="extracted-header">
                         <div className="extracted-header-title">
-                            <span>📊</span>
+                            <span><BarChart3 size={16} /></span>
                             <h3>Extracted Data</h3>
                         </div>
                         {hasFields && (
@@ -307,7 +312,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
 
                     {!hasFields && !isProcessing && (
                         <div className="extracted-empty glass-panel">
-                            <span className="empty-state-icon">🔍</span>
+                            <span className="empty-state-icon"><Search size={28} /></span>
                             <p>No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document with AI.</p>
                         </div>
                     )}
@@ -330,7 +335,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                                 </div>
                                 <div className="field-card-value">
                                     <span className="field-value">{field.value}</span>
-                                    <button className="field-edit-btn" title="Edit field">✏️</button>
+                                    <button className="field-edit-btn" title="Edit field"><Pencil size={14} /></button>
                                 </div>
                                 <div className="field-confidence-bar">
                                     <div
@@ -351,23 +356,23 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
 
             {/* Bottom Action Bar */}
             <div className="doc-analysis-actions">
-                <button className="btn-ghost action-btn">⚙️ Schema Customization</button>
+                <button className="btn-ghost action-btn"><Settings size={14} /> Schema Customization</button>
                 <button className="btn-ghost action-btn" onClick={handleRescan} disabled={rescanning || isProcessing}>
-                    {rescanning ? '⏳ Scanning...' : '🔄 Re-scan'}
+                    {rescanning ? <><Loader2 size={14} className="spin" /> Scanning...</> : <><RefreshCw size={14} /> Re-scan</>}
                 </button>
                 {hasFields && (
                     <div className="export-btn-group">
                         <button className="btn-ghost action-btn export-btn" onClick={() => handleExport('csv')} disabled={exportingCSV}>
-                            {exportingCSV ? '⏳ Exporting...' : '📄 Export CSV'}
+                            {exportingCSV ? <><Loader2 size={14} className="spin" /> Exporting...</> : <><FileDown size={14} /> Export CSV</>}
                         </button>
                         <button className="btn-ghost action-btn export-btn" onClick={() => handleExport('xlsx')} disabled={exportingExcel}>
-                            {exportingExcel ? '⏳ Exporting...' : '📊 Export Excel'}
+                            {exportingExcel ? <><Loader2 size={14} className="spin" /> Exporting...</> : <><BarChart3 size={14} /> Export Excel</>}
                         </button>
                     </div>
                 )}
                 <button className="btn-ghost action-btn" onClick={onClose}>Dismiss</button>
                 <button className="btn-primary action-btn action-btn-primary" onClick={handleApprove} disabled={approving || isProcessing}>
-                    {approving ? '⏳ Approving...' : 'Approve ✓'}
+                    {approving ? <><Loader2 size={14} className="spin" /> Approving...</> : <>Approve <Check size={14} /></>}
                 </button>
             </div>
         </div>

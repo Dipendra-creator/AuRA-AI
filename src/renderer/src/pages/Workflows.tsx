@@ -5,11 +5,16 @@
  * Save and Deploy buttons now wired to the Go backend API.
  */
 
-import { useState, useEffect, useCallback, type ReactElement } from 'react'
+import { useState, useEffect, useCallback, type ReactElement, type ReactNode } from 'react'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { getWorkflowsData, updatePipeline, type WorkflowsDataBundle } from '../data/data-service'
 import type { PipelineNode } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
+import {
+    Save, PlayCircle, Rocket, Loader2, Plus, Zap, Link, Settings, HelpCircle,
+    ZoomIn, ZoomOut, Maximize, X, Check, Download, ScanSearch, CheckCircle,
+    RefreshCw, Upload
+} from '../components/Icons'
 
 interface WorkflowsProps {
     readonly addToast: (type: ToastType, text: string) => void
@@ -79,7 +84,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
         setSaving(true)
         try {
             await updatePipeline(data.pipeline.id, { status: 'deployed', nodes: editedNodes })
-            addToast('success', 'Pipeline deployed successfully 🚀')
+            addToast('success', 'Pipeline deployed successfully')
         } catch (err) {
             addToast('error', `Deploy failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
         } finally {
@@ -94,16 +99,16 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
     const { pipeline } = data
     const activeNode: PipelineNode | undefined = editedNodes.find((n) => n.id === activeNodeId)
 
-    /** Get icon character for node type */
-    function getNodeIcon(icon: string): string {
-        const iconMap: Record<string, string> = {
-            download: '⬇',
-            extract: '⟐',
-            validate: '✓',
-            transform: '⟳',
-            upload: '⬆'
+    /** Get icon element for node type */
+    function getNodeIcon(icon: string): ReactNode {
+        const iconMap: Record<string, ReactNode> = {
+            download: <Download size={16} />,
+            extract: <ScanSearch size={16} />,
+            validate: <CheckCircle size={16} />,
+            transform: <RefreshCw size={16} />,
+            upload: <Upload size={16} />
         }
-        return iconMap[icon] ?? '●'
+        return iconMap[icon] ?? <CheckCircle size={16} />
     }
 
     /** Get label color class by node type */
@@ -146,17 +151,17 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                         onClick={handleSave}
                         disabled={saving}
                     >
-                        {saving ? '⏳ Saving...' : '💾 Save'}
+                        {saving ? <><Loader2 size={14} className="spin" /> Saving...</> : <><Save size={14} /> Save</>}
                     </button>
                     <button className="btn-ghost toolbar-btn toolbar-btn-test">
-                        🔴 Test Pipeline
+                        <PlayCircle size={14} /> Test Pipeline
                     </button>
                     <button
                         className="btn-primary toolbar-btn"
                         onClick={handleDeploy}
                         disabled={saving}
                     >
-                        {saving ? '⏳ Deploying...' : '🚀 Deploy'}
+                        {saving ? <><Loader2 size={14} className="spin" /> Deploying...</> : <><Rocket size={14} /> Deploy</>}
                     </button>
                 </div>
             </div>
@@ -165,13 +170,13 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
             <div className="workflow-main">
                 {/* Left Tool Sidebar */}
                 <div className="workflow-tool-sidebar">
-                    <button className="tool-icon active" title="Add Node">🔲</button>
-                    <button className="tool-icon" title="Triggers">⚡</button>
-                    <button className="tool-icon" title="Connectors">🔗</button>
+                    <button className="tool-icon active" title="Add Node"><Plus size={18} /></button>
+                    <button className="tool-icon" title="Triggers"><Zap size={18} /></button>
+                    <button className="tool-icon" title="Connectors"><Link size={18} /></button>
                     <button className="tool-icon" title="Custom Code">{'</>'}</button>
                     <div className="tool-separator" />
-                    <button className="tool-icon" title="Settings">⚙️</button>
-                    <button className="tool-icon" title="Help">❓</button>
+                    <button className="tool-icon" title="Settings"><Settings size={18} /></button>
+                    <button className="tool-icon" title="Help"><HelpCircle size={18} /></button>
                 </div>
 
                 {/* Canvas Area */}
@@ -214,10 +219,10 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
 
                     {/* Zoom Controls */}
                     <div className="workflow-zoom-controls">
-                        <button className="zoom-ctrl-btn" title="Zoom In">🔍+</button>
-                        <button className="zoom-ctrl-btn" title="Zoom Out">🔍−</button>
+                        <button className="zoom-ctrl-btn" title="Zoom In"><ZoomIn size={16} /></button>
+                        <button className="zoom-ctrl-btn" title="Zoom Out"><ZoomOut size={16} /></button>
                         <div className="zoom-separator" />
-                        <button className="zoom-ctrl-btn" title="Fit to Screen">⛶</button>
+                        <button className="zoom-ctrl-btn" title="Fit to Screen"><Maximize size={16} /></button>
                     </div>
                 </div>
 
@@ -227,7 +232,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                         <div className="config-panel-header">
                             <h3>Node Configuration</h3>
                             <button className="config-close-btn" onClick={() => setActiveNodeId('')}>
-                                ✕
+                                <X size={16} />
                             </button>
                         </div>
 
@@ -289,7 +294,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                                 <h5 className="config-section-title">SUCCESS REDIRECT</h5>
                                 <div className="config-redirect">
                                     <span>{activeNode.config.successRedirect}</span>
-                                    <button className="redirect-link-btn" title="Go to node">🔗</button>
+                                    <button className="redirect-link-btn" title="Go to node"><Link size={14} /></button>
                                 </div>
                             </div>
                         )}
@@ -300,7 +305,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                             onClick={handleSave}
                             disabled={saving}
                         >
-                            {saving ? '⏳ Saving...' : 'Apply Changes ✓'}
+                            {saving ? <><Loader2 size={14} className="spin" /> Saving...</> : <>Apply Changes <Check size={14} /></>}
                         </button>
                     </div>
                 )}

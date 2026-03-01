@@ -3,10 +3,11 @@
  * Displays a metric with icon, value, label, and change percentage.
  */
 
-import { type ReactElement } from 'react'
+import { type ReactElement, type ReactNode } from 'react'
+import { ArrowUpRight, ArrowDown } from './Icons'
 
 interface StatCardProps {
-    readonly icon: string
+    readonly icon: ReactNode
     readonly label: string
     readonly value: string
     readonly change: number
@@ -34,7 +35,7 @@ export function StatCard({
                     <span>{icon}</span>
                 </div>
                 <span className={`stat-card-change ${isNegative ? 'negative' : ''} ${isStatic ? 'static' : ''}`}>
-                    {!isStatic && <span className="icon">{isNegative ? '↓' : '↗'}</span>}
+                    {!isStatic && <span className="icon">{isNegative ? <ArrowDown size={14} /> : <ArrowUpRight size={14} />}</span>}
                     {changeDisplay}
                 </span>
             </div>
