@@ -1,14 +1,20 @@
 /**
  * DocumentAnalysis — split-view document analysis panel.
- * Left: PDF preview + extracted raw text.
+ * Left: PDF preview rendered via react-pdf with text highlighting.
  * Right: Extracted data fields with confidence.
- * Hover over a field highlights its value in the raw text.
+ * Hover over a field highlights its value in the PDF text layer.
  * Export to CSV/Excel supported.
  */
 
-import { useState, useMemo, type ReactElement } from 'react'
+import { useState, useMemo, useCallback, type ReactElement } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
 import type { AuraDocument } from '../../../shared/types/document.types'
 import { exportDocument } from '../data/data-service'
+
+// Configure PDF.js worker — served from public/ directory
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 const API_BASE = 'http://localhost:8080/api/v1'
 
@@ -20,26 +26,22 @@ interface DocumentAnalysisProps {
     readonly addToast?: (type: 'success' | 'error' | 'info', text: string) => void
 }
 
-/** Determines confidence color class */
 function getConfidenceClass(confidence: number): string {
     if (confidence >= 0.9) return 'conf-high'
     if (confidence >= 0.7) return 'conf-medium'
     return 'conf-low'
 }
 
-/** Formats confidence as percentage */
 function formatConfidence(confidence: number): string {
     return `${Math.round(confidence * 100)}%`
 }
 
-/** Determines confidence icon */
 function getConfidenceIcon(confidence: number): string {
     if (confidence >= 0.9) return '●'
     if (confidence >= 0.7) return '!'
     return '▲'
 }
 
-/** Triggers a browser download from a Blob */
 function downloadBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -51,44 +53,11 @@ function downloadBlob(blob: Blob, filename: string): void {
     URL.revokeObjectURL(url)
 }
 
-/** Derives the served file URL from the filePath */
 function getFileUrl(filePath: string): string {
     const filename = filePath.split('/').pop() ?? filePath
     return `${API_BASE}/files/${filename}`
 }
 
-/** Highlights matched value text in the raw text */
-function highlightText(rawText: string, searchValue: string): ReactElement[] {
-    if (!searchValue || !rawText) return [<span key="all">{rawText}</span>]
-
-    const parts: ReactElement[] = []
-    const searchLower = searchValue.toLowerCase()
-    const textLower = rawText.toLowerCase()
-    let lastIndex = 0
-    let idx = textLower.indexOf(searchLower)
-    let keyId = 0
-
-    while (idx !== -1) {
-        if (idx > lastIndex) {
-            parts.push(<span key={keyId++}>{rawText.slice(lastIndex, idx)}</span>)
-        }
-        parts.push(
-            <mark key={keyId++} className="text-highlight">
-                {rawText.slice(idx, idx + searchValue.length)}
-            </mark>
-        )
-        lastIndex = idx + searchValue.length
-        idx = textLower.indexOf(searchLower, lastIndex)
-    }
-
-    if (lastIndex < rawText.length) {
-        parts.push(<span key={keyId++}>{rawText.slice(lastIndex)}</span>)
-    }
-
-    return parts.length > 0 ? parts : [<span key="all">{rawText}</span>]
-}
-
-/** Processing step map */
 function getStepLabel(step: string): string {
     const map: Record<string, string> = {
         extracting_text: '📝 Extracting text from document...',
@@ -99,6 +68,25 @@ function getStepLabel(step: string): string {
     return map[step] ?? step
 }
 
+/** Highlights matched value in raw text view */
+function highlightRawText(rawText: string, searchValue: string): ReactElement[] {
+    if (!searchValue || !rawText) return [<span key="all">{rawText}</span>]
+    const parts: ReactElement[] = []
+    const searchLower = searchValue.toLowerCase()
+    const textLower = rawText.toLowerCase()
+    let lastIndex = 0
+    let idx = textLower.indexOf(searchLower)
+    let keyId = 0
+    while (idx !== -1) {
+        if (idx > lastIndex) parts.push(<span key={keyId++}>{rawText.slice(lastIndex, idx)}</span>)
+        parts.push(<mark key={keyId++} className="text-highlight">{rawText.slice(idx, idx + searchValue.length)}</mark>)
+        lastIndex = idx + searchValue.length
+        idx = textLower.indexOf(searchLower, lastIndex)
+    }
+    if (lastIndex < rawText.length) parts.push(<span key={keyId++}>{rawText.slice(lastIndex)}</span>)
+    return parts.length > 0 ? parts : [<span key="all">{rawText}</span>]
+}
+
 export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, addToast }: DocumentAnalysisProps): ReactElement {
     const [rescanning, setRescanning] = useState(false)
     const [approving, setApproving] = useState(false)
@@ -106,6 +94,15 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
     const [exportingExcel, setExportingExcel] = useState(false)
     const [hoveredField, setHoveredField] = useState<string | null>(null)
     const [showRawText, setShowRawText] = useState(false)
+    const [numPages, setNumPages] = useState<number>(0)
+    const [pdfError, setPdfError] = useState<string | null>(null)
+    const [zoomLevel, setZoomLevel] = useState(100)
+
+    const DEFAULT_WIDTH = 480
+    const pageWidth = Math.round(DEFAULT_WIDTH * (zoomLevel / 100))
+    const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 20, 200))
+    const handleZoomOut = () => setZoomLevel((z) => Math.max(z - 20, 30))
+    const handleZoomReset = () => setZoomLevel(100)
 
     const overallConfidence = doc.extractedFields.length > 0
         ? Math.round(
@@ -119,24 +116,33 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
     const isPDF = doc.mimeType.includes('pdf')
     const isProcessing = doc.status === 'processing'
 
+    // Custom text renderer for highlighting field values in the PDF text layer
+    const customTextRenderer = useCallback(
+        ({ str }: { str: string }) => {
+            if (!hoveredField) return str
+            const regex = new RegExp(`(${hoveredField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+            const parts = str.split(regex)
+            return parts
+                .map((part) =>
+                    regex.test(part)
+                        ? `<mark style="background-color: rgba(0, 209, 255, 0.35); color: #00d1ff; padding: 1px 3px; border-radius: 3px;">${part}</mark>`
+                        : part
+                )
+                .join('')
+        },
+        [hoveredField]
+    )
+
     const handleRescan = async (): Promise<void> => {
         if (!onRescan) return
         setRescanning(true)
-        try {
-            onRescan()
-        } finally {
-            setRescanning(false)
-        }
+        try { onRescan() } finally { setRescanning(false) }
     }
 
     const handleApprove = async (): Promise<void> => {
         if (!onApprove) return
         setApproving(true)
-        try {
-            onApprove()
-        } finally {
-            setApproving(false)
-        }
+        try { onApprove() } finally { setApproving(false) }
     }
 
     const handleExport = async (format: 'csv' | 'xlsx'): Promise<void> => {
@@ -161,9 +167,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
         <div className="doc-analysis animate-fade-in">
             {/* Top Bar */}
             <div className="doc-analysis-topbar">
-                <button className="doc-analysis-back" onClick={onClose}>
-                    ← Back to Documents
-                </button>
+                <button className="doc-analysis-back" onClick={onClose}>← Back to Documents</button>
                 <div className="doc-analysis-badges">
                     <span className="badge-model">MINIMAX M2.5</span>
                     <span className="badge-ocr">OCR ACTIVE</span>
@@ -186,43 +190,81 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
 
             {/* Split View */}
             <div className="doc-analysis-split">
-                {/* Left Pane — Document Preview */}
+                {/* Left — Document Preview */}
                 <div className="doc-analysis-preview">
                     <div className="doc-preview-header">
                         <div className="doc-preview-title">
                             <span>📄</span>
                             <span>Document Preview</span>
                         </div>
-                        {doc.rawText && (
-                            <button
-                                className={`btn-ghost raw-text-toggle ${showRawText ? 'active' : ''}`}
-                                onClick={() => setShowRawText(!showRawText)}
-                            >
-                                {showRawText ? '📄 Show PDF' : '📝 Show Text'}
-                            </button>
-                        )}
+                        <div className="doc-preview-controls">
+                            {isPDF && !showRawText && (
+                                <div className="zoom-controls">
+                                    <button className="zoom-btn" onClick={handleZoomOut} disabled={zoomLevel <= 30} title="Zoom out">−</button>
+                                    <span className="zoom-level">{zoomLevel}%</span>
+                                    <button className="zoom-btn" onClick={handleZoomIn} disabled={zoomLevel >= 200} title="Zoom in">+</button>
+                                    <button className="zoom-btn zoom-btn-reset" onClick={handleZoomReset} title="Reset zoom">⟲</button>
+                                </div>
+                            )}
+                            {doc.rawText && (
+                                <button
+                                    className={`btn-ghost raw-text-toggle ${showRawText ? 'active' : ''}`}
+                                    onClick={() => setShowRawText(!showRawText)}
+                                >
+                                    {showRawText ? '📄 Show PDF' : '📝 Show Text'}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="doc-preview-body glass-panel">
                         {showRawText && doc.rawText ? (
-                            /* Raw text view with highlights */
                             <div className="raw-text-panel">
                                 <pre className="raw-text-content">
                                     {hoveredField
-                                        ? highlightText(doc.rawText, hoveredField)
+                                        ? highlightRawText(doc.rawText, hoveredField)
                                         : doc.rawText
                                     }
                                 </pre>
                             </div>
                         ) : isPDF ? (
-                            /* Actual PDF preview */
-                            <embed
-                                src={fileUrl}
-                                type="application/pdf"
-                                className="pdf-embed"
-                            />
+                            <div className="pdf-viewer-container">
+                                <Document
+                                    file={fileUrl}
+                                    onLoadSuccess={({ numPages: n }) => {
+                                        setNumPages(n)
+                                        setPdfError(null)
+                                    }}
+                                    onLoadError={(err) => setPdfError(err.message)}
+                                    loading={
+                                        <div className="pdf-loading">
+                                            <div className="processing-indicator-spinner" />
+                                            <p>Loading PDF preview...</p>
+                                        </div>
+                                    }
+                                    error={
+                                        <div className="pdf-error">
+                                            <p>⚠️ Could not load PDF preview</p>
+                                            {pdfError && <p className="pdf-error-detail">{pdfError}</p>}
+                                        </div>
+                                    }
+                                >
+                                    {Array.from({ length: numPages }, (_, i) => (
+                                        <Page
+                                            key={`page_${i + 1}`}
+                                            pageNumber={i + 1}
+                                            width={pageWidth}
+                                            renderTextLayer={true}
+                                            renderAnnotationLayer={true}
+                                            customTextRenderer={hoveredField ? customTextRenderer : undefined}
+                                        />
+                                    ))}
+                                </Document>
+                                {numPages > 0 && (
+                                    <div className="pdf-page-count">{numPages} page{numPages !== 1 ? 's' : ''}</div>
+                                )}
+                            </div>
                         ) : (
-                            /* Non-PDF placeholder */
                             <div className="doc-placeholder">
                                 <div className="doc-placeholder-header">
                                     <div className="doc-placeholder-logo" />
@@ -239,7 +281,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                     </div>
                 </div>
 
-                {/* Right Pane — Extracted Data */}
+                {/* Right — Extracted Data */}
                 <div className="doc-analysis-extracted">
                     <div className="extracted-header">
                         <div className="extracted-header-title">
@@ -309,45 +351,22 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
 
             {/* Bottom Action Bar */}
             <div className="doc-analysis-actions">
-                <button className="btn-ghost action-btn">
-                    ⚙️ Schema Customization
-                </button>
-                <button
-                    className="btn-ghost action-btn"
-                    onClick={handleRescan}
-                    disabled={rescanning || isProcessing}
-                >
+                <button className="btn-ghost action-btn">⚙️ Schema Customization</button>
+                <button className="btn-ghost action-btn" onClick={handleRescan} disabled={rescanning || isProcessing}>
                     {rescanning ? '⏳ Scanning...' : '🔄 Re-scan'}
                 </button>
-
-                {/* Export Buttons — only show when there are extracted fields */}
                 {hasFields && (
                     <div className="export-btn-group">
-                        <button
-                            className="btn-ghost action-btn export-btn"
-                            onClick={() => handleExport('csv')}
-                            disabled={exportingCSV}
-                        >
+                        <button className="btn-ghost action-btn export-btn" onClick={() => handleExport('csv')} disabled={exportingCSV}>
                             {exportingCSV ? '⏳ Exporting...' : '📄 Export CSV'}
                         </button>
-                        <button
-                            className="btn-ghost action-btn export-btn"
-                            onClick={() => handleExport('xlsx')}
-                            disabled={exportingExcel}
-                        >
+                        <button className="btn-ghost action-btn export-btn" onClick={() => handleExport('xlsx')} disabled={exportingExcel}>
                             {exportingExcel ? '⏳ Exporting...' : '📊 Export Excel'}
                         </button>
                     </div>
                 )}
-
-                <button className="btn-ghost action-btn" onClick={onClose}>
-                    Dismiss
-                </button>
-                <button
-                    className="btn-primary action-btn action-btn-primary"
-                    onClick={handleApprove}
-                    disabled={approving || isProcessing}
-                >
+                <button className="btn-ghost action-btn" onClick={onClose}>Dismiss</button>
+                <button className="btn-primary action-btn action-btn-primary" onClick={handleApprove} disabled={approving || isProcessing}>
                     {approving ? '⏳ Approving...' : 'Approve ✓'}
                 </button>
             </div>
