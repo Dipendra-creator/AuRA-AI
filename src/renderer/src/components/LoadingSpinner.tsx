@@ -4,6 +4,7 @@
  */
 
 import type { ReactElement } from 'react'
+import { Sparkles } from './Icons'
 
 interface LoadingSpinnerProps {
     readonly message?: string
@@ -15,7 +16,7 @@ export function LoadingSpinner({ message = 'Loading...' }: LoadingSpinnerProps):
             <div className="loading-spinner">
                 <div className="spinner-ring" />
                 <div className="spinner-ring spinner-ring-inner" />
-                <span className="spinner-icon">✦</span>
+                <span className="spinner-icon"><Sparkles size={18} /></span>
             </div>
             <p className="loading-message">{message}</p>
         </div>

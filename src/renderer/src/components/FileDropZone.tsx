@@ -4,7 +4,8 @@
  * Shows upload progress state and file count.
  */
 
-import { useState, useCallback, type ReactElement, type DragEvent } from 'react'
+import { useState, useCallback, type ReactElement, type ReactNode, type DragEvent } from 'react'
+import { CloudUpload, Loader2, CheckCircle, XCircle } from './Icons'
 
 interface FileDropZoneProps {
     readonly onFilesSelected?: (files: FileList) => void
@@ -69,12 +70,12 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
         input.click()
     }, [handleFiles, uploadState])
 
-    const stateIcon = {
-        idle: '☁️',
-        uploading: '⏳',
-        success: '✓',
-        error: '✕'
-    }[uploadState]
+    const stateIcon: Record<string, ReactNode> = {
+        idle: <CloudUpload size={28} />,
+        uploading: <Loader2 size={28} className="spin" />,
+        success: <CheckCircle size={28} />,
+        error: <XCircle size={28} />
+    }
 
     const stateMessage = {
         idle: 'Drop files here to process',
@@ -92,7 +93,7 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
             onClick={handleClick}
         >
             <div className="drop-zone-icon">
-                <span>{stateIcon}</span>
+                <span>{stateIcon[uploadState]}</span>
             </div>
             <h4>{stateMessage}</h4>
             {uploadState === 'idle' && (

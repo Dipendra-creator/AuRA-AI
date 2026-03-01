@@ -2060,6 +2060,11 @@ body {
   }
 }
 
+/* Utility: spin animation for Lucide Loader2 icons */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Processing status cell in table */
 .status-processing-cell {
   display: flex;

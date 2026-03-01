@@ -3,8 +3,9 @@
  * Displays documents with status badges, processing steps, confidence bars, dates, and actions.
  */
 
-import { type ReactElement } from 'react'
+import { type ReactElement, type ReactNode } from 'react'
 import type { AuraDocument } from '../../../shared/types/document.types'
+import { FileText, Image, File, FileSearch, Brain, CheckCircle, XCircle, Trash2, MoreVertical } from './Icons'
 
 interface DataTableProps {
     readonly documents: readonly AuraDocument[]
@@ -16,11 +17,11 @@ interface DataTableProps {
 }
 
 /** Maps mime type to document icon */
-function getDocumentIcon(mimeType: string): string {
-    if (mimeType.includes('pdf')) return '📕'
-    if (mimeType.includes('image')) return '🖼️'
-    if (mimeType.includes('word')) return '📘'
-    return '📄'
+function getDocumentIcon(mimeType: string): ReactNode {
+    if (mimeType.includes('pdf')) return <FileText size={16} className="icon-pdf" />
+    if (mimeType.includes('image')) return <Image size={16} className="icon-image" />
+    if (mimeType.includes('word')) return <FileText size={16} className="icon-word" />
+    return <File size={16} />
 }
 
 /** Maps document type to readable label */
@@ -48,13 +49,13 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-/** Maps processing step to a user-friendly label */
-function getProcessingStepLabel(step: string): string {
-    const map: Record<string, string> = {
-        extracting_text: '📝 Extracting text...',
-        ai_analysis: '🧠 AI analyzing...',
-        complete: '✅ Complete',
-        failed: '❌ Failed'
+/** Maps processing step to a user-friendly label with icon */
+function getProcessingStepLabel(step: string): ReactNode {
+    const map: Record<string, ReactNode> = {
+        extracting_text: <><FileSearch size={14} /> Extracting text...</>,
+        ai_analysis: <><Brain size={14} /> AI analyzing...</>,
+        complete: <><CheckCircle size={14} /> Complete</>,
+        failed: <><XCircle size={14} /> Failed</>
     }
     return map[step] ?? ''
 }
@@ -159,11 +160,11 @@ export function DataTable({
                                                 onDocumentDelete(doc)
                                             }}
                                         >
-                                            🗑
+                                            <Trash2 size={14} />
                                         </button>
                                     )}
                                     <button className="actions-btn" title="More actions">
-                                        ⋮
+                                        <MoreVertical size={14} />
                                     </button>
                                 </td>
                             </tr>
@@ -172,7 +173,7 @@ export function DataTable({
                             <tr>
                                 <td colSpan={6} style={{ textAlign: 'center', padding: '48px' }}>
                                     <div className="empty-state">
-                                        <span className="empty-state-icon">📄</span>
+                                        <span className="empty-state-icon"><FileText size={32} /></span>
                                         <h3>No documents yet</h3>
                                         <p>Upload your first document to get started with AI-powered extraction.</p>
                                     </div>

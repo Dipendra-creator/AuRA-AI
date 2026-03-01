@@ -3,8 +3,9 @@
  * Displays events with color-coded icons, titles, timestamps, and sources.
  */
 
-import { type ReactElement } from 'react'
+import { type ReactElement, type ReactNode } from 'react'
 import type { ActivityEvent } from '../../../shared/types/document.types'
+import { Check, RefreshCw, Plus, AlertTriangle } from './Icons'
 
 interface ActivityTimelineProps {
     readonly events: readonly ActivityEvent[]
@@ -26,19 +27,19 @@ function getEventColorClass(type: ActivityEvent['type']): string {
     }
 }
 
-/** Maps icon types to display characters */
-function getEventIconChar(icon: ActivityEvent['icon']): string {
+/** Maps icon types to Lucide icon elements */
+function getEventIcon(icon: ActivityEvent['icon']): ReactNode {
     switch (icon) {
         case 'check':
-            return '✓'
+            return <Check size={14} />
         case 'refresh':
-            return '⟳'
+            return <RefreshCw size={14} />
         case 'plus':
-            return '+'
+            return <Plus size={14} />
         case 'warning':
-            return '!'
+            return <AlertTriangle size={14} />
         default:
-            return '•'
+            return <Check size={14} />
     }
 }
 
@@ -54,7 +55,7 @@ export function ActivityTimeline({ events }: ActivityTimelineProps): ReactElemen
                         style={{ animationDelay: `${index * 80}ms` }}
                     >
                         <div className={`timeline-event-icon ${getEventColorClass(event.type)}`}>
-                            <span>{getEventIconChar(event.icon)}</span>
+                            <span>{getEventIcon(event.icon)}</span>
                         </div>
                         <div className="timeline-event-content">
                             <p className="timeline-event-title">{event.title}</p>

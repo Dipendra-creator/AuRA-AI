@@ -4,7 +4,16 @@
  * Matches the aura_ai_dashboard_overview design.
  */
 
-import { type ReactElement } from 'react'
+import { type ReactElement, type ReactNode } from 'react'
+import {
+    LayoutDashboard,
+    FileText,
+    GitBranch,
+    Diamond,
+    Link,
+    Sparkles,
+    Settings
+} from './Icons'
 
 interface SidebarProps {
     readonly activePage: string
@@ -14,15 +23,15 @@ interface SidebarProps {
 interface NavItem {
     readonly id: string
     readonly label: string
-    readonly icon: string
+    readonly icon: ReactNode
 }
 
 const mainNavItems: readonly NavItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'documents', label: 'Documents', icon: '📄' },
-    { id: 'workflows', label: 'Pipelines', icon: '🔀' },
-    { id: 'ai-models', label: 'Templates', icon: '💎' },
-    { id: 'analytics', label: 'API', icon: '🔗' }
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'documents', label: 'Documents', icon: <FileText size={18} /> },
+    { id: 'workflows', label: 'Pipelines', icon: <GitBranch size={18} /> },
+    { id: 'ai-models', label: 'Templates', icon: <Diamond size={18} /> },
+    { id: 'analytics', label: 'API', icon: <Link size={18} /> }
 ]
 
 const teamItems = [
@@ -36,7 +45,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps): ReactElement 
             <div>
                 {/* Brand */}
                 <div className="sidebar-brand">
-                    <div className="sidebar-brand-icon">✦</div>
+                    <div className="sidebar-brand-icon"><Sparkles size={20} /></div>
                     <div className="sidebar-brand-text">
                         <h1>Aura AI</h1>
                         <p>Automation</p>
@@ -82,7 +91,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps): ReactElement 
                     <small>7,500 / 10,000 docs</small>
                 </div>
                 <button className="sidebar-settings" onClick={() => onNavigate('settings')}>
-                    <span>⚙️</span>
+                    <span><Settings size={16} /></span>
                     <span>Settings</span>
                 </button>
             </div>

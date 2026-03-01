@@ -14,6 +14,7 @@ import { ActivityTimeline } from '../components/ActivityTimeline'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { getDashboardData, uploadDocument, type DashboardDataBundle } from '../data/data-service'
 import type { ToastType } from '../components/Toast'
+import { FileText, CheckCircle, Clock, Zap, Bell, Sparkles } from '../components/Icons'
 
 interface DashboardProps {
     readonly addToast: (type: ToastType, text: string) => void
@@ -72,7 +73,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
                 </div>
                 <div className="user-chip">
                     <button className="notification-bell">
-                        🔔
+                        <Bell size={18} />
                         <span className="notification-dot" />
                     </button>
                     <div className="user-divider" />
@@ -86,7 +87,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
             {/* Stats Grid — 4 cards per design */}
             <div className="stats-grid">
                 <StatCard
-                    icon="📄"
+                    icon={<FileText size={20} />}
                     label="Total Documents"
                     value={stats.totalDocuments.toLocaleString()}
                     change={stats.documentsProcessedChange}
@@ -94,7 +95,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
                     iconColor="cyan"
                 />
                 <StatCard
-                    icon="✓"
+                    icon={<CheckCircle size={20} />}
                     label="Accuracy %"
                     value={`${stats.accuracyRate}%`}
                     change={stats.accuracyChange}
@@ -102,7 +103,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
                     iconColor="purple"
                 />
                 <StatCard
-                    icon="⏱"
+                    icon={<Clock size={20} />}
                     label="Avg. Processing Time"
                     value={`${stats.avgProcessingTime}s`}
                     change={stats.processingTimeChange}
@@ -110,7 +111,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
                     iconColor="cyan"
                 />
                 <StatCard
-                    icon="⚡"
+                    icon={<Zap size={20} />}
                     label="Active Pipelines"
                     value={String(stats.activePipelines)}
                     change={stats.pipelinesChange}
@@ -150,7 +151,7 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
                     onClick={() => setShowBubble(!showBubble)}
                     title="AI Assistant"
                 >
-                    ✦
+                    <Sparkles size={22} />
                 </button>
             </div>
         </>

@@ -18,6 +18,7 @@ import {
 } from '../data/data-service'
 import type { AuraDocument } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
+import { Search } from '../components/Icons'
 
 type FilterType = 'all' | 'processed' | 'reviewing' | 'pending' | 'error'
 
@@ -184,7 +185,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                     <p>Upload invoices or contracts for instant AI processing</p>
                 </div>
                 <div className="search-bar">
-                    <span className="icon">🔍</span>
+                    <span className="icon"><Search size={16} /></span>
                     <input
                         type="text"
                         placeholder="Search documents..."
