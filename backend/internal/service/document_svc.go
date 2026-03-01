@@ -3,22 +3,32 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"math"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/aura-ai/backend/internal/aiservice"
 	"github.com/aura-ai/backend/internal/domain"
+	"github.com/aura-ai/backend/internal/ocr"
 	"github.com/aura-ai/backend/internal/repository"
 )
 
 // DocumentService encapsulates document business logic.
 type DocumentService struct {
-	repo *repository.DocumentRepo
+	repo     *repository.DocumentRepo
+	aiClient *aiservice.KiloClient
 }
 
 // NewDocumentService creates a new DocumentService.
-func NewDocumentService(repo *repository.DocumentRepo) *DocumentService {
-	return &DocumentService{repo: repo}
+// If apiKey is empty, AI analysis will return an error when called.
+func NewDocumentService(repo *repository.DocumentRepo, apiKey string) *DocumentService {
+	var client *aiservice.KiloClient
+	if apiKey != "" {
+		client = aiservice.NewKiloClient(apiKey)
+	}
+	return &DocumentService{repo: repo, aiClient: client}
 }
 
 // List returns filtered, paginated documents.
@@ -72,18 +82,73 @@ func (s *DocumentService) Delete(ctx context.Context, id bson.ObjectID) error {
 	return s.repo.SoftDelete(ctx, id)
 }
 
-// Analyze simulates re-analysis of a document by updating its status and mock fields.
+// Analyze performs real OCR text extraction and AI-powered field extraction.
 func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
-	status := domain.StatusProcessed
-	confidence := 97.5
-	fields := []domain.ExtractedField{
-		{FieldName: "Auto-Detected Field", Value: "AI Generated Value", Confidence: 0.95, Verified: false},
+	// 1. Fetch the document to get file path
+	doc, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
 	}
+
+	// 2. Set status to processing
+	processingStatus := domain.StatusProcessing
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &processingStatus})
+
+	// 3. Extract text from the file using OCR
+	slog.Info("extracting text from document", "id", id.Hex(), "path", doc.FilePath)
+	rawText, err := ocr.ExtractText(doc.FilePath)
+	if err != nil {
+		errStatus := domain.StatusError
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		return nil, &domain.AppError{
+			Code:    500,
+			Message: fmt.Sprintf("text extraction failed: %v", err),
+		}
+	}
+
+	slog.Info("text extracted", "id", id.Hex(), "textLen", len(rawText))
+
+	// 4. Use AI to extract structured fields
+	if s.aiClient == nil {
+		errStatus := domain.StatusError
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		return nil, &domain.AppError{
+			Code:    500,
+			Message: "AI service not configured — set KILO_API_KEY in .env",
+		}
+	}
+
+	slog.Info("sending text to AI for field extraction", "id", id.Hex())
+	fields, err := s.aiClient.ExtractFields(ctx, rawText, doc.Type)
+	if err != nil {
+		errStatus := domain.StatusError
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		return nil, &domain.AppError{
+			Code:    500,
+			Message: fmt.Sprintf("AI field extraction failed: %v", err),
+		}
+	}
+
+	slog.Info("AI extracted fields", "id", id.Hex(), "fieldCount", len(fields))
+
+	// 5. Compute overall confidence
+	var totalConf float64
+	for _, f := range fields {
+		totalConf += f.Confidence
+	}
+	avgConf := 0.0
+	if len(fields) > 0 {
+		avgConf = math.Round((totalConf/float64(len(fields)))*1000) / 10 // e.g. 95.3
+	}
+
+	// 6. Update document with results
+	status := domain.StatusProcessed
 	input := domain.UpdateDocumentInput{
 		Status:          &status,
-		Confidence:      &confidence,
+		Confidence:      &avgConf,
 		ExtractedFields: fields,
 	}
+
 	return s.Update(ctx, id, input)
 }
 

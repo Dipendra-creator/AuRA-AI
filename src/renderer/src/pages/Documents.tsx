@@ -49,8 +49,16 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         async (files: FileList) => {
             for (const file of Array.from(files)) {
                 try {
-                    await uploadDocument(file)
-                    addToast('success', `Uploaded "${file.name}" successfully`)
+                    const uploaded = await uploadDocument(file)
+                    addToast('info', `Uploaded "${file.name}" — analyzing...`)
+
+                    // Auto-trigger AI analysis after upload
+                    try {
+                        await analyzeDocument(uploaded._id)
+                        addToast('success', `"${file.name}" analyzed successfully`)
+                    } catch (analyzeErr) {
+                        addToast('error', `Analysis failed for "${file.name}": ${analyzeErr instanceof Error ? analyzeErr.message : 'Unknown error'}`)
+                    }
                 } catch (err) {
                     addToast('error', `Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
                 }
@@ -127,6 +135,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                 onClose={() => setSelectedDocument(null)}
                 onRescan={() => handleAnalyze(selectedDocument)}
                 onApprove={() => handleApprove(selectedDocument)}
+                addToast={addToast}
             />
         )
     }

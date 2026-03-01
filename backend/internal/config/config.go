@@ -14,6 +14,7 @@ type Config struct {
 	LogLevel       string
 	CORSOrigins    string
 	RequestTimeout time.Duration
+	KiloAPIKey     string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -25,6 +26,7 @@ func Load() *Config {
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		CORSOrigins:    getEnv("CORS_ORIGINS", "http://localhost:5173"),
 		RequestTimeout: parseDuration(getEnv("REQUEST_TIMEOUT", "30s"), 30*time.Second),
+		KiloAPIKey:     getEnv("KILO_API_KEY", ""),
 	}
 }
 

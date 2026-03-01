@@ -108,7 +108,10 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
             )}
             <button
                 className="drop-zone-btn"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    handleClick()
+                }}
                 disabled={uploadState === 'uploading'}
             >
                 {uploadState === 'uploading' ? 'Uploading...' : 'Select Files'}
