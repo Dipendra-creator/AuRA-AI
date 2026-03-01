@@ -122,8 +122,14 @@ func (r *DocumentRepo) Update(ctx context.Context, id bson.ObjectID, input domai
 	if input.Status != nil {
 		set["status"] = *input.Status
 	}
+	if input.ProcessingStep != nil {
+		set["processing_step"] = *input.ProcessingStep
+	}
 	if input.Confidence != nil {
 		set["confidence"] = *input.Confidence
+	}
+	if input.RawText != nil {
+		set["raw_text"] = *input.RawText
 	}
 	if input.ExtractedFields != nil {
 		set["extracted_fields"] = input.ExtractedFields

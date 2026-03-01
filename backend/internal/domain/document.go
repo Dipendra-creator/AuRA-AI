@@ -43,9 +43,11 @@ type Document struct {
 	Type            DocumentType     `json:"type"            bson:"type"`
 	MimeType        string           `json:"mimeType"        bson:"mime_type"`
 	Status          DocumentStatus   `json:"status"          bson:"status"`
+	ProcessingStep  string           `json:"processingStep"  bson:"processing_step"`
 	Confidence      float64          `json:"confidence"      bson:"confidence"`
 	FilePath        string           `json:"filePath"        bson:"file_path"`
 	FileSize        int64            `json:"fileSize"        bson:"file_size"`
+	RawText         string           `json:"rawText"         bson:"raw_text"`
 	ExtractedFields []ExtractedField `json:"extractedFields" bson:"extracted_fields"`
 	CreatedAt       time.Time        `json:"createdAt"       bson:"created_at"`
 	UpdatedAt       time.Time        `json:"updatedAt"       bson:"updated_at"`
@@ -64,7 +66,9 @@ type CreateDocumentInput struct {
 // UpdateDocumentInput is the payload for patching a document.
 type UpdateDocumentInput struct {
 	Status          *DocumentStatus  `json:"status,omitempty"`
+	ProcessingStep  *string          `json:"processingStep,omitempty"`
 	Confidence      *float64         `json:"confidence,omitempty"`
+	RawText         *string          `json:"rawText,omitempty"`
 	ExtractedFields []ExtractedField `json:"extractedFields,omitempty"`
 }
 

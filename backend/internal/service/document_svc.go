@@ -90,16 +90,18 @@ func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domai
 		return nil, err
 	}
 
-	// 2. Set status to processing
+	// 2. Set status to processing + step
 	processingStatus := domain.StatusProcessing
-	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &processingStatus})
+	stepExtract := "extracting_text"
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &processingStatus, ProcessingStep: &stepExtract})
 
 	// 3. Extract text from the file using OCR
 	slog.Info("extracting text from document", "id", id.Hex(), "path", doc.FilePath)
 	rawText, err := ocr.ExtractText(doc.FilePath)
 	if err != nil {
 		errStatus := domain.StatusError
-		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
 		return nil, &domain.AppError{
 			Code:    500,
 			Message: fmt.Sprintf("text extraction failed: %v", err),
@@ -108,10 +110,15 @@ func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domai
 
 	slog.Info("text extracted", "id", id.Hex(), "textLen", len(rawText))
 
+	// 3b. Save raw text and advance step
+	stepAI := "ai_analysis"
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{ProcessingStep: &stepAI, RawText: &rawText})
+
 	// 4. Use AI to extract structured fields
 	if s.aiClient == nil {
 		errStatus := domain.StatusError
-		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
 		return nil, &domain.AppError{
 			Code:    500,
 			Message: "AI service not configured — set KILO_API_KEY in .env",
@@ -122,7 +129,8 @@ func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domai
 	fields, err := s.aiClient.ExtractFields(ctx, rawText, doc.Type)
 	if err != nil {
 		errStatus := domain.StatusError
-		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus})
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
 		return nil, &domain.AppError{
 			Code:    500,
 			Message: fmt.Sprintf("AI field extraction failed: %v", err),
@@ -143,8 +151,10 @@ func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domai
 
 	// 6. Update document with results
 	status := domain.StatusProcessed
+	stepComplete := "complete"
 	input := domain.UpdateDocumentInput{
 		Status:          &status,
+		ProcessingStep:  &stepComplete,
 		Confidence:      &avgConf,
 		ExtractedFields: fields,
 	}

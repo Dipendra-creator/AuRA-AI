@@ -1,11 +1,10 @@
 /**
  * Documents page — document list with search, filters, and analysis view.
- * When a document is clicked, shows the split-view analysis panel.
- * Data sourced from Go backend API with mock data fallback.
- * Upload, delete, and analysis mutations go through the API.
+ * Upload shows file immediately, analysis runs in background.
+ * Polls for status updates while any document is processing.
  */
 
-import { useState, useEffect, useMemo, useCallback, type ReactElement } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactElement } from 'react'
 import { DataTable } from '../components/DataTable'
 import { DocumentAnalysis } from '../components/DocumentAnalysis'
 import { FileDropZone } from '../components/FileDropZone'
@@ -32,38 +31,67 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
     const [selectedDocument, setSelectedDocument] = useState<AuraDocument | null>(null)
     const [documents, setDocuments] = useState<readonly AuraDocument[]>([])
     const [loading, setLoading] = useState(true)
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-    const loadDocuments = useCallback(() => {
-        setLoading(true)
-        getDocumentsData().then((result) => {
-            setDocuments(result.documents)
-            setLoading(false)
-        })
+    const loadDocuments = useCallback(async () => {
+        const result = await getDocumentsData()
+        setDocuments(result.documents)
+        setLoading(false)
+
+        // Update selected document if it changed
+        if (result.documents.length > 0) {
+            setSelectedDocument((prev) => {
+                if (!prev) return null
+                const updated = result.documents.find((d) => d._id === prev._id)
+                return updated ?? prev
+            })
+        }
     }, [])
 
     useEffect(() => {
         loadDocuments()
     }, [loadDocuments])
 
+    // Poll while any document is processing
+    const hasProcessing = documents.some((d) => d.status === 'processing')
+    useEffect(() => {
+        if (hasProcessing) {
+            pollRef.current = setInterval(() => {
+                loadDocuments()
+            }, 3000)
+        } else if (pollRef.current) {
+            clearInterval(pollRef.current)
+            pollRef.current = null
+        }
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current)
+        }
+    }, [hasProcessing, loadDocuments])
+
     const handleFilesSelected = useCallback(
         async (files: FileList) => {
             for (const file of Array.from(files)) {
                 try {
                     const uploaded = await uploadDocument(file)
-                    addToast('info', `Uploaded "${file.name}" — analyzing...`)
+                    addToast('info', `Uploaded "${file.name}" — starting analysis...`)
 
-                    // Auto-trigger AI analysis after upload
-                    try {
-                        await analyzeDocument(uploaded._id)
-                        addToast('success', `"${file.name}" analyzed successfully`)
-                    } catch (analyzeErr) {
-                        addToast('error', `Analysis failed for "${file.name}": ${analyzeErr instanceof Error ? analyzeErr.message : 'Unknown error'}`)
-                    }
+                    // Refresh immediately to show the uploaded document
+                    await loadDocuments()
+
+                    // Fire analysis in the background (non-blocking)
+                    analyzeDocument(uploaded._id)
+                        .then(() => {
+                            addToast('success', `"${file.name}" analyzed successfully`)
+                            loadDocuments()
+                        })
+                        .catch((err) => {
+                            addToast('error', `Analysis failed for "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
+                            loadDocuments()
+                        })
                 } catch (err) {
                     addToast('error', `Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
                 }
             }
-            loadDocuments()
         },
         [addToast, loadDocuments]
     )
