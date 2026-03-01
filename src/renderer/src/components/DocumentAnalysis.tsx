@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useCallback, type ReactElement, type ReactNode } from 'react'
+import type { AnalysisProgress } from '../pages/Documents'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -29,6 +30,7 @@ interface DocumentAnalysisProps {
     readonly onRescan?: () => void
     readonly onApprove?: () => void
     readonly addToast?: (type: 'success' | 'error' | 'info', text: string) => void
+    readonly analysisProgress?: AnalysisProgress | null
 }
 
 function getConfidenceClass(confidence: number): string {
@@ -92,7 +94,7 @@ function highlightRawText(rawText: string, searchValue: string): ReactElement[] 
     return parts.length > 0 ? parts : [<span key="all">{rawText}</span>]
 }
 
-export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, addToast }: DocumentAnalysisProps): ReactElement {
+export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, addToast, analysisProgress }: DocumentAnalysisProps): ReactElement {
     const [rescanning, setRescanning] = useState(false)
     const [approving, setApproving] = useState(false)
     const [exportingCSV, setExportingCSV] = useState(false)
@@ -300,12 +302,30 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                         )}
                     </div>
 
-                    {isProcessing && (
+                    {(isProcessing || (analysisProgress?.active)) && (
                         <div className="processing-indicator glass-panel">
                             <div className="processing-indicator-spinner" />
                             <div className="processing-indicator-text">
                                 <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
-                                <p className="processing-indicator-hint">This may take a moment...</p>
+                                {analysisProgress && analysisProgress.totalPages > 0 && (
+                                    <div className="analysis-progress">
+                                        <div className="analysis-progress-bar">
+                                            <div
+                                                className="analysis-progress-fill"
+                                                style={{ width: `${(analysisProgress.pagesProcessed / analysisProgress.totalPages) * 100}%` }}
+                                            />
+                                        </div>
+                                        <p className="analysis-progress-text">
+                                            Page {analysisProgress.pagesProcessed} of {analysisProgress.totalPages} processed
+                                            {analysisProgress.fieldsFound > 0 && (
+                                                <span className="analysis-fields-count"> · {analysisProgress.fieldsFound} fields found</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
+                                {(!analysisProgress || analysisProgress.totalPages === 0) && (
+                                    <p className="processing-indicator-hint">This may take a moment...</p>
+                                )}
                             </div>
                         </div>
                     )}

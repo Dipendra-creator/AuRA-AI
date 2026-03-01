@@ -103,3 +103,52 @@ export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
   }
   return res.blob()
 }
+
+/** Analysis progress event from SSE stream */
+export interface AnalysisEvent {
+  readonly type: 'start' | 'page_done' | 'error' | 'complete'
+  readonly totalPages?: number
+  readonly page?: number
+  readonly fieldsFound?: number
+  readonly totalFields?: number
+  readonly confidence?: number
+  readonly error?: string
+}
+
+/**
+ * Opens an SSE (Server-Sent Events) connection to the given path.
+ * Calls `onEvent` for each parsed JSON event.
+ * Returns a cleanup function to close the connection.
+ */
+export function apiSSE(
+  path: string,
+  onEvent: (event: AnalysisEvent) => void,
+  onDone?: () => void,
+  onError?: (err: Error) => void
+): () => void {
+  const url = `${API_BASE}${path}`
+  const eventSource = new EventSource(url)
+
+  eventSource.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data) as AnalysisEvent
+      onEvent(data)
+      if (data.type === 'complete' || data.type === 'error') {
+        eventSource.close()
+        onDone?.()
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  eventSource.onerror = () => {
+    eventSource.close()
+    onError?.(new Error('SSE connection failed'))
+  }
+
+  return () => {
+    eventSource.close()
+  }
+}
+

@@ -18,7 +18,11 @@ import type {
   CreateDocumentInput
 } from '../../../shared/types/document.types'
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob, apiSSE } from './api-client'
+import type { AnalysisEvent } from './api-client'
+
+// Re-export for consumers
+export type { AnalysisEvent }
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
@@ -186,6 +190,19 @@ export async function deleteDocument(id: string): Promise<void> {
  */
 export async function analyzeDocument(id: string): Promise<AuraDocument> {
   return apiPost<AuraDocument>(`/documents/${id}/analyze`, {})
+}
+
+/**
+ * Triggers AI analysis on a document with real-time SSE progress streaming.
+ * Returns a cleanup function to abort the connection.
+ */
+export function analyzeDocumentSSE(
+  id: string,
+  onEvent: (event: AnalysisEvent) => void,
+  onDone?: () => void,
+  onError?: (err: Error) => void
+): () => void {
+  return apiSSE(`/documents/${id}/analyze/stream`, onEvent, onDone, onError)
 }
 
 /**

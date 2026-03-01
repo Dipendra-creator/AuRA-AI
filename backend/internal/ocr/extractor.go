@@ -68,6 +68,65 @@ func extractPDF(filePath string) (string, error) {
 	return result, nil
 }
 
+// PageText holds extracted text for a single PDF page.
+type PageText struct {
+	PageNumber int
+	Text       string
+}
+
+// ExtractPages extracts text from each page of a PDF individually.
+// Returns a slice of PageText (one per page) and the total page count.
+func ExtractPages(filePath string) ([]PageText, int, error) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, 0, fmt.Errorf("file not found: %s", filePath)
+	}
+
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if ext != ".pdf" {
+		// For non-PDF files, return a single "page" with all text
+		text, err := readTextFile(filePath)
+		if err != nil {
+			return nil, 0, err
+		}
+		return []PageText{{PageNumber: 1, Text: text}}, 1, nil
+	}
+
+	f, r, err := pdf.Open(filePath)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to open PDF: %w", err)
+	}
+	defer f.Close()
+
+	totalPages := r.NumPage()
+	pages := make([]PageText, 0, totalPages)
+
+	for i := 1; i <= totalPages; i++ {
+		page := r.Page(i)
+		if page.V.IsNull() {
+			continue
+		}
+		text, err := page.GetPlainText(nil)
+		if err != nil {
+			// Skip pages that fail to parse but include an empty entry
+			continue
+		}
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" {
+			continue
+		}
+		pages = append(pages, PageText{
+			PageNumber: i,
+			Text:       trimmed,
+		})
+	}
+
+	if len(pages) == 0 {
+		return nil, totalPages, fmt.Errorf("PDF contains no extractable text (may be image-only)")
+	}
+
+	return pages, totalPages, nil
+}
+
 // readTextFile reads a file as UTF-8 text.
 func readTextFile(filePath string) (string, error) {
 	data, err := os.ReadFile(filePath)

@@ -17,7 +17,7 @@ import (
 const (
 	kiloBaseURL    = "https://api.kilo.ai/api/openrouter/"
 	defaultModel   = "minimax/minimax-m2.5:free"
-	requestTimeout = 60 * time.Second
+	requestTimeout = 120 * time.Second
 )
 
 // KiloClient communicates with the Kilo AI API for document field extraction.
@@ -135,15 +135,82 @@ func (c *KiloClient) ExtractFields(ctx context.Context, documentText string, doc
 	return parseExtractedFields(content)
 }
 
-// buildExtractionPrompt creates a structured prompt for the AI.
+// ExtractFieldsFromPage sends a single page's text to the AI and returns structured fields.
+func (c *KiloClient) ExtractFieldsFromPage(ctx context.Context, pageText string, pageNum, totalPages int, documentType domain.DocumentType) ([]domain.ExtractedField, error) {
+	if strings.TrimSpace(pageText) == "" {
+		return nil, fmt.Errorf("page %d text is empty", pageNum)
+	}
+
+	prompt := buildPageExtractionPrompt(pageText, pageNum, totalPages, documentType)
+
+	reqBody := chatRequest{
+		Model: c.model,
+		Messages: []chatMessage{
+			{
+				Role:    "system",
+				Content: "You are a document analysis AI. You extract structured data from documents. Always respond with valid JSON only — no markdown, no explanation.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := kiloBaseURL + "chat/completions"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("AI API request failed for page %d: %w", pageNum, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read AI response for page %d: %w", pageNum, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AI API returned status %d for page %d: %s", resp.StatusCode, pageNum, string(respBody))
+	}
+
+	var chatResp chatResponse
+	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+		return nil, fmt.Errorf("failed to parse AI response for page %d: %w", pageNum, err)
+	}
+
+	if chatResp.Error != nil {
+		return nil, fmt.Errorf("AI API error for page %d: %s", pageNum, chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("AI returned no choices for page %d", pageNum)
+	}
+
+	content := chatResp.Choices[0].Message.Content
+	return parseExtractedFields(content)
+}
+
+// buildExtractionPrompt creates a structured prompt for the AI (full document).
 func buildExtractionPrompt(text string, docType domain.DocumentType) string {
 	typeHint := string(docType)
 	if typeHint == "" || typeHint == "other" {
 		typeHint = "general document"
 	}
 
-	// Truncate very long documents to avoid token limits
-	const maxTextLen = 8000
+	// Per-page limit — generous enough for a single page
+	const maxTextLen = 12000
 	if len(text) > maxTextLen {
 		text = text[:maxTextLen] + "\n... [text truncated]"
 	}
@@ -163,6 +230,36 @@ Document text:
 ---
 %s
 ---`, typeHint, typeHint, text)
+}
+
+// buildPageExtractionPrompt creates a prompt for a single page with context.
+func buildPageExtractionPrompt(text string, pageNum, totalPages int, docType domain.DocumentType) string {
+	typeHint := string(docType)
+	if typeHint == "" || typeHint == "other" {
+		typeHint = "general document"
+	}
+
+	const maxTextLen = 12000
+	if len(text) > maxTextLen {
+		text = text[:maxTextLen] + "\n... [text truncated]"
+	}
+
+	return fmt.Sprintf(`Analyze page %d of %d from the following %s and extract all relevant data fields found on this page.
+
+Return a JSON array of objects. Each object must have:
+- "fieldName": the name of the field (e.g. "Invoice Number", "Date", "Total Amount", "Company Name")
+- "value": the extracted value as a string
+- "confidence": a float between 0.0 and 1.0 indicating how confident you are
+
+Extract as many meaningful fields as possible from THIS page. Focus on key fields like names, dates, amounts, reference numbers, addresses, line items, etc.
+If this page contains no meaningful data fields, return an empty JSON array: []
+
+IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation.
+
+Page %d text:
+---
+%s
+---`, pageNum, totalPages, typeHint, pageNum, text)
 }
 
 // parseExtractedFields parses the AI's JSON response into domain fields.

@@ -45,6 +45,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	mux.HandleFunc("PATCH /api/v1/documents/{id}", docH.Update)
 	mux.HandleFunc("DELETE /api/v1/documents/{id}", docH.Delete)
 	mux.HandleFunc("POST /api/v1/documents/{id}/analyze", docH.Analyze)
+	mux.HandleFunc("GET /api/v1/documents/{id}/analyze/stream", docH.AnalyzeSSE)
 	mux.HandleFunc("POST /api/v1/documents/{id}/export", exportH.Export)
 
 	// Uploaded file serving (for PDF preview)
