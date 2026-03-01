@@ -1,14 +1,16 @@
 /**
  * DocumentAnalysis — split-view document analysis panel.
- * Left: Document preview placeholder. Right: Extracted data fields with confidence.
- * Matches the document_upload_analysis design.
- * Re-scan and Approve buttons now wired to the backend API.
- * Export to CSV/Excel supported via the backend export endpoint.
+ * Left: PDF preview + extracted raw text.
+ * Right: Extracted data fields with confidence.
+ * Hover over a field highlights its value in the raw text.
+ * Export to CSV/Excel supported.
  */
 
-import { useState, type ReactElement } from 'react'
+import { useState, useMemo, type ReactElement } from 'react'
 import type { AuraDocument } from '../../../shared/types/document.types'
 import { exportDocument } from '../data/data-service'
+
+const API_BASE = 'http://localhost:8080/api/v1'
 
 interface DocumentAnalysisProps {
     readonly document: AuraDocument
@@ -49,11 +51,61 @@ function downloadBlob(blob: Blob, filename: string): void {
     URL.revokeObjectURL(url)
 }
 
+/** Derives the served file URL from the filePath */
+function getFileUrl(filePath: string): string {
+    const filename = filePath.split('/').pop() ?? filePath
+    return `${API_BASE}/files/${filename}`
+}
+
+/** Highlights matched value text in the raw text */
+function highlightText(rawText: string, searchValue: string): ReactElement[] {
+    if (!searchValue || !rawText) return [<span key="all">{rawText}</span>]
+
+    const parts: ReactElement[] = []
+    const searchLower = searchValue.toLowerCase()
+    const textLower = rawText.toLowerCase()
+    let lastIndex = 0
+    let idx = textLower.indexOf(searchLower)
+    let keyId = 0
+
+    while (idx !== -1) {
+        if (idx > lastIndex) {
+            parts.push(<span key={keyId++}>{rawText.slice(lastIndex, idx)}</span>)
+        }
+        parts.push(
+            <mark key={keyId++} className="text-highlight">
+                {rawText.slice(idx, idx + searchValue.length)}
+            </mark>
+        )
+        lastIndex = idx + searchValue.length
+        idx = textLower.indexOf(searchLower, lastIndex)
+    }
+
+    if (lastIndex < rawText.length) {
+        parts.push(<span key={keyId++}>{rawText.slice(lastIndex)}</span>)
+    }
+
+    return parts.length > 0 ? parts : [<span key="all">{rawText}</span>]
+}
+
+/** Processing step map */
+function getStepLabel(step: string): string {
+    const map: Record<string, string> = {
+        extracting_text: '📝 Extracting text from document...',
+        ai_analysis: '🧠 AI is analyzing the extracted text...',
+        complete: '✅ Analysis complete',
+        failed: '❌ Analysis failed'
+    }
+    return map[step] ?? step
+}
+
 export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, addToast }: DocumentAnalysisProps): ReactElement {
     const [rescanning, setRescanning] = useState(false)
     const [approving, setApproving] = useState(false)
     const [exportingCSV, setExportingCSV] = useState(false)
     const [exportingExcel, setExportingExcel] = useState(false)
+    const [hoveredField, setHoveredField] = useState<string | null>(null)
+    const [showRawText, setShowRawText] = useState(false)
 
     const overallConfidence = doc.extractedFields.length > 0
         ? Math.round(
@@ -62,6 +114,10 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
             1000
         ) / 10
         : 0
+
+    const fileUrl = useMemo(() => getFileUrl(doc.filePath), [doc.filePath])
+    const isPDF = doc.mimeType.includes('pdf')
+    const isProcessing = doc.status === 'processing'
 
     const handleRescan = async (): Promise<void> => {
         if (!onRescan) return
@@ -111,6 +167,11 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                 <div className="doc-analysis-badges">
                     <span className="badge-model">MINIMAX M2.5</span>
                     <span className="badge-ocr">OCR ACTIVE</span>
+                    {isProcessing && (
+                        <span className="badge-processing">
+                            <span className="processing-spinner" /> {getStepLabel(doc.processingStep)}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -132,46 +193,49 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                             <span>📄</span>
                             <span>Document Preview</span>
                         </div>
-                        <div className="doc-preview-zoom">
-                            <button className="zoom-btn" title="Zoom Out">🔍−</button>
-                            <button className="zoom-btn" title="Zoom In">🔍+</button>
-                        </div>
+                        {doc.rawText && (
+                            <button
+                                className={`btn-ghost raw-text-toggle ${showRawText ? 'active' : ''}`}
+                                onClick={() => setShowRawText(!showRawText)}
+                            >
+                                {showRawText ? '📄 Show PDF' : '📝 Show Text'}
+                            </button>
+                        )}
                     </div>
+
                     <div className="doc-preview-body glass-panel">
-                        {/* Placeholder document representation */}
-                        <div className="doc-placeholder">
-                            <div className="doc-placeholder-header">
-                                <div className="doc-placeholder-logo" />
-                                <div className="doc-placeholder-title-area">
-                                    <span className="doc-placeholder-invoice-label">INVOICE</span>
-                                    <div className="doc-placeholder-lines">
-                                        <div className="line-short" />
-                                        <div className="line-short" />
+                        {showRawText && doc.rawText ? (
+                            /* Raw text view with highlights */
+                            <div className="raw-text-panel">
+                                <pre className="raw-text-content">
+                                    {hoveredField
+                                        ? highlightText(doc.rawText, hoveredField)
+                                        : doc.rawText
+                                    }
+                                </pre>
+                            </div>
+                        ) : isPDF ? (
+                            /* Actual PDF preview */
+                            <embed
+                                src={fileUrl}
+                                type="application/pdf"
+                                className="pdf-embed"
+                            />
+                        ) : (
+                            /* Non-PDF placeholder */
+                            <div className="doc-placeholder">
+                                <div className="doc-placeholder-header">
+                                    <div className="doc-placeholder-logo" />
+                                    <div className="doc-placeholder-title-area">
+                                        <span className="doc-placeholder-invoice-label">{doc.name}</span>
                                     </div>
                                 </div>
+                                <div className="doc-placeholder-separator" />
+                                {doc.rawText && (
+                                    <pre className="raw-text-content">{doc.rawText.slice(0, 2000)}</pre>
+                                )}
                             </div>
-                            <div className="doc-placeholder-separator" />
-                            <div className="doc-placeholder-body">
-                                <div className="doc-placeholder-lines">
-                                    <div className="line-long" />
-                                    <div className="line-medium" />
-                                    <div className="line-long" />
-                                    <div className="line-medium" />
-                                    <div className="line-short" />
-                                </div>
-                                <div className="doc-placeholder-highlight" />
-                                <div className="doc-placeholder-lines">
-                                    <div className="line-long" />
-                                    <div className="line-long" />
-                                    <div className="line-medium" />
-                                    <div className="line-short" />
-                                </div>
-                            </div>
-                            <div className="doc-placeholder-footer">
-                                <div className="line-medium" />
-                                <div className="line-long" />
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -182,12 +246,24 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                             <span>📊</span>
                             <h3>Extracted Data</h3>
                         </div>
-                        <span className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}>
-                            {overallConfidence}% Overall Confidence
-                        </span>
+                        {hasFields && (
+                            <span className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}>
+                                {overallConfidence}% Overall Confidence
+                            </span>
+                        )}
                     </div>
 
-                    {!hasFields && (
+                    {isProcessing && (
+                        <div className="processing-indicator glass-panel">
+                            <div className="processing-indicator-spinner" />
+                            <div className="processing-indicator-text">
+                                <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
+                                <p className="processing-indicator-hint">This may take a moment...</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {!hasFields && !isProcessing && (
                         <div className="extracted-empty glass-panel">
                             <span className="empty-state-icon">🔍</span>
                             <p>No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document with AI.</p>
@@ -198,8 +274,10 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                         {doc.extractedFields.map((field, index) => (
                             <div
                                 key={field.fieldName}
-                                className={`extracted-field-card glass-panel ${getConfidenceClass(field.confidence)}`}
+                                className={`extracted-field-card glass-panel ${getConfidenceClass(field.confidence)} ${hoveredField === field.value ? 'field-hovered' : ''}`}
                                 style={{ animationDelay: `${index * 60}ms` }}
+                                onMouseEnter={() => setHoveredField(field.value)}
+                                onMouseLeave={() => setHoveredField(null)}
                             >
                                 <div className="field-card-header">
                                     <span className="field-label">{field.fieldName.toUpperCase()}</span>
@@ -237,7 +315,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                 <button
                     className="btn-ghost action-btn"
                     onClick={handleRescan}
-                    disabled={rescanning}
+                    disabled={rescanning || isProcessing}
                 >
                     {rescanning ? '⏳ Scanning...' : '🔄 Re-scan'}
                 </button>
@@ -268,7 +346,7 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                 <button
                     className="btn-primary action-btn action-btn-primary"
                     onClick={handleApprove}
-                    disabled={approving}
+                    disabled={approving || isProcessing}
                 >
                     {approving ? '⏳ Approving...' : 'Approve ✓'}
                 </button>

@@ -34,9 +34,11 @@ export interface AuraDocument {
   readonly type: DocumentType
   readonly mimeType: DocumentMimeType
   readonly status: DocumentStatus
+  readonly processingStep: string
   readonly confidence: number
   readonly filePath: string
   readonly fileSize: number
+  readonly rawText: string
   readonly extractedFields: readonly ExtractedField[]
   readonly createdAt: string
   readonly updatedAt: string

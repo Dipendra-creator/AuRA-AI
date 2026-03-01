@@ -1,6 +1,6 @@
 /**
  * DataTable — glassmorphism document activity table.
- * Displays documents with status badges, confidence bars, dates, and actions.
+ * Displays documents with status badges, processing steps, confidence bars, dates, and actions.
  */
 
 import { type ReactElement } from 'react'
@@ -48,6 +48,40 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** Maps processing step to a user-friendly label */
+function getProcessingStepLabel(step: string): string {
+    const map: Record<string, string> = {
+        extracting_text: '📝 Extracting text...',
+        ai_analysis: '🧠 AI analyzing...',
+        complete: '✅ Complete',
+        failed: '❌ Failed'
+    }
+    return map[step] ?? ''
+}
+
+/** Renders the status cell — shows processing step with animation when processing */
+function StatusCell({ doc }: { doc: AuraDocument }): ReactElement {
+    if (doc.status === 'processing' && doc.processingStep) {
+        return (
+            <div className="status-processing-cell">
+                <span className="status-badge processing">
+                    <span className="processing-spinner" />
+                    PROCESSING
+                </span>
+                <span className="processing-step-label">
+                    {getProcessingStepLabel(doc.processingStep)}
+                </span>
+            </div>
+        )
+    }
+
+    return (
+        <span className={`status-badge ${doc.status}`}>
+            {doc.status.toUpperCase()}
+        </span>
+    )
+}
+
 export function DataTable({
     documents,
     title = 'Recent Activity',
@@ -83,7 +117,7 @@ export function DataTable({
                         {documents.map((doc, index) => (
                             <tr
                                 key={doc._id}
-                                className="table-row-animate"
+                                className={`table-row-animate ${doc.status === 'processing' ? 'row-processing' : ''}`}
                                 style={{ animationDelay: `${index * 50}ms` }}
                                 onClick={() => onDocumentClick?.(doc)}
                             >
@@ -97,20 +131,22 @@ export function DataTable({
                                     <span className="document-type-label">{getTypeLabel(doc.type)}</span>
                                 </td>
                                 <td>
-                                    <span className={`status-badge ${doc.status}`}>
-                                        {doc.status.toUpperCase()}
-                                    </span>
+                                    <StatusCell doc={doc} />
                                 </td>
                                 <td>
-                                    <div className="confidence-cell">
-                                        <div className="confidence-bar">
-                                            <div
-                                                className={`confidence-bar-fill ${getConfidenceLevel(doc.confidence)} animate-bar-fill`}
-                                                style={{ '--target-width': `${doc.confidence}%` } as React.CSSProperties}
-                                            />
+                                    {doc.status === 'processing' ? (
+                                        <span className="confidence-value" style={{ opacity: 0.4 }}>—</span>
+                                    ) : (
+                                        <div className="confidence-cell">
+                                            <div className="confidence-bar">
+                                                <div
+                                                    className={`confidence-bar-fill ${getConfidenceLevel(doc.confidence)} animate-bar-fill`}
+                                                    style={{ '--target-width': `${doc.confidence}%` } as React.CSSProperties}
+                                                />
+                                            </div>
+                                            <span className="confidence-value">{doc.confidence}%</span>
                                         </div>
-                                        <span className="confidence-value">{doc.confidence}%</span>
-                                    </div>
+                                    )}
                                 </td>
                                 <td className="date-cell">{formatDate(doc.createdAt)}</td>
                                 <td className="actions-cell">
