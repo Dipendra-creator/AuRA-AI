@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -148,6 +150,62 @@ func (h *DocumentHandler) Analyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(doc))
+}
+
+// AnalyzeSSE handles GET /api/v1/documents/{id}/analyze/stream
+// Streams real-time progress events as SSE (Server-Sent Events).
+func (h *DocumentHandler) AnalyzeSSE(w http.ResponseWriter, r *http.Request) {
+	// Extract ID from path — strip the /analyze/stream suffix
+	path := r.URL.Path
+	trimmed := strings.TrimSuffix(path, "/analyze/stream")
+	parts := strings.Split(trimmed, "/")
+	idStr := parts[len(parts)-1]
+
+	oid, err := bson.ObjectIDFromHex(idStr)
+	if err != nil {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("invalid document id"))
+		return
+	}
+
+	// Use ResponseController to manage per-connection timeouts (Go 1.20+)
+	rc := http.NewResponseController(w)
+
+	// Remove the server-level WriteTimeout for this SSE connection.
+	// SSE streams are long-lived and must not be killed by the default 30s timeout.
+	_ = rc.SetWriteDeadline(time.Time{})
+
+	// Set SSE headers BEFORE writing any response body
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Safety-net context: 5 minutes max for the entire analysis
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+	defer cancel()
+
+	// Start analysis with progress channel
+	progressCh := make(chan domain.AnalysisEvent, 32)
+	go h.svc.AnalyzeWithProgress(ctx, oid, progressCh)
+
+	// Stream events to client
+	for evt := range progressCh {
+		data, marshalErr := json.Marshal(evt)
+		if marshalErr != nil {
+			continue
+		}
+		_, writeErr := fmt.Fprintf(w, "data: %s\n\n", data)
+		if writeErr != nil {
+			// Client disconnected
+			cancel()
+			return
+		}
+		if flushErr := rc.Flush(); flushErr != nil {
+			cancel()
+			return
+		}
+	}
 }
 
 // Upload handles POST /api/v1/documents/upload

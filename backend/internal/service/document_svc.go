@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
+	"sync"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -82,84 +84,198 @@ func (s *DocumentService) Delete(ctx context.Context, id bson.ObjectID) error {
 	return s.repo.SoftDelete(ctx, id)
 }
 
-// Analyze performs real OCR text extraction and AI-powered field extraction.
-func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
-	// 1. Fetch the document to get file path
-	doc, err := s.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
+// maxConcurrency is the number of parallel AI page-processing goroutines.
+const maxConcurrency = 3
+
+// AnalyzeWithProgress performs page-level OCR + parallel AI extraction,
+// streaming real-time progress events to the provided channel.
+// The channel is closed when processing finishes.
+func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent) {
+	defer close(progressCh)
+
+	// Helper to send event (non-blocking if context cancelled)
+	send := func(evt domain.AnalysisEvent) {
+		select {
+		case progressCh <- evt:
+		case <-ctx.Done():
+		}
 	}
 
-	// 2. Set status to processing + step
+	// 1. Fetch document
+	doc, err := s.GetByID(ctx, id)
+	if err != nil {
+		send(domain.AnalysisEvent{Type: "error", Error: fmt.Sprintf("document not found: %v", err)})
+		return
+	}
+
+	// 2. Set status to processing
 	processingStatus := domain.StatusProcessing
 	stepExtract := "extracting_text"
 	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &processingStatus, ProcessingStep: &stepExtract})
 
-	// 3. Extract text from the file using OCR
-	slog.Info("extracting text from document", "id", id.Hex(), "path", doc.FilePath)
-	rawText, err := ocr.ExtractText(doc.FilePath)
+	// 3. Extract pages
+	slog.Info("extracting pages from document", "id", id.Hex(), "path", doc.FilePath)
+	pages, totalPages, err := ocr.ExtractPages(doc.FilePath)
 	if err != nil {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		return nil, &domain.AppError{
-			Code:    500,
-			Message: fmt.Sprintf("text extraction failed: %v", err),
-		}
+		send(domain.AnalysisEvent{Type: "error", Error: fmt.Sprintf("text extraction failed: %v", err)})
+		return
 	}
 
-	slog.Info("text extracted", "id", id.Hex(), "textLen", len(rawText))
+	slog.Info("pages extracted", "id", id.Hex(), "totalPages", totalPages, "pagesWithText", len(pages))
 
-	// 3b. Save raw text and advance step
+	// 3b. Build raw text from all pages and save
+	var rawBuf strings.Builder
+	for _, p := range pages {
+		rawBuf.WriteString(p.Text)
+		rawBuf.WriteString("\n")
+	}
+	rawText := strings.TrimSpace(rawBuf.String())
 	stepAI := "ai_analysis"
 	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{ProcessingStep: &stepAI, RawText: &rawText})
 
-	// 4. Use AI to extract structured fields
+	// 4. Check AI client
 	if s.aiClient == nil {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		return nil, &domain.AppError{
-			Code:    500,
-			Message: "AI service not configured — set KILO_API_KEY in .env",
-		}
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — set KILO_API_KEY in .env"})
+		return
 	}
 
-	slog.Info("sending text to AI for field extraction", "id", id.Hex())
-	fields, err := s.aiClient.ExtractFields(ctx, rawText, doc.Type)
-	if err != nil {
+	// 5. Send start event
+	send(domain.AnalysisEvent{Type: "start", TotalPages: len(pages)})
+
+	// 6. Process pages in parallel with concurrency limit
+	type pageResult struct {
+		pageNum int
+		fields  []domain.ExtractedField
+		err     error
+	}
+
+	resultsCh := make(chan pageResult, len(pages))
+	sem := make(chan struct{}, maxConcurrency) // semaphore
+	var wg sync.WaitGroup
+
+	for _, page := range pages {
+		wg.Add(1)
+		go func(p ocr.PageText) {
+			defer wg.Done()
+
+			// Acquire semaphore slot
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			slog.Info("processing page with AI", "id", id.Hex(), "page", p.PageNumber)
+			fields, err := s.aiClient.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
+			resultsCh <- pageResult{pageNum: p.PageNumber, fields: fields, err: err}
+		}(page)
+	}
+
+	// Close results channel when all goroutines finish
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	// 7. Collect results and send progress events
+	var allFields []domain.ExtractedField
+	pagesProcessed := 0
+	for res := range resultsCh {
+		pagesProcessed++
+		if res.err != nil {
+			slog.Warn("page analysis failed", "id", id.Hex(), "page", res.pageNum, "error", res.err)
+			send(domain.AnalysisEvent{
+				Type:  "page_done",
+				Page:  res.pageNum,
+				Error: res.err.Error(),
+			})
+			continue
+		}
+		allFields = append(allFields, res.fields...)
+		send(domain.AnalysisEvent{
+			Type:        "page_done",
+			Page:        res.pageNum,
+			FieldsFound: len(res.fields),
+		})
+		slog.Info("page analyzed", "id", id.Hex(), "page", res.pageNum, "fieldsFound", len(res.fields))
+	}
+
+	// 8. Deduplicate fields — keep highest confidence per fieldName
+	deduped := deduplicateFields(allFields)
+
+	if len(deduped) == 0 {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		return nil, &domain.AppError{
-			Code:    500,
-			Message: fmt.Sprintf("AI field extraction failed: %v", err),
-		}
+		send(domain.AnalysisEvent{Type: "error", Error: "AI returned no valid fields from any page"})
+		return
 	}
 
-	slog.Info("AI extracted fields", "id", id.Hex(), "fieldCount", len(fields))
-
-	// 5. Compute overall confidence
+	// 9. Compute overall confidence
 	var totalConf float64
-	for _, f := range fields {
+	for _, f := range deduped {
 		totalConf += f.Confidence
 	}
 	avgConf := 0.0
-	if len(fields) > 0 {
-		avgConf = math.Round((totalConf/float64(len(fields)))*1000) / 10 // e.g. 95.3
+	if len(deduped) > 0 {
+		avgConf = math.Round((totalConf/float64(len(deduped)))*1000) / 10
 	}
 
-	// 6. Update document with results
+	// 10. Save results
 	status := domain.StatusProcessed
 	stepComplete := "complete"
 	input := domain.UpdateDocumentInput{
 		Status:          &status,
 		ProcessingStep:  &stepComplete,
 		Confidence:      &avgConf,
-		ExtractedFields: fields,
+		ExtractedFields: deduped,
+	}
+	_, _ = s.Update(ctx, id, input)
+
+	slog.Info("analysis complete", "id", id.Hex(), "totalFields", len(deduped), "confidence", avgConf)
+
+	send(domain.AnalysisEvent{
+		Type:        "complete",
+		TotalFields: len(deduped),
+		Confidence:  avgConf,
+	})
+}
+
+// Analyze performs OCR + AI analysis (non-streaming wrapper).
+func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
+	ch := make(chan domain.AnalysisEvent, 64)
+	go s.AnalyzeWithProgress(ctx, id, ch)
+
+	// Drain channel, capture last event
+	var lastEvent domain.AnalysisEvent
+	for evt := range ch {
+		lastEvent = evt
 	}
 
-	return s.Update(ctx, id, input)
+	if lastEvent.Type == "error" {
+		return nil, &domain.AppError{Code: 500, Message: lastEvent.Error}
+	}
+
+	return s.GetByID(ctx, id)
+}
+
+// deduplicateFields merges fields by fieldName, keeping the highest confidence value.
+func deduplicateFields(fields []domain.ExtractedField) []domain.ExtractedField {
+	best := make(map[string]domain.ExtractedField)
+	for _, f := range fields {
+		key := strings.ToLower(strings.TrimSpace(f.FieldName))
+		if existing, ok := best[key]; !ok || f.Confidence > existing.Confidence {
+			best[key] = f
+		}
+	}
+	result := make([]domain.ExtractedField, 0, len(best))
+	for _, f := range best {
+		result = append(result, f)
+	}
+	return result
 }
 
 // DashboardService aggregates metrics for the dashboard.

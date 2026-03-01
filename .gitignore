@@ -5,3 +5,6 @@ out
 .eslintcache
 *.log*
 tools
+*.pdf
+uploads
+server

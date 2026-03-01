@@ -1,6 +1,6 @@
 /**
  * Documents page — document list with search, filters, and analysis view.
- * Upload shows file immediately, analysis runs in background.
+ * Upload shows file immediately, analysis runs in background with SSE progress.
  * Polls for status updates while any document is processing.
  */
 
@@ -13,14 +13,24 @@ import {
     getDocumentsData,
     uploadDocument,
     deleteDocument,
-    analyzeDocument,
+    analyzeDocumentSSE,
     updateDocument
 } from '../data/data-service'
+import type { AnalysisEvent } from '../data/data-service'
 import type { AuraDocument } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
 import { Search } from '../components/Icons'
 
 type FilterType = 'all' | 'processed' | 'reviewing' | 'pending' | 'error'
+
+/** Real-time analysis progress state */
+export interface AnalysisProgress {
+    readonly totalPages: number
+    readonly pagesProcessed: number
+    readonly fieldsFound: number
+    readonly currentPage: number
+    readonly active: boolean
+}
 
 interface DocumentsProps {
     readonly addToast: (type: ToastType, text: string) => void
@@ -32,7 +42,9 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
     const [selectedDocument, setSelectedDocument] = useState<AuraDocument | null>(null)
     const [documents, setDocuments] = useState<readonly AuraDocument[]>([])
     const [loading, setLoading] = useState(true)
+    const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null)
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const sseCleanupRef = useRef<(() => void) | null>(null)
 
     const loadDocuments = useCallback(async () => {
         const result = await getDocumentsData()
@@ -51,6 +63,10 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
 
     useEffect(() => {
         loadDocuments()
+        return () => {
+            // Cleanup SSE on unmount
+            sseCleanupRef.current?.()
+        }
     }, [loadDocuments])
 
     // Poll while any document is processing
@@ -69,6 +85,64 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         }
     }, [hasProcessing, loadDocuments])
 
+    /** Start SSE-based analysis for a document */
+    const startSSEAnalysis = useCallback(
+        (docId: string, docName: string) => {
+            // Cleanup previous SSE if any
+            sseCleanupRef.current?.()
+
+            setAnalysisProgress({ totalPages: 0, pagesProcessed: 0, fieldsFound: 0, currentPage: 0, active: true })
+
+            const cleanup = analyzeDocumentSSE(
+                docId,
+                (event: AnalysisEvent) => {
+                    switch (event.type) {
+                        case 'start':
+                            setAnalysisProgress((prev) => prev ? {
+                                ...prev,
+                                totalPages: event.totalPages ?? 0
+                            } : prev)
+                            break
+                        case 'page_done':
+                            setAnalysisProgress((prev) => prev ? {
+                                ...prev,
+                                pagesProcessed: prev.pagesProcessed + 1,
+                                currentPage: event.page ?? 0,
+                                fieldsFound: prev.fieldsFound + (event.fieldsFound ?? 0)
+                            } : prev)
+                            break
+                        case 'complete':
+                            setAnalysisProgress((prev) => prev ? {
+                                ...prev,
+                                active: false,
+                                fieldsFound: event.totalFields ?? prev.fieldsFound
+                            } : prev)
+                            addToast('success', `"${docName}" analyzed — ${event.totalFields ?? 0} fields extracted`)
+                            loadDocuments()
+                            break
+                        case 'error':
+                            setAnalysisProgress((prev) => prev ? { ...prev, active: false } : prev)
+                            addToast('error', `Analysis failed: ${event.error ?? 'Unknown error'}`)
+                            loadDocuments()
+                            break
+                    }
+                },
+                () => {
+                    // SSE stream ended
+                    loadDocuments()
+                },
+                (err) => {
+                    setAnalysisProgress(null)
+                    addToast('error', `SSE connection failed: ${err.message}`)
+                    loadDocuments()
+                }
+            )
+
+            sseCleanupRef.current = cleanup
+        },
+        [addToast, loadDocuments]
+    )
+
     const handleFilesSelected = useCallback(
         async (files: FileList) => {
             for (const file of Array.from(files)) {
@@ -79,22 +153,14 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                     // Refresh immediately to show the uploaded document
                     await loadDocuments()
 
-                    // Fire analysis in the background (non-blocking)
-                    analyzeDocument(uploaded._id)
-                        .then(() => {
-                            addToast('success', `"${file.name}" analyzed successfully`)
-                            loadDocuments()
-                        })
-                        .catch((err) => {
-                            addToast('error', `Analysis failed for "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
-                            loadDocuments()
-                        })
+                    // Fire SSE analysis in the background
+                    startSSEAnalysis(uploaded._id, file.name)
                 } catch (err) {
                     addToast('error', `Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
                 }
             }
         },
-        [addToast, loadDocuments]
+        [addToast, loadDocuments, startSSEAnalysis]
     )
 
     const handleDeleteDocument = useCallback(
@@ -111,17 +177,10 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
     )
 
     const handleAnalyze = useCallback(
-        async (doc: AuraDocument) => {
-            try {
-                const updated = await analyzeDocument(doc._id)
-                addToast('success', `Analysis complete for "${doc.name}"`)
-                setSelectedDocument(updated)
-                loadDocuments()
-            } catch (err) {
-                addToast('error', `Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
-            }
+        (doc: AuraDocument) => {
+            startSSEAnalysis(doc._id, doc.name)
         },
-        [addToast, loadDocuments]
+        [startSSEAnalysis]
     )
 
     const handleApprove = useCallback(
@@ -165,6 +224,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                 onRescan={() => handleAnalyze(selectedDocument)}
                 onApprove={() => handleApprove(selectedDocument)}
                 addToast={addToast}
+                analysisProgress={analysisProgress}
             />
         )
     }
@@ -221,3 +281,4 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         </>
     )
 }
+
