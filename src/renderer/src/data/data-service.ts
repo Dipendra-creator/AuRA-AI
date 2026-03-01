@@ -18,7 +18,7 @@ import type {
   CreateDocumentInput
 } from '../../../shared/types/document.types'
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData } from './api-client'
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
@@ -241,6 +241,16 @@ export async function createActivity(input: {
   icon: string
 }): Promise<unknown> {
   return apiPost('/activity', input)
+}
+
+// ─── Export ──────────────────────────────────────────────────────
+
+/**
+ * Exports document extracted fields as CSV or Excel.
+ * Returns a Blob that can be downloaded by the browser.
+ */
+export async function exportDocument(id: string, format: 'csv' | 'xlsx'): Promise<Blob> {
+  return apiPostBlob(`/documents/${id}/export`, { format })
 }
 
 // ─── Health Check ────────────────────────────────────────────────

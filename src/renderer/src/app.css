@@ -1951,6 +1951,55 @@ body {
   padding: 10px 28px;
 }
 
+/* Export button group */
+.export-btn-group {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.export-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.export-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.08), rgba(var(--color-accent-purple-rgb), 0.08));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.export-btn:hover::before {
+  opacity: 1;
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Empty state for extracted data */
+.extracted-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  gap: var(--space-md);
+  min-height: 200px;
+}
+
+.extracted-empty p {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 320px;
+}
+
 /* ═══════════════════════════════════════════
    20. Workflow Builder
    ═══════════════════════════════════════════ */

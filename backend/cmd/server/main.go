@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Build HTTP router
-	router := server.NewRouter(db.Database(), cfg.CORSOrigins)
+	router := server.NewRouter(db.Database(), cfg.CORSOrigins, cfg.KiloAPIKey)
 
 	// Configure HTTP server
 	srv := &http.Server{

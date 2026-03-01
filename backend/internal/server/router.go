@@ -13,14 +13,14 @@ import (
 )
 
 // NewRouter creates and configures the HTTP router with all routes and middleware.
-func NewRouter(db *mongo.Database, corsOrigins string) http.Handler {
+func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.Handler {
 	// --- Repositories ---
 	docRepo := repository.NewDocumentRepo(db)
 	pipelineRepo := repository.NewPipelineRepo(db)
 	activityRepo := repository.NewActivityRepo(db)
 
 	// --- Services ---
-	docSvc := service.NewDocumentService(docRepo)
+	docSvc := service.NewDocumentService(docRepo, kiloAPIKey)
 	dashSvc := service.NewDashboardService(docRepo, pipelineRepo)
 	pipeSvc := service.NewPipelineService(pipelineRepo)
 
@@ -29,6 +29,7 @@ func NewRouter(db *mongo.Database, corsOrigins string) http.Handler {
 	dashH := handler.NewDashboardHandler(dashSvc)
 	pipeH := handler.NewPipelineHandler(pipeSvc)
 	actH := handler.NewActivityHandler(activityRepo)
+	exportH := handler.NewExportHandler(docSvc)
 
 	// --- Routes ---
 	mux := http.NewServeMux()
@@ -44,6 +45,7 @@ func NewRouter(db *mongo.Database, corsOrigins string) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/documents/{id}", docH.Update)
 	mux.HandleFunc("DELETE /api/v1/documents/{id}", docH.Delete)
 	mux.HandleFunc("POST /api/v1/documents/{id}/analyze", docH.Analyze)
+	mux.HandleFunc("POST /api/v1/documents/{id}/export", exportH.Export)
 
 	// Dashboard
 	mux.HandleFunc("GET /api/v1/dashboard/stats", dashH.GetStats)
