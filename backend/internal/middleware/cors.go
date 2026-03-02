@@ -16,6 +16,13 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip CORS for WebSocket upgrade requests — the gorilla/websocket
+			// Upgrader handles origin checking via its CheckOrigin callback.
+			if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			origin := r.Header.Get("Origin")
 
 			if originSet[origin] || originSet["*"] {
