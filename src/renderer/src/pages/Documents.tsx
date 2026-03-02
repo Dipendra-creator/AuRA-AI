@@ -1,6 +1,6 @@
 /**
  * Documents page — document list with search, filters, and analysis view.
- * Upload shows file immediately, analysis runs in background with SSE progress.
+ * Upload shows file immediately, analysis runs in background with WebSocket progress.
  * Polls for status updates while any document is processing.
  */
 
@@ -13,7 +13,7 @@ import {
     getDocumentsData,
     uploadDocument,
     deleteDocument,
-    analyzeDocumentSSE,
+    analyzeDocumentWS,
     updateDocument
 } from '../data/data-service'
 import type { AnalysisEvent } from '../data/data-service'
@@ -44,7 +44,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
     const [loading, setLoading] = useState(true)
     const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null)
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-    const sseCleanupRef = useRef<(() => void) | null>(null)
+    const wsCleanupRef = useRef<(() => void) | null>(null)
 
     const loadDocuments = useCallback(async () => {
         const result = await getDocumentsData()
@@ -64,8 +64,8 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
     useEffect(() => {
         loadDocuments()
         return () => {
-            // Cleanup SSE on unmount
-            sseCleanupRef.current?.()
+            // Cleanup WS subscription on unmount
+            wsCleanupRef.current?.()
         }
     }, [loadDocuments])
 
@@ -85,15 +85,15 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         }
     }, [hasProcessing, loadDocuments])
 
-    /** Start SSE-based analysis for a document */
-    const startSSEAnalysis = useCallback(
+    /** Start WebSocket-based analysis for a document */
+    const startWSAnalysis = useCallback(
         (docId: string, docName: string) => {
-            // Cleanup previous SSE if any
-            sseCleanupRef.current?.()
+            // Cleanup previous WS subscription if any
+            wsCleanupRef.current?.()
 
             setAnalysisProgress({ totalPages: 0, pagesProcessed: 0, fieldsFound: 0, currentPage: 0, active: true })
 
-            const cleanup = analyzeDocumentSSE(
+            const cleanup = analyzeDocumentWS(
                 docId,
                 (event: AnalysisEvent) => {
                     switch (event.type) {
@@ -133,12 +133,12 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                 },
                 (err) => {
                     setAnalysisProgress(null)
-                    addToast('error', `SSE connection failed: ${err.message}`)
+                    addToast('error', `WebSocket connection failed: ${err.message}`)
                     loadDocuments()
                 }
             )
 
-            sseCleanupRef.current = cleanup
+            wsCleanupRef.current = cleanup
         },
         [addToast, loadDocuments]
     )
@@ -154,13 +154,13 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                     await loadDocuments()
 
                     // Fire SSE analysis in the background
-                    startSSEAnalysis(uploaded._id, file.name)
+                    startWSAnalysis(uploaded._id, file.name)
                 } catch (err) {
                     addToast('error', `Failed to upload "${file.name}": ${err instanceof Error ? err.message : 'Unknown error'}`)
                 }
             }
         },
-        [addToast, loadDocuments, startSSEAnalysis]
+        [addToast, loadDocuments, startWSAnalysis]
     )
 
     const handleDeleteDocument = useCallback(
@@ -178,9 +178,9 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
 
     const handleAnalyze = useCallback(
         (doc: AuraDocument) => {
-            startSSEAnalysis(doc._id, doc.name)
+            startWSAnalysis(doc._id, doc.name)
         },
-        [startSSEAnalysis]
+        [startWSAnalysis]
     )
 
     const handleApprove = useCallback(

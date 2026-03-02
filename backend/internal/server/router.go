@@ -30,12 +30,16 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	pipeH := handler.NewPipelineHandler(pipeSvc)
 	actH := handler.NewActivityHandler(activityRepo)
 	exportH := handler.NewExportHandler(docSvc)
+	wsH := handler.NewWSHandler(docSvc)
 
 	// --- Routes ---
 	mux := http.NewServeMux()
 
 	// Health
 	mux.HandleFunc("GET /api/v1/health", handler.HealthCheck)
+
+	// WebSocket
+	mux.HandleFunc("GET /api/v1/ws", wsH.HandleWS)
 
 	// Documents
 	mux.HandleFunc("GET /api/v1/documents", docH.List)
@@ -45,7 +49,6 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	mux.HandleFunc("PATCH /api/v1/documents/{id}", docH.Update)
 	mux.HandleFunc("DELETE /api/v1/documents/{id}", docH.Delete)
 	mux.HandleFunc("POST /api/v1/documents/{id}/analyze", docH.Analyze)
-	mux.HandleFunc("GET /api/v1/documents/{id}/analyze/stream", docH.AnalyzeSSE)
 	mux.HandleFunc("POST /api/v1/documents/{id}/export", exportH.Export)
 
 	// Uploaded file serving (for PDF preview)

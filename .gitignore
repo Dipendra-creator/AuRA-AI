@@ -8,3 +8,4 @@ tools
 *.pdf
 uploads
 server
+*prompt.md

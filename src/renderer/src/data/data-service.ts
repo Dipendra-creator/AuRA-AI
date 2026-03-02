@@ -18,8 +18,9 @@ import type {
   CreateDocumentInput
 } from '../../../shared/types/document.types'
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob, apiSSE } from './api-client'
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
 import type { AnalysisEvent } from './api-client'
+import { wsClient } from './ws-client'
 
 // Re-export for consumers
 export type { AnalysisEvent }
@@ -193,16 +194,16 @@ export async function analyzeDocument(id: string): Promise<AuraDocument> {
 }
 
 /**
- * Triggers AI analysis on a document with real-time SSE progress streaming.
- * Returns a cleanup function to abort the connection.
+ * Triggers AI analysis on a document with real-time WebSocket progress streaming.
+ * Returns a cleanup function to cancel the subscription.
  */
-export function analyzeDocumentSSE(
+export function analyzeDocumentWS(
   id: string,
   onEvent: (event: AnalysisEvent) => void,
   onDone?: () => void,
   onError?: (err: Error) => void
 ): () => void {
-  return apiSSE(`/documents/${id}/analyze/stream`, onEvent, onDone, onError)
+  return wsClient.analyzeDocument(id, onEvent, onDone, onError)
 }
 
 /**
