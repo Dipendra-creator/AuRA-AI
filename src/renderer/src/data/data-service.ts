@@ -124,6 +124,7 @@ export async function getDocumentsData(params?: {
 
 /**
  * Fetches workflow/pipeline data from the API with mock fallback.
+ * If the API returns no pipelines, automatically creates a default one.
  */
 export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
   try {
@@ -140,17 +141,41 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
         edges: PipelineEdge[]
       }>
     >('/pipelines')
-    const first = pipelines[0]
-    if (!first) throw new Error('No pipelines found')
+
+    let first = pipelines[0]
+
+    // Auto-create a default pipeline if none exist
+    if (!first) {
+      console.info('[DataService] No pipelines found, creating default pipeline')
+      const created = await apiPost<{
+        _id: string
+        name: string
+        description: string
+        status: string
+        latency: string
+        workspace: string
+        version: string
+        nodes: PipelineNode[]
+        edges: PipelineEdge[]
+      }>('/pipelines', {
+        name: 'Data Pipeline V1',
+        workspace: 'Default',
+        description: 'Auto-created pipeline',
+        nodes: [],
+        edges: []
+      })
+      first = created
+    }
+
     return {
       pipeline: {
         id: first._id,
         name: first.name,
         description: first.description ?? '',
-        status: first.status,
-        latency: first.latency,
-        workspace: first.workspace,
-        version: first.version
+        status: first.status ?? 'operational',
+        latency: first.latency ?? '0ms',
+        workspace: first.workspace ?? 'Default',
+        version: first.version ?? '1.0.0'
       },
       nodes: first.nodes ?? [],
       edges: first.edges ?? []

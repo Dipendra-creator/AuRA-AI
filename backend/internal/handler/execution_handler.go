@@ -54,6 +54,12 @@ func (h *ExecutionHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	run, err := h.svc.Execute(r.Context(), id, input, progressCh)
 	if err != nil {
+		// If we have a run record (partial results), return it with 200
+		// so the frontend can show exactly which node failed.
+		if run != nil {
+			domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(run))
+			return
+		}
 		handleError(w, err)
 		return
 	}

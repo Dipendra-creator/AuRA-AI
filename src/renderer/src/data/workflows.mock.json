@@ -1,5 +1,6 @@
 {
   "pipeline": {
+    "id": "mock-pipeline-001",
     "name": "DATA PIPELINE V2.4",
     "description": "Primary document processing pipeline",
     "status": "operational",
