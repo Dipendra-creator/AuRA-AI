@@ -1,6 +1,7 @@
 {
   "pipeline": {
     "name": "DATA PIPELINE V2.4",
+    "description": "Primary document processing pipeline",
     "status": "operational",
     "latency": "24ms",
     "workspace": "AURA PRIME",
@@ -11,77 +12,52 @@
       "id": "IN-240-A1",
       "label": "INGEST",
       "name": "Intake Node",
-      "type": "process",
-      "icon": "download",
-      "config": {
-        "strictJsonSchema": false,
-        "dataTypeMatching": true,
-        "handleNullValues": false,
-        "apiIntegration": "File System Watcher",
-        "successRedirect": "Extract Node"
-      }
+      "type": "ingest",
+      "icon": "upload",
+      "position": { "x": 50, "y": 300 },
+      "config": { "ocrEnabled": true, "acceptedFormats": ["pdf", "docx", "jpg", "png"] }
     },
     {
       "id": "EX-240-B2",
-      "label": "PROCESS",
+      "label": "AI EXTRACT",
       "name": "Extract Node",
-      "type": "process",
-      "icon": "extract",
-      "config": {
-        "strictJsonSchema": true,
-        "dataTypeMatching": true,
-        "handleNullValues": false,
-        "apiIntegration": "OCR Engine v4.2",
-        "successRedirect": "Validate Node"
-      }
+      "type": "ai_extract",
+      "icon": "brain",
+      "position": { "x": 350, "y": 300 },
+      "config": { "confidenceThreshold": 0.7 }
     },
     {
       "id": "VN-240-X9",
       "label": "REVIEW",
       "name": "Validate Node",
       "type": "review",
-      "icon": "validate",
-      "config": {
-        "strictJsonSchema": true,
-        "dataTypeMatching": true,
-        "handleNullValues": false,
-        "apiIntegration": "Main Oracle Database",
-        "successRedirect": "Transform Node"
-      }
+      "icon": "eye",
+      "position": { "x": 650, "y": 300 },
+      "config": { "autoApproveThreshold": 0.95, "allowEdits": true }
     },
     {
       "id": "TN-240-C3",
-      "label": "PROCESS",
+      "label": "TRANSFORM",
       "name": "Transform Node",
-      "type": "process",
-      "icon": "transform",
-      "config": {
-        "strictJsonSchema": true,
-        "dataTypeMatching": true,
-        "handleNullValues": true,
-        "apiIntegration": "Data Normalizer",
-        "successRedirect": "Export Node"
-      }
+      "type": "transform",
+      "icon": "cpu",
+      "position": { "x": 950, "y": 300 },
+      "config": { "operations": [{"type": "default", "field": "currency", "value": "USD"}] }
     },
     {
       "id": "EP-240-D4",
       "label": "EXPORT",
       "name": "Export Node",
       "type": "export",
-      "icon": "upload",
-      "config": {
-        "strictJsonSchema": false,
-        "dataTypeMatching": false,
-        "handleNullValues": false,
-        "apiIntegration": "S3 Bucket Output",
-        "successRedirect": ""
-      }
+      "icon": "fileOutput",
+      "position": { "x": 1250, "y": 300 },
+      "config": { "format": "csv", "destination": "local" }
     }
   ],
-  "toolbarItems": [
-    { "id": "node-tool", "icon": "node", "label": "Add Node" },
-    { "id": "trigger-tool", "icon": "trigger", "label": "Triggers" },
-    { "id": "connector-tool", "icon": "connector", "label": "Connectors" },
-    { "id": "code-tool", "icon": "code", "label": "Custom Code" }
+  "edges": [
+    { "id": "e1", "source": "IN-240-A1", "target": "EX-240-B2" },
+    { "id": "e2", "source": "EX-240-B2", "target": "VN-240-X9" },
+    { "id": "e3", "source": "VN-240-X9", "target": "TN-240-C3" },
+    { "id": "e4", "source": "TN-240-C3", "target": "EP-240-D4" }
   ]
 }

@@ -61,4 +61,14 @@ export {
     // Arrows
     ArrowUpRight,
     ArrowDown,
+
+    // Workflow node types (extended)
+    Cpu,
+    Plug,
+    FileOutput,
+    GitFork,
+    Edit3,
+    Eye,
+    GripVertical,
 } from 'lucide-react'
+

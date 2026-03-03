@@ -23,6 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@xyflow/react": "^12.10.1",
     "electron-updater": "^6.3.9",
     "lucide-react": "^0.575.0",
     "mongodb": "^7.1.0",

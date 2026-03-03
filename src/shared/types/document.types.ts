@@ -89,16 +89,26 @@ export interface ActivityEvent {
   readonly icon: ActivityEventIcon
 }
 
-/** Pipeline node type classification */
-export type PipelineNodeType = 'process' | 'review' | 'export'
+/** Extended pipeline node types */
+export type PipelineNodeType =
+  | 'ingest'
+  | 'ai_extract'
+  | 'transform'
+  | 'form_fill'
+  | 'custom_api'
+  | 'review'
+  | 'condition'
+  | 'export'
 
-/** Pipeline node configuration */
+/** Pipeline node configuration — flexible key-value map per node type */
 export interface PipelineNodeConfig {
-  readonly strictJsonSchema: boolean
-  readonly dataTypeMatching: boolean
-  readonly handleNullValues: boolean
-  readonly apiIntegration: string
-  readonly successRedirect: string
+  [key: string]: unknown
+}
+
+/** Canvas position for React Flow */
+export interface NodePosition {
+  readonly x: number
+  readonly y: number
 }
 
 /** Pipeline workflow node */
@@ -108,17 +118,97 @@ export interface PipelineNode {
   readonly name: string
   readonly type: PipelineNodeType
   readonly icon: string
+  readonly position: NodePosition
   readonly config: PipelineNodeConfig
+}
+
+/** Pipeline edge connecting two nodes */
+export interface PipelineEdge {
+  readonly id: string
+  readonly source: string
+  readonly target: string
+  readonly label?: string
 }
 
 /** Pipeline metadata */
 export interface PipelineMetadata {
   readonly id?: string
   readonly name: string
+  readonly description: string
   readonly status: string
   readonly latency: string
   readonly workspace: string
   readonly version: string
+}
+
+/** Pipeline run status */
+export type PipelineRunStatus =
+  | 'pending'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
+/** Node run status */
+export type NodeRunStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'waiting_review'
+
+/** Result of a single node execution */
+export interface NodeRunResult {
+  readonly nodeId: string
+  readonly status: NodeRunStatus
+  readonly startedAt: string
+  readonly endedAt?: string
+  readonly output?: Record<string, unknown>
+  readonly error?: string
+  readonly durationMs: number
+}
+
+/** A single execution instance of a pipeline */
+export interface PipelineRun {
+  readonly _id: string
+  readonly pipelineId: string
+  readonly status: PipelineRunStatus
+  readonly triggerBy: string
+  readonly nodeRuns: readonly NodeRunResult[]
+  readonly startedAt: string
+  readonly endedAt?: string
+}
+
+/** Pipeline execution event from WebSocket */
+export interface PipelineEvent {
+  readonly type: string
+  readonly pipelineId?: string
+  readonly runId?: string
+  readonly nodeId?: string
+  readonly nodeName?: string
+  readonly output?: Record<string, unknown>
+  readonly error?: string
+  readonly durationMs?: number
+}
+
+/** Form template for the form-fill node */
+export interface FormTemplate {
+  readonly _id: string
+  readonly name: string
+  readonly description: string
+  readonly fields: readonly FormTemplateField[]
+  readonly version: string
+}
+
+/** Form template field definition */
+export interface FormTemplateField {
+  readonly key: string
+  readonly label: string
+  readonly type: string
+  readonly required: boolean
+  readonly default?: unknown
 }
 
 /** Document analysis view metadata */
