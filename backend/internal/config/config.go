@@ -15,6 +15,7 @@ type Config struct {
 	CORSOrigins    string
 	RequestTimeout time.Duration
 	KiloAPIKey     string
+	TesseractPath  string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -27,6 +28,7 @@ func Load() *Config {
 		CORSOrigins:    getEnv("CORS_ORIGINS", "http://localhost:5173"),
 		RequestTimeout: parseDuration(getEnv("REQUEST_TIMEOUT", "30s"), 30*time.Second),
 		KiloAPIKey:     getEnv("KILO_API_KEY", ""),
+		TesseractPath:  getEnv("TESSERACT_PATH", "tesseract"),
 	}
 }
 

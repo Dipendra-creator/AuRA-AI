@@ -30,6 +30,8 @@ export interface AnalysisProgress {
     readonly fieldsFound: number
     readonly currentPage: number
     readonly active: boolean
+    readonly pagesFailed: number
+    readonly pagesSucceeded: number
 }
 
 interface DocumentsProps {
@@ -91,7 +93,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
             // Cleanup previous WS subscription if any
             wsCleanupRef.current?.()
 
-            setAnalysisProgress({ totalPages: 0, pagesProcessed: 0, fieldsFound: 0, currentPage: 0, active: true })
+            setAnalysisProgress({ totalPages: 0, pagesProcessed: 0, fieldsFound: 0, currentPage: 0, active: true, pagesFailed: 0, pagesSucceeded: 0 })
 
             const cleanup = analyzeDocumentWS(
                 docId,
@@ -108,16 +110,29 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                                 ...prev,
                                 pagesProcessed: prev.pagesProcessed + 1,
                                 currentPage: event.page ?? 0,
-                                fieldsFound: prev.fieldsFound + (event.fieldsFound ?? 0)
+                                fieldsFound: prev.fieldsFound + (event.fieldsFound ?? 0),
+                                pagesFailed: event.error ? prev.pagesFailed + 1 : prev.pagesFailed,
+                                pagesSucceeded: event.error ? prev.pagesSucceeded : prev.pagesSucceeded + 1
                             } : prev)
+                            // Refresh document to show incrementally saved fields
+                            loadDocuments()
                             break
                         case 'complete':
-                            setAnalysisProgress((prev) => prev ? {
-                                ...prev,
+              setAnalysisProgress((prev) =>
+                prev
+                  ? {
+                      ...prev,
                                 active: false,
-                                fieldsFound: event.totalFields ?? prev.fieldsFound
+                                fieldsFound: event.totalFields ?? prev.fieldsFound,
+                                pagesSucceeded: event.pagesSucceeded ?? prev.pagesSucceeded,
+                                pagesFailed: event.pagesFailed ?? prev.pagesFailed
                             } : prev)
-                            addToast('success', `"${docName}" analyzed — ${event.totalFields ?? 0} fields extracted`)
+                            {
+                                const failInfo = (event.pagesFailed ?? 0) > 0
+                                    ? ` (${event.pagesFailed} page${(event.pagesFailed ?? 0) > 1 ? 's' : ''} failed)`
+                                    : ''
+                                addToast('success', `"${docName}" analyzed — ${event.totalFields ?? 0} fields extracted${failInfo}`)
+                            }
                             loadDocuments()
                             break
                         case 'error':

@@ -330,10 +330,25 @@ export function DocumentAnalysis({ document: doc, onClose, onRescan, onApprove, 
                         </div>
                     )}
 
-                    {!hasFields && !isProcessing && (
+                    {!hasFields && !isProcessing && !(analysisProgress?.active) && (
                         <div className="extracted-empty glass-panel">
                             <span className="empty-state-icon"><Search size={28} /></span>
                             <p>No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document with AI.</p>
+                        </div>
+                    )}
+
+                    {analysisProgress && analysisProgress.pagesFailed > 0 && !analysisProgress.active && (
+                        <div className="extracted-field-card glass-panel conf-low" style={{ marginBottom: '12px' }}>
+                            <div className="field-card-header">
+                                <span className="field-label"><AlertTriangle size={14} /> PARTIAL FAILURE</span>
+                            </div>
+                            <div className="field-card-value">
+                                <span className="field-value">
+                                    {analysisProgress.pagesFailed} page{analysisProgress.pagesFailed > 1 ? 's' : ''} failed during analysis.
+                                    {analysisProgress.pagesSucceeded > 0 ? ` ${analysisProgress.pagesSucceeded} page${analysisProgress.pagesSucceeded > 1 ? 's' : ''} succeeded.` : ''}
+                                    {' '}Results shown are from successfully processed pages.
+                                </span>
+                            </div>
                         </div>
                     )}
 
