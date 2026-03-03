@@ -64,8 +64,14 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
   }, [])
 
   useEffect(() => {
-    loadDocuments()
+    let ignore = false
+    const fetchDocs = async (): Promise<void> => {
+      await loadDocuments()
+      if (ignore) return
+    }
+    fetchDocs()
     return () => {
+      ignore = true
       // Cleanup WS subscription on unmount
       wsCleanupRef.current?.()
     }
