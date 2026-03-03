@@ -27,7 +27,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#3b82f6',
     gradientTo: '#1d4ed8',
     icon: 'upload',
-    defaultConfig: { ocrEnabled: true, acceptedFormats: ['pdf', 'docx', 'jpg', 'png'] },
+    defaultConfig: { ocrEnabled: true, acceptedFormats: ['pdf', 'docx', 'jpg', 'png'] }
   },
   {
     type: 'ai_extract',
@@ -39,7 +39,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#8b5cf6',
     gradientTo: '#6d28d9',
     icon: 'brain',
-    defaultConfig: { confidenceThreshold: 0.7 },
+    defaultConfig: { confidenceThreshold: 0.7 }
   },
   {
     type: 'transform',
@@ -51,7 +51,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#06b6d4',
     gradientTo: '#0891b2',
     icon: 'cpu',
-    defaultConfig: { operations: [] },
+    defaultConfig: { operations: [] }
   },
   {
     type: 'form_fill',
@@ -63,7 +63,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#10b981',
     gradientTo: '#059669',
     icon: 'edit',
-    defaultConfig: { templateId: '', fieldMapping: {} },
+    defaultConfig: { templateId: '', fieldMapping: {} }
   },
   {
     type: 'custom_api',
@@ -75,7 +75,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#f59e0b',
     gradientTo: '#d97706',
     icon: 'plug',
-    defaultConfig: { method: 'POST', url: '', headers: {}, bodyTemplate: {} },
+    defaultConfig: { method: 'POST', url: '', headers: {}, bodyTemplate: {} }
   },
   {
     type: 'review',
@@ -87,7 +87,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#ec4899',
     gradientTo: '#db2777',
     icon: 'eye',
-    defaultConfig: { autoApproveThreshold: 0.95, allowEdits: true },
+    defaultConfig: { autoApproveThreshold: 0.95, allowEdits: true }
   },
   {
     type: 'condition',
@@ -99,7 +99,7 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#f97316',
     gradientTo: '#ea580c',
     icon: 'gitFork',
-    defaultConfig: { rules: [], defaultTargetNodeId: '' },
+    defaultConfig: { rules: [], defaultTargetNodeId: '' }
   },
   {
     type: 'export',
@@ -111,10 +111,10 @@ export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
     gradientFrom: '#14b8a6',
     gradientTo: '#0d9488',
     icon: 'fileOutput',
-    defaultConfig: { format: 'csv', destination: 'local' },
-  },
+    defaultConfig: { format: 'csv', destination: 'local' }
+  }
 ] as const
 
 export const NODE_TYPE_MAP = Object.fromEntries(
-  NODE_TYPE_DEFINITIONS.map((d) => [d.type, d]),
+  NODE_TYPE_DEFINITIONS.map((d) => [d.type, d])
 ) as Record<PipelineNodeType, NodeTypeDefinition>
