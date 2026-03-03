@@ -223,8 +223,8 @@ func detectDocType(ext string) domain.DocumentType {
 	switch strings.ToLower(ext) {
 	case ".pdf":
 		return domain.TypeOther // will be classified later by AI
-	case ".jpg", ".jpeg", ".png":
-		return domain.TypeReceipt
+	case ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp", ".gif":
+		return domain.TypeOther // image — will be OCR'd and classified by AI
 	case ".docx":
 		return domain.TypeContract
 	default:

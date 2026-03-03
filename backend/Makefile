@@ -1,8 +1,11 @@
-.PHONY: run build vet lint seed clean
+.PHONY: run build vet lint seed clean check-tesseract
 
 GO := /usr/local/go/bin/go
 
-run:
+check-tesseract:
+	@command -v tesseract >/dev/null 2>&1 || (echo "WARNING: tesseract not found — image OCR will be disabled. Install with: brew install tesseract" && exit 0)
+
+run: check-tesseract
 	$(GO) run cmd/server/main.go
 
 build:

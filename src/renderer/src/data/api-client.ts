@@ -113,4 +113,12 @@ export interface AnalysisEvent {
   readonly totalFields?: number
   readonly confidence?: number
   readonly error?: string
+  readonly fields?: readonly {
+    fieldName: string
+    value: string
+    confidence: number
+    verified: boolean
+  }[]
+  readonly pagesSucceeded?: number
+  readonly pagesFailed?: number
 }

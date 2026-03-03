@@ -90,6 +90,7 @@ const maxConcurrency = 3
 // AnalyzeWithProgress performs page-level OCR + parallel AI extraction,
 // streaming real-time progress events to the provided channel.
 // The channel is closed when processing finishes.
+// Fields are saved to the database incrementally as each page completes.
 func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent) {
 	defer close(progressCh)
 
@@ -108,10 +109,15 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 		return
 	}
 
-	// 2. Set status to processing
+	// 2. Set status to processing and clear any stale extracted fields
 	processingStatus := domain.StatusProcessing
 	stepExtract := "extracting_text"
-	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &processingStatus, ProcessingStep: &stepExtract})
+	emptyFields := []domain.ExtractedField{}
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
+		Status:          &processingStatus,
+		ProcessingStep:  &stepExtract,
+		ExtractedFields: emptyFields,
+	})
 
 	// 3. Extract pages
 	slog.Info("extracting pages from document", "id", id.Hex(), "path", doc.FilePath)
@@ -170,6 +176,13 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 
 			slog.Info("processing page with AI", "id", id.Hex(), "page", p.PageNumber)
 			fields, err := s.aiClient.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
+
+			// Retry once on failure
+			if err != nil {
+				slog.Warn("page analysis failed, retrying", "id", id.Hex(), "page", p.PageNumber, "error", err)
+				fields, err = s.aiClient.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
+			}
+
 			resultsCh <- pageResult{pageNum: p.PageNumber, fields: fields, err: err}
 		}(page)
 	}
@@ -180,12 +193,16 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 		close(resultsCh)
 	}()
 
-	// 7. Collect results and send progress events
+	// 7. Collect results, save incrementally, and send progress events
 	var allFields []domain.ExtractedField
 	pagesProcessed := 0
+	pagesSucceeded := 0
+	pagesFailed := 0
+
 	for res := range resultsCh {
 		pagesProcessed++
 		if res.err != nil {
+			pagesFailed++
 			slog.Warn("page analysis failed", "id", id.Hex(), "page", res.pageNum, "error", res.err)
 			send(domain.AnalysisEvent{
 				Type:  "page_done",
@@ -194,27 +211,40 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 			})
 			continue
 		}
+
+		pagesSucceeded++
 		allFields = append(allFields, res.fields...)
+
+		// Save fields to DB incrementally using $push
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
+			AppendFields: res.fields,
+		})
+
 		send(domain.AnalysisEvent{
 			Type:        "page_done",
 			Page:        res.pageNum,
 			FieldsFound: len(res.fields),
+			Fields:      res.fields,
 		})
-		slog.Info("page analyzed", "id", id.Hex(), "page", res.pageNum, "fieldsFound", len(res.fields))
+		slog.Info("page analyzed and saved", "id", id.Hex(), "page", res.pageNum, "fieldsFound", len(res.fields))
 	}
 
-	// 8. Deduplicate fields — keep highest confidence per fieldName
-	deduped := deduplicateFields(allFields)
-
-	if len(deduped) == 0 {
+	// 8. Handle results based on success/failure counts
+	if pagesSucceeded == 0 {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		send(domain.AnalysisEvent{Type: "error", Error: "AI returned no valid fields from any page"})
+		send(domain.AnalysisEvent{
+			Type:        "error",
+			Error:       fmt.Sprintf("AI returned no valid fields from any page (%d pages failed)", pagesFailed),
+			PagesFailed: pagesFailed,
+		})
 		return
 	}
 
-	// 9. Compute overall confidence
+	// 9. Deduplicate fields and compute overall confidence
+	deduped := deduplicateFields(allFields)
+
 	var totalConf float64
 	for _, f := range deduped {
 		totalConf += f.Confidence
@@ -224,7 +254,7 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 		avgConf = math.Round((totalConf/float64(len(deduped)))*1000) / 10
 	}
 
-	// 10. Save results
+	// 10. Save final deduplicated results (replaces the incrementally appended fields)
 	status := domain.StatusProcessed
 	stepComplete := "complete"
 	input := domain.UpdateDocumentInput{
@@ -235,12 +265,15 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 	}
 	_, _ = s.Update(ctx, id, input)
 
-	slog.Info("analysis complete", "id", id.Hex(), "totalFields", len(deduped), "confidence", avgConf)
+	slog.Info("analysis complete", "id", id.Hex(), "totalFields", len(deduped), "confidence", avgConf,
+		"pagesSucceeded", pagesSucceeded, "pagesFailed", pagesFailed)
 
 	send(domain.AnalysisEvent{
-		Type:        "complete",
-		TotalFields: len(deduped),
-		Confidence:  avgConf,
+		Type:           "complete",
+		TotalFields:    len(deduped),
+		Confidence:     avgConf,
+		PagesSucceeded: pagesSucceeded,
+		PagesFailed:    pagesFailed,
 	})
 }
 

@@ -202,6 +202,113 @@ func (c *KiloClient) ExtractFieldsFromPage(ctx context.Context, pageText string,
 	return parseExtractedFields(content)
 }
 
+// documentTypeFieldGuide returns a comprehensive list of fields to extract for each document type.
+func documentTypeFieldGuide(docType domain.DocumentType) string {
+	switch docType {
+	case domain.TypeInvoice:
+		return `INVOICE FIELDS — Extract ALL of the following if present:
+
+IDENTIFICATION: Invoice Number, Purchase Order Number, Reference Number, Account Number, Customer ID, Vendor ID, Tax ID / VAT Number, GSTIN
+
+PARTIES:
+- Seller/Vendor: Company Name, Contact Person, Address (Street, City, State, ZIP, Country), Phone, Email, Website, Bank Details (Bank Name, Account Number, IFSC/SWIFT/Routing)
+- Buyer/Customer: Company Name, Contact Person, Billing Address, Shipping Address, Phone, Email
+
+DATES: Invoice Date, Due Date, Payment Terms (e.g. Net 30), Delivery Date, Order Date, Ship Date
+
+FINANCIAL SUMMARY: Subtotal, Discount (Amount and Percentage), Tax Rate, Tax Amount, Shipping/Freight Charges, Handling Fees, Total Amount, Currency, Amount Due, Amount Paid, Balance Due
+
+LINE ITEMS — Extract EVERY line item as a separate field named "Line Item N" with the full details:
+  Each line item: Description, Quantity, Unit Price, Unit of Measure, Tax, Discount, Line Total, SKU/Item Code, HSN/SAC Code
+
+PAYMENT: Payment Method, Payment Status, Payment Instructions, Bank Transfer Details, Late Payment Penalty
+
+NOTES: Terms and Conditions, Additional Notes, Special Instructions, Warranty Information
+
+METADATA: Page Number (where found), Document Language, Stamp/Seal Information, Signature Present (Yes/No)`
+
+	case domain.TypeContract:
+		return `CONTRACT FIELDS — Extract ALL of the following if present:
+
+IDENTIFICATION: Contract Number, Agreement Title, Version/Revision, Reference Number, Case/Matter Number
+
+PARTIES — For EACH party:
+  Party Name, Role (e.g. Licensor/Licensee, Employer/Employee, Buyer/Seller), Authorized Representative, Title/Designation, Address, Phone, Email, Registration/Tax ID
+
+DATES: Execution Date, Effective Date, Expiration Date, Renewal Date, Amendment Date, Termination Notice Period
+
+FINANCIAL TERMS: Contract Value/Total Amount, Payment Schedule, Payment Frequency, Currency, Penalties, Late Fee, Security Deposit, Escrow Amount, Milestone Payments
+
+KEY CLAUSES — Summarize each as a field:
+  Scope of Work, Deliverables, Performance Metrics, Confidentiality/NDA Terms, Non-Compete Terms, Intellectual Property Rights, Indemnification, Limitation of Liability, Warranty Terms, Insurance Requirements, Termination Conditions, Force Majeure, Dispute Resolution (Arbitration/Jurisdiction), Governing Law
+
+SIGNATURES: Signatory Names, Titles, Signature Dates, Witness Names, Notary Information
+
+METADATA: Number of Pages, Exhibits/Appendices Listed, Amendment History, Document Language`
+
+	case domain.TypeReceipt:
+		return `RECEIPT FIELDS — Extract ALL of the following if present:
+
+STORE/MERCHANT: Store Name, Store Number/Branch, Address, Phone, Website, Tax ID/GST Number
+
+TRANSACTION: Receipt Number, Transaction ID, Date, Time, Register/Terminal Number, Cashier/Operator Name
+
+ITEMS — Extract EVERY purchased item as "Item N":
+  Item Name/Description, Quantity, Unit Price, Discount, Tax, Item Total, SKU/Barcode, Category
+
+FINANCIAL: Subtotal, Tax Breakdown (by tax type/rate), Total Tax, Discount Total, Grand Total, Currency
+
+PAYMENT: Payment Method (Cash/Card/Digital), Card Type (Visa/MC/etc), Last 4 Digits of Card, Amount Tendered, Change Given, Tip Amount, Authorization Code
+
+LOYALTY/REWARDS: Loyalty Card Number, Points Earned, Points Redeemed, Membership Level
+
+OTHER: Return Policy, Barcode/QR Code Data, Survey URL, Promotional Messages`
+
+	case domain.TypeExpense:
+		return `EXPENSE REPORT FIELDS — Extract ALL of the following if present:
+
+IDENTIFICATION: Report Number, Report Title, Period (From-To Dates), Department, Cost Center, Project Code
+
+EMPLOYEE: Employee Name, Employee ID, Title/Position, Department, Manager/Approver Name
+
+EXPENSE ITEMS — Extract EVERY expense as "Expense N":
+  Date, Category (Travel/Meals/Lodging/Transport/Supplies/etc), Description, Vendor/Merchant, Location/City, Amount, Currency, Exchange Rate, Receipt Attached (Yes/No)
+
+TRAVEL DETAILS (if applicable): Trip Purpose, Destination, Departure Date, Return Date, Mileage, Per Diem Rate
+
+FINANCIAL: Total Expenses, Advance Received, Amount Due to Employee, Amount Due to Company, Tax Deductible Amount
+
+APPROVALS: Submitted Date, Approved Date, Approver Name, Approval Status, Comments/Notes
+
+POLICY: Policy Violations, Over-Limit Items, Justification Notes`
+
+	default:
+		return `GENERAL DOCUMENT FIELDS — Extract ALL information present:
+
+IDENTIFICATION: Document Title, Document Number/ID, Reference Numbers, Version, Date Created, Author
+
+ORGANIZATIONS: All company/organization names, addresses, contact details, registration numbers
+
+PEOPLE: All person names, titles, roles, contact information
+
+DATES: Every date mentioned with context (e.g. "Effective Date: 2024-01-15")
+
+FINANCIAL: All monetary amounts, currencies, calculations, totals, rates, percentages
+
+TABLES: Extract every row of every table as separate fields (e.g. "Table 1 Row N")
+
+LISTS: Extract every numbered or bulleted item
+
+LEGAL/REGULATORY: Any legal references, regulation numbers, compliance statements, license numbers
+
+TECHNICAL: Serial numbers, model numbers, specifications, measurements, codes
+
+METADATA: Document language, page count, headers, footers, watermarks, stamps, signatures
+
+OTHER: Any other structured or semi-structured data visible in the document — leave NOTHING out`
+	}
+}
+
 // buildExtractionPrompt creates a structured prompt for the AI (full document).
 func buildExtractionPrompt(text string, docType domain.DocumentType) string {
 	typeHint := string(docType)
@@ -209,27 +316,37 @@ func buildExtractionPrompt(text string, docType domain.DocumentType) string {
 		typeHint = "general document"
 	}
 
-	// Per-page limit — generous enough for a single page
-	const maxTextLen = 12000
+	const maxTextLen = 30000
 	if len(text) > maxTextLen {
 		text = text[:maxTextLen] + "\n... [text truncated]"
 	}
 
-	return fmt.Sprintf(`Analyze the following %s and extract all relevant data fields.
+	fieldGuide := documentTypeFieldGuide(docType)
 
-Return a JSON array of objects. Each object must have:
-- "fieldName": the name of the field (e.g. "Invoice Number", "Date", "Total Amount", "Company Name")
+	return fmt.Sprintf(`You are an expert document data extraction AI. Analyze the following %s and extract EVERY piece of structured data.
+
+%s
+
+EXTRACTION RULES:
+1. Extract EVERY field you can find — do NOT skip any data.
+2. For tables, extract each row as a separate field (e.g. "Line Item 1", "Line Item 2").
+3. For addresses, extract both the full combined address AND individual components (Street, City, State, ZIP, Country).
+4. If a value appears multiple times, use the most complete/clear instance.
+5. Include units and currency symbols in values (e.g. "$1,234.56", "30 days", "5 kg").
+6. For dates, preserve the original format found in the document.
+7. Set confidence based on text clarity: 0.95+ for clearly printed text, 0.7-0.94 for partially unclear, below 0.7 for guessed/uncertain values.
+
+Return a JSON array of objects. Each object MUST have:
+- "fieldName": descriptive name of the field (e.g. "Invoice Number", "Vendor Address", "Line Item 3 Description")
 - "value": the extracted value as a string
-- "confidence": a float between 0.0 and 1.0 indicating how confident you are
+- "confidence": a float between 0.0 and 1.0
 
-Extract as many meaningful fields as possible. For %s documents, focus on key fields like names, dates, amounts, reference numbers, addresses, etc.
-
-IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation.
+IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation. Extract the MAXIMUM number of fields possible.
 
 Document text:
 ---
 %s
----`, typeHint, typeHint, text)
+---`, typeHint, fieldGuide, text)
 }
 
 // buildPageExtractionPrompt creates a prompt for a single page with context.
@@ -239,27 +356,38 @@ func buildPageExtractionPrompt(text string, pageNum, totalPages int, docType dom
 		typeHint = "general document"
 	}
 
-	const maxTextLen = 12000
+	const maxTextLen = 30000
 	if len(text) > maxTextLen {
 		text = text[:maxTextLen] + "\n... [text truncated]"
 	}
 
-	return fmt.Sprintf(`Analyze page %d of %d from the following %s and extract all relevant data fields found on this page.
+	fieldGuide := documentTypeFieldGuide(docType)
 
-Return a JSON array of objects. Each object must have:
-- "fieldName": the name of the field (e.g. "Invoice Number", "Date", "Total Amount", "Company Name")
+	return fmt.Sprintf(`You are an expert document data extraction AI. Analyze page %d of %d from a %s and extract EVERY piece of structured data found on THIS page.
+
+%s
+
+EXTRACTION RULES:
+1. Extract EVERY field visible on this page — do NOT skip any data.
+2. For tables, extract each row as a separate field (e.g. "Line Item 1", "Line Item 2").
+3. For addresses, extract both the full combined address AND individual components.
+4. Include units and currency symbols in values (e.g. "$1,234.56", "30 days").
+5. For dates, preserve the original format found in the document.
+6. Set confidence based on text clarity: 0.95+ for clearly printed text, 0.7-0.94 for partially unclear, below 0.7 for guessed/uncertain values.
+7. If this page contains no meaningful data fields, return an empty JSON array: []
+8. Prefix field names with context if needed to avoid ambiguity across pages (e.g. "Seller Phone" vs "Buyer Phone").
+
+Return a JSON array of objects. Each object MUST have:
+- "fieldName": descriptive name of the field
 - "value": the extracted value as a string
-- "confidence": a float between 0.0 and 1.0 indicating how confident you are
+- "confidence": a float between 0.0 and 1.0
 
-Extract as many meaningful fields as possible from THIS page. Focus on key fields like names, dates, amounts, reference numbers, addresses, line items, etc.
-If this page contains no meaningful data fields, return an empty JSON array: []
-
-IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation.
+IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation. Extract the MAXIMUM number of fields possible from this page.
 
 Page %d text:
 ---
 %s
----`, pageNum, totalPages, typeHint, pageNum, text)
+---`, pageNum, totalPages, typeHint, fieldGuide, pageNum, text)
 }
 
 // parseExtractedFields parses the AI's JSON response into domain fields.

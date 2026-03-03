@@ -135,9 +135,21 @@ func (r *DocumentRepo) Update(ctx context.Context, id bson.ObjectID, input domai
 		set["extracted_fields"] = input.ExtractedFields
 	}
 
+	// Build the update document
+	update := bson.M{"$set": set}
+
+	// If AppendFields is provided, use $push + $each to atomically append fields
+	if len(input.AppendFields) > 0 {
+		update["$push"] = bson.M{
+			"extracted_fields": bson.M{
+				"$each": input.AppendFields,
+			},
+		}
+	}
+
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var doc domain.Document
-	err := r.coll.FindOneAndUpdate(ctx, bson.M{"_id": id}, bson.M{"$set": set}, opts).Decode(&doc)
+	err := r.coll.FindOneAndUpdate(ctx, bson.M{"_id": id}, update, opts).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil

@@ -17,6 +17,7 @@ import (
 	"github.com/aura-ai/backend/internal/config"
 	"github.com/aura-ai/backend/internal/database"
 	"github.com/aura-ai/backend/internal/logger"
+	"github.com/aura-ai/backend/internal/ocr"
 	"github.com/aura-ai/backend/internal/server"
 	"github.com/joho/godotenv"
 )
@@ -30,6 +31,9 @@ func main() {
 
 	// Initialize structured logger
 	logger.Init(cfg.LogLevel)
+
+	// Initialize Tesseract OCR engine
+	ocr.InitTesseract(cfg.TesseractPath)
 
 	slog.Info("starting Aura AI server",
 		"port", cfg.Port,

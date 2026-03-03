@@ -70,6 +70,7 @@ type UpdateDocumentInput struct {
 	Confidence      *float64         `json:"confidence,omitempty"`
 	RawText         *string          `json:"rawText,omitempty"`
 	ExtractedFields []ExtractedField `json:"extractedFields,omitempty"`
+	AppendFields    []ExtractedField `json:"-"` // used internally for $push operations, not exposed via JSON
 }
 
 // DashboardStats holds aggregated dashboard metrics.
@@ -102,11 +103,14 @@ type DocumentFilter struct {
 
 // AnalysisEvent represents a real-time progress event during document analysis.
 type AnalysisEvent struct {
-	Type        string  `json:"type"` // "start", "page_done", "error", "complete"
-	TotalPages  int     `json:"totalPages,omitempty"`
-	Page        int     `json:"page,omitempty"`
-	FieldsFound int     `json:"fieldsFound,omitempty"`
-	TotalFields int     `json:"totalFields,omitempty"`
-	Confidence  float64 `json:"confidence,omitempty"`
-	Error       string  `json:"error,omitempty"`
+	Type           string           `json:"type"` // "start", "page_done", "error", "complete"
+	TotalPages     int              `json:"totalPages,omitempty"`
+	Page           int              `json:"page,omitempty"`
+	FieldsFound    int              `json:"fieldsFound,omitempty"`
+	TotalFields    int              `json:"totalFields,omitempty"`
+	Confidence     float64          `json:"confidence,omitempty"`
+	Error          string           `json:"error,omitempty"`
+	Fields         []ExtractedField `json:"fields,omitempty"`
+	PagesSucceeded int              `json:"pagesSucceeded,omitempty"`
+	PagesFailed    int              `json:"pagesFailed,omitempty"`
 }
