@@ -18,10 +18,7 @@ import { Brain, TrendingUp } from './components/Icons'
 
 type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings'
 
-function renderPage(
-  page: PageId,
-  addToast: (type: ToastType, text: string) => void
-): ReactElement {
+function renderPage(page: PageId, addToast: (type: ToastType, text: string) => void): ReactElement {
   switch (page) {
     case 'dashboard':
       return <Dashboard addToast={addToast} />
@@ -41,7 +38,9 @@ function renderPage(
             </div>
           </header>
           <div className="empty-state glass-panel" style={{ padding: '64px' }}>
-            <span className="empty-state-icon"><Brain size={32} /></span>
+            <span className="empty-state-icon">
+              <Brain size={32} />
+            </span>
             <h3>Coming Soon</h3>
             <p>AI model management and training will be available in a future release.</p>
           </div>
@@ -57,7 +56,9 @@ function renderPage(
             </div>
           </header>
           <div className="empty-state glass-panel" style={{ padding: '64px' }}>
-            <span className="empty-state-icon"><TrendingUp size={32} /></span>
+            <span className="empty-state-icon">
+              <TrendingUp size={32} />
+            </span>
             <h3>Coming Soon</h3>
             <p>Advanced analytics dashboards will be available in a future release.</p>
           </div>
@@ -75,9 +76,7 @@ export default function App(): ReactElement {
   return (
     <div className="app-layout">
       <Sidebar activePage={activePage} onNavigate={(page) => setActivePage(page as PageId)} />
-      <main className="main-content">
-        {renderPage(activePage, addToast)}
-      </main>
+      <main className="main-content">{renderPage(activePage, addToast)}</main>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
