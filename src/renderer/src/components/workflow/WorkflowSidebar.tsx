@@ -17,10 +17,10 @@ const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> 
   fileOutput: FileOutput
 }
 
-function NodePaletteItem({ def }: { def: NodeTypeDefinition }) {
+function NodePaletteItem({ def }: { def: NodeTypeDefinition }): React.JSX.Element {
   const IconComp = ICON_MAP[def.icon] ?? Cpu
 
-  const onDragStart = (e: DragEvent) => {
+  const onDragStart = (e: DragEvent): void => {
     e.dataTransfer.setData('application/workflow-node-type', def.type)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -78,7 +78,7 @@ function NodePaletteItem({ def }: { def: NodeTypeDefinition }) {
   )
 }
 
-export default function WorkflowSidebar() {
+export default function WorkflowSidebar(): React.JSX.Element {
   return (
     <div
       style={{

@@ -29,7 +29,10 @@ interface WorkflowNodeData {
   runStatus?: string
 }
 
-function WorkflowNode({ data, selected }: NodeProps & { data: WorkflowNodeData }) {
+function WorkflowNode({
+  data,
+  selected
+}: NodeProps & { data: WorkflowNodeData }): React.JSX.Element {
   const typeDef = NODE_TYPE_MAP[data.nodeType]
   const IconComp = ICON_MAP[typeDef?.icon ?? 'cpu'] ?? Cpu
 

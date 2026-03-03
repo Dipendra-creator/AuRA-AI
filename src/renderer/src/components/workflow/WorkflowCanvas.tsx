@@ -109,7 +109,7 @@ export default function WorkflowCanvas({
   initialEdges,
   onSave,
   onExecute
-}: WorkflowCanvasProps) {
+}: WorkflowCanvasProps): React.JSX.Element {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(toFlowNodes(initialNodes))
@@ -306,7 +306,7 @@ function ToolbarButton({
   label: string
   onClick: () => void
   accent?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <button
       onClick={onClick}
