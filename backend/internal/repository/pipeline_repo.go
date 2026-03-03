@@ -62,15 +62,21 @@ func (r *PipelineRepo) Create(ctx context.Context, input domain.CreatePipelineIn
 	if nodes == nil {
 		nodes = []domain.PipelineNode{}
 	}
+	edges := input.Edges
+	if edges == nil {
+		edges = []domain.PipelineEdge{}
+	}
 	p := domain.Pipeline{
-		Name:      input.Name,
-		Status:    "operational",
-		Latency:   "0ms",
-		Workspace: input.Workspace,
-		Version:   "1.0.0",
-		Nodes:     nodes,
-		CreatedAt: now,
-		UpdatedAt: now,
+		Name:        input.Name,
+		Description: input.Description,
+		Status:      "operational",
+		Latency:     "0ms",
+		Workspace:   input.Workspace,
+		Version:     "1.0.0",
+		Nodes:       nodes,
+		Edges:       edges,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	result, err := r.coll.InsertOne(ctx, p)
@@ -87,6 +93,9 @@ func (r *PipelineRepo) Update(ctx context.Context, id bson.ObjectID, input domai
 	if input.Name != nil {
 		set["name"] = *input.Name
 	}
+	if input.Description != nil {
+		set["description"] = *input.Description
+	}
 	if input.Status != nil {
 		set["status"] = *input.Status
 	}
@@ -98,6 +107,9 @@ func (r *PipelineRepo) Update(ctx context.Context, id bson.ObjectID, input domai
 	}
 	if input.Nodes != nil {
 		set["nodes"] = input.Nodes
+	}
+	if input.Edges != nil {
+		set["edges"] = input.Edges
 	}
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
