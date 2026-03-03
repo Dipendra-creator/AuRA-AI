@@ -3,7 +3,7 @@
  * Shows at top-right, auto-dismisses after 4s, supports stacking.
  */
 
-import { useState, useEffect, useCallback, type ReactElement } from 'react'
+import { useEffect, type ReactElement } from 'react'
 import { CheckCircle, XCircle, Info, X } from './Icons'
 
 export type ToastType = 'success' | 'error' | 'info'
@@ -61,24 +61,4 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps): Reac
       ))}
     </div>
   )
-}
-
-/** Hook for managing toast state */
-export function useToast(): {
-  toasts: readonly ToastMessage[]
-  addToast: (type: ToastType, text: string) => void
-  dismissToast: (id: string) => void
-} {
-  const [toasts, setToasts] = useState<ToastMessage[]>([])
-
-  const addToast = useCallback((type: ToastType, text: string) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-    setToasts((prev) => [...prev, { id, type, text }])
-  }, [])
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  return { toasts, addToast, dismissToast }
 }

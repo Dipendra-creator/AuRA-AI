@@ -2,7 +2,7 @@
  * NodeConfigPanel — dynamic configuration panel for selected workflow nodes.
  * Renders type-specific config forms based on the selected node type.
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { PipelineNodeType } from '@shared/types/document.types'
 import { NODE_TYPE_MAP } from './node-types'
 import { X } from 'lucide-react'
@@ -23,15 +23,21 @@ export default function NodeConfigPanel({
   config,
   onConfigChange,
   onClose
-}: NodeConfigPanelProps) {
+}: NodeConfigPanelProps): React.JSX.Element {
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>(config)
+  const [prevConfig, setPrevConfig] = useState(config)
+  const [prevNodeId, setPrevNodeId] = useState(nodeId)
   const typeDef = NODE_TYPE_MAP[nodeType]
 
-  useEffect(() => {
+  // Adjust state during render when props change (React-recommended pattern).
+  // See: https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  if (prevConfig !== config || prevNodeId !== nodeId) {
+    setPrevConfig(config)
+    setPrevNodeId(nodeId)
     setLocalConfig(config)
-  }, [config, nodeId])
+  }
 
-  const updateField = (key: string, value: unknown) => {
+  const updateField = (key: string, value: unknown): void => {
     const updated = { ...localConfig, [key]: value }
     setLocalConfig(updated)
     onConfigChange(nodeId, updated)
@@ -99,7 +105,13 @@ export default function NodeConfigPanel({
   )
 }
 
-function ConfigField({ label, children }: { label: string; children: React.ReactNode }) {
+function ConfigField({
+  label,
+  children
+}: {
+  label: string
+  children: React.ReactNode
+}): React.JSX.Element {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label
@@ -125,7 +137,7 @@ function TextInput({
   value: string
   onChange: (v: string) => void
   placeholder?: string
-}) {
+}): React.JSX.Element {
   return (
     <input
       type="text"
@@ -160,7 +172,7 @@ function ToggleSwitch({
   checked: boolean
   onChange: (v: boolean) => void
   label: string
-}) {
+}): React.JSX.Element {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{label}</span>
@@ -202,7 +214,7 @@ function SelectInput({
   value: string
   onChange: (v: string) => void
   options: readonly { value: string; label: string }[]
-}) {
+}): React.JSX.Element {
   return (
     <select
       value={value}
@@ -238,7 +250,7 @@ function NumberInput({
   min?: number
   max?: number
   step?: number
-}) {
+}): React.JSX.Element {
   return (
     <input
       type="number"
@@ -265,7 +277,7 @@ function renderConfigFields(
   type: PipelineNodeType,
   config: Record<string, unknown>,
   update: (key: string, value: unknown) => void
-) {
+): React.JSX.Element {
   switch (type) {
     case 'ingest':
       return (

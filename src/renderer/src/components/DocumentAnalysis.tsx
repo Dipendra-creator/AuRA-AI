@@ -147,9 +147,9 @@ export function DocumentAnalysis({
 
   const DEFAULT_WIDTH = 480
   const pageWidth = Math.round(DEFAULT_WIDTH * (zoomLevel / 100))
-  const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 20, 200))
-  const handleZoomOut = () => setZoomLevel((z) => Math.max(z - 20, 30))
-  const handleZoomReset = () => setZoomLevel(100)
+  const handleZoomIn = (): void => setZoomLevel((z) => Math.min(z + 20, 200))
+  const handleZoomOut = (): void => setZoomLevel((z) => Math.max(z - 20, 30))
+  const handleZoomReset = (): void => setZoomLevel(100)
 
   const overallConfidence =
     doc.extractedFields.length > 0
