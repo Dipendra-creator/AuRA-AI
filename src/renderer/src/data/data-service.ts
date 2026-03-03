@@ -13,7 +13,10 @@ import type {
   ChartDataPoint,
   ActivityEvent,
   PipelineNode,
+  PipelineEdge,
   PipelineMetadata,
+  PipelineRun,
+  FormTemplate,
   AnalysisViewMeta,
   CreateDocumentInput
 } from '../../../shared/types/document.types'
@@ -49,6 +52,7 @@ export interface DocumentsDataBundle {
 export interface WorkflowsDataBundle {
   readonly pipeline: PipelineMetadata
   readonly nodes: readonly PipelineNode[]
+  readonly edges: readonly PipelineEdge[]
 }
 
 /** Health status from backend */
@@ -120,6 +124,7 @@ export async function getDocumentsData(params?: {
 
 /**
  * Fetches workflow/pipeline data from the API with mock fallback.
+ * If the API returns no pipelines, automatically creates a default one.
  */
 export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
   try {
@@ -127,31 +132,60 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
       Array<{
         _id: string
         name: string
+        description: string
         status: string
         latency: string
         workspace: string
         version: string
         nodes: PipelineNode[]
+        edges: PipelineEdge[]
       }>
     >('/pipelines')
-    const first = pipelines[0]
-    if (!first) throw new Error('No pipelines found')
+
+    let first = pipelines[0]
+
+    // Auto-create a default pipeline if none exist
+    if (!first) {
+      console.info('[DataService] No pipelines found, creating default pipeline')
+      const created = await apiPost<{
+        _id: string
+        name: string
+        description: string
+        status: string
+        latency: string
+        workspace: string
+        version: string
+        nodes: PipelineNode[]
+        edges: PipelineEdge[]
+      }>('/pipelines', {
+        name: 'Data Pipeline V1',
+        workspace: 'Default',
+        description: 'Auto-created pipeline',
+        nodes: [],
+        edges: []
+      })
+      first = created
+    }
+
     return {
       pipeline: {
         id: first._id,
         name: first.name,
-        status: first.status,
-        latency: first.latency,
-        workspace: first.workspace,
-        version: first.version
+        description: first.description ?? '',
+        status: first.status ?? 'operational',
+        latency: first.latency ?? '0ms',
+        workspace: first.workspace ?? 'Default',
+        version: first.version ?? '1.0.0'
       },
-      nodes: first.nodes ?? []
+      nodes: first.nodes ?? [],
+      edges: first.edges ?? []
     }
   } catch {
     console.warn('[DataService] API unavailable, using mock data for workflows')
     return {
       pipeline: workflowsMock.pipeline as PipelineMetadata,
-      nodes: workflowsMock.nodes as unknown as PipelineNode[]
+      nodes: workflowsMock.nodes as unknown as PipelineNode[],
+      edges: (workflowsMock as Record<string, unknown>).edges as PipelineEdge[] ?? []
     }
   }
 }
@@ -233,13 +267,76 @@ export async function updatePipeline(
   id: string,
   updates: {
     name?: string
+    description?: string
     status?: string
     latency?: string
     version?: string
     nodes?: PipelineNode[]
+    edges?: PipelineEdge[]
   }
 ): Promise<unknown> {
   return apiPatch(`/pipelines/${id}`, updates)
+}
+
+// ─── Pipeline Execution APIs ─────────────────────────────────────
+
+/** Execute a pipeline */
+export async function executePipeline(id: string, input?: Record<string, unknown>): Promise<PipelineRun> {
+  return apiPost<PipelineRun>(`/pipelines/${id}/execute`, input ?? {})
+}
+
+/** List all runs for a pipeline */
+export async function listPipelineRuns(id: string): Promise<PipelineRun[]> {
+  return apiGet<PipelineRun[]>(`/pipelines/${id}/runs`)
+}
+
+/** Get a specific pipeline run */
+export async function getPipelineRun(pipelineId: string, runId: string): Promise<PipelineRun> {
+  return apiGet<PipelineRun>(`/pipelines/${pipelineId}/runs/${runId}`)
+}
+
+/** Cancel a pipeline run */
+export async function cancelPipelineRun(pipelineId: string, runId: string): Promise<void> {
+  await apiPost(`/pipelines/${pipelineId}/runs/${runId}/cancel`, {})
+}
+
+/** Validate a pipeline */
+export async function validatePipeline(id: string): Promise<{ message: string }> {
+  return apiPost<{ message: string }>(`/pipelines/${id}/validate`, {})
+}
+
+// ─── Review APIs ─────────────────────────────────────────────────
+
+/** Approve a review node */
+export async function approveNode(runId: string, nodeId: string): Promise<void> {
+  await apiPost(`/runs/${runId}/nodes/${nodeId}/approve`, {})
+}
+
+/** Reject a review node */
+export async function rejectNode(runId: string, nodeId: string): Promise<void> {
+  await apiPost(`/runs/${runId}/nodes/${nodeId}/reject`, {})
+}
+
+// ─── Form Template APIs ──────────────────────────────────────────
+
+/** List all form templates */
+export async function listFormTemplates(): Promise<FormTemplate[]> {
+  return apiGet<FormTemplate[]>('/form-templates')
+}
+
+/** Create a form template */
+export async function createFormTemplate(template: Omit<FormTemplate, '_id'>): Promise<FormTemplate> {
+  return apiPost<FormTemplate>('/form-templates', template)
+}
+
+/** Get a form template by ID */
+export async function getFormTemplate(id: string): Promise<FormTemplate> {
+  return apiGet<FormTemplate>(`/form-templates/${id}`)
+}
+
+/** Delete a form template */
+export async function deleteFormTemplate(id: string): Promise<void> {
+  return apiDelete(`/form-templates/${id}`)
 }
 
 /**
