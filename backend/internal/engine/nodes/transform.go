@@ -31,14 +31,25 @@ func (e *TransformExecutor) Execute(ctx context.Context, node domain.PipelineNod
 
 	// Get operations from config
 	opsRaw, ok := node.Config["operations"]
-	if !ok {
+	if !ok || opsRaw == nil {
 		slog.Info("transform node has no operations, passing through", "node", node.Name)
 		return output, nil
 	}
 
-	ops, ok := opsRaw.([]any)
-	if !ok {
-		return output, fmt.Errorf("transform operations must be an array")
+	// Handle various array types that may come from MongoDB/JSON deserialization
+	var ops []any
+	switch v := opsRaw.(type) {
+	case []any:
+		ops = v
+	default:
+		// If operations exists but is not an array, treat as passthrough
+		slog.Warn("transform operations is not an array, passing through", "node", node.Name, "type", fmt.Sprintf("%T", opsRaw))
+		return output, nil
+	}
+
+	if len(ops) == 0 {
+		slog.Info("transform node has empty operations, passing through", "node", node.Name)
+		return output, nil
 	}
 
 	for _, opRaw := range ops {

@@ -26,7 +26,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 
 	// --- Engine: Node Registry ---
 	registry := engine.NewNodeRegistry()
-	registry.Register(domain.NodeTypeIngest, nodes.NewIngestExecutor())
+	registry.Register(domain.NodeTypeIngest, nodes.NewIngestExecutor(docRepo))
 	registry.Register(domain.NodeTypeAIExtract, nodes.NewAIExtractExecutor())
 	registry.Register(domain.NodeTypeTransform, nodes.NewTransformExecutor())
 	registry.Register(domain.NodeTypeFormFill, nodes.NewFormFillExecutor())

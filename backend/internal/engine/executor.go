@@ -147,6 +147,7 @@ func (e *PipelineExecutor) Execute(
 			nodeResult.Status = domain.NodeRunFailed
 			nodeResult.Error = execErr.Error()
 			_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+			run.NodeRuns = append(run.NodeRuns, nodeResult)
 
 			e.sendEvent(progressCh, domain.PipelineEvent{
 				Type:   "pipeline:node:error",
@@ -169,6 +170,7 @@ func (e *PipelineExecutor) Execute(
 		nodeResult.Status = domain.NodeRunCompleted
 		nodeResult.Output = output.Fields
 		_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+		run.NodeRuns = append(run.NodeRuns, nodeResult)
 
 		nodeOutputs[node.NodeID] = output
 		lastOutput = output
@@ -325,6 +327,7 @@ func (e *PipelineExecutor) handleNodeFailure(
 		Error:     err.Error(),
 	}
 	_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+	run.NodeRuns = append(run.NodeRuns, nodeResult)
 	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
 
 	e.sendEvent(progressCh, domain.PipelineEvent{
