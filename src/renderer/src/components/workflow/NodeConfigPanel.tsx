@@ -735,6 +735,319 @@ function MiniField({
   )
 }
 
+/* ---- Field Mapping Builder (form_fill node) ---- */
+
+interface FieldMapping {
+  source: string
+  target: string
+}
+
+function FieldMappingBuilder({
+  mappings,
+  onChange
+}: {
+  mappings: FieldMapping[]
+  onChange: (mappings: FieldMapping[]) => void
+}): React.JSX.Element {
+  const addRow = (): void => {
+    onChange([...mappings, { source: '', target: '' }])
+  }
+
+  const removeRow = (idx: number): void => {
+    onChange(mappings.filter((_, i) => i !== idx))
+  }
+
+  const updateRow = (idx: number, key: 'source' | 'target', value: string): void => {
+    onChange(mappings.map((m, i) => (i === idx ? { ...m, [key]: value } : m)))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {mappings.length === 0 && (
+        <div
+          style={{
+            padding: '12px',
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px dashed rgba(255,255,255,0.08)',
+            textAlign: 'center',
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.3)'
+          }}
+        >
+          No field mappings — add a mapping below
+        </div>
+      )}
+
+      {mappings.map((m, idx) => (
+        <div
+          key={idx}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '4px 6px',
+            borderRadius: 6,
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)'
+          }}
+        >
+          <input
+            type="text"
+            value={m.source}
+            onChange={(e) => updateRow(idx, 'source', e.target.value)}
+            placeholder="Source field"
+            style={{
+              flex: 1,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: 10,
+              outline: 'none'
+            }}
+          />
+          <span style={{ color: 'rgba(16,185,129,0.6)', fontSize: 11, fontWeight: 700 }}>→</span>
+          <input
+            type="text"
+            value={m.target}
+            onChange={(e) => updateRow(idx, 'target', e.target.value)}
+            placeholder="Form field"
+            style={{
+              flex: 1,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: 10,
+              outline: 'none'
+            }}
+          />
+          <button
+            onClick={() => removeRow(idx)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(239,68,68,0.5)',
+              cursor: 'pointer',
+              padding: 2
+            }}
+          >
+            <Trash2 size={10} />
+          </button>
+        </div>
+      ))}
+
+      <button
+        onClick={addRow}
+        style={{
+          background: 'rgba(16,185,129,0.08)',
+          border: '1px dashed rgba(16,185,129,0.3)',
+          borderRadius: 6,
+          padding: '6px 8px',
+          color: '#10b981',
+          fontSize: 11,
+          cursor: 'pointer',
+          textAlign: 'center'
+        }}
+      >
+        + Add Mapping
+      </button>
+    </div>
+  )
+}
+
+/* ---- Condition Rule Builder (condition node) ---- */
+
+const CONDITION_OPERATORS = [
+  { value: '==', label: '= equals' },
+  { value: '!=', label: '≠ not equal' },
+  { value: '>', label: '> greater than' },
+  { value: '>=', label: '≥ greater or equal' },
+  { value: '<', label: '< less than' },
+  { value: '<=', label: '≤ less or equal' },
+  { value: 'contains', label: '∋ contains' },
+  { value: 'startsWith', label: 'starts with' }
+] as const
+
+interface ConditionRule {
+  field: string
+  operator: string
+  value: string
+  targetNodeId: string
+}
+
+function ConditionRuleBuilder({
+  rules,
+  onChange
+}: {
+  rules: ConditionRule[]
+  onChange: (rules: ConditionRule[]) => void
+}): React.JSX.Element {
+  const addRule = (): void => {
+    onChange([...rules, { field: '', operator: '==', value: '', targetNodeId: '' }])
+  }
+
+  const removeRule = (idx: number): void => {
+    onChange(rules.filter((_, i) => i !== idx))
+  }
+
+  const updateRule = (idx: number, key: keyof ConditionRule, value: string): void => {
+    onChange(rules.map((r, i) => (i === idx ? { ...r, [key]: value } : r)))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {rules.length === 0 && (
+        <div
+          style={{
+            padding: '12px',
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px dashed rgba(255,255,255,0.08)',
+            textAlign: 'center',
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.3)'
+          }}
+        >
+          No rules — all data goes to default target
+        </div>
+      )}
+
+      {rules.map((rule, idx) => (
+        <div
+          key={idx}
+          style={{
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            padding: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: '#f97316',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Rule {idx + 1}
+            </span>
+            <button
+              onClick={() => removeRule(idx)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(239,68,68,0.5)',
+                cursor: 'pointer',
+                padding: 2
+              }}
+            >
+              <Trash2 size={10} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="text"
+              value={rule.field}
+              onChange={(e) => updateRule(idx, 'field', e.target.value)}
+              placeholder="Field"
+              style={{
+                flex: 1,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 4,
+                padding: '4px 6px',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 10,
+                outline: 'none'
+              }}
+            />
+            <select
+              value={rule.operator}
+              onChange={(e) => updateRule(idx, 'operator', e.target.value)}
+              style={{
+                width: 70,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 4,
+                padding: '4px 4px',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 10,
+                outline: 'none'
+              }}
+            >
+              {CONDITION_OPERATORS.map((op) => (
+                <option key={op.value} value={op.value} style={{ background: '#1a1a2e' }}>
+                  {op.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={rule.value}
+              onChange={(e) => updateRule(idx, 'value', e.target.value)}
+              placeholder="Value"
+              style={{
+                flex: 1,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 4,
+                padding: '4px 6px',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 10,
+                outline: 'none'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>Target Node ID</span>
+            <input
+              type="text"
+              value={rule.targetNodeId}
+              onChange={(e) => updateRule(idx, 'targetNodeId', e.target.value)}
+              placeholder="Route to this node if matched"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 4,
+                padding: '4px 6px',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 10,
+                outline: 'none'
+              }}
+            />
+          </div>
+        </div>
+      ))}
+
+      <button
+        onClick={addRule}
+        style={{
+          background: 'rgba(249,115,22,0.08)',
+          border: '1px dashed rgba(249,115,22,0.3)',
+          borderRadius: 6,
+          padding: '6px 8px',
+          color: '#f97316',
+          fontSize: 11,
+          cursor: 'pointer',
+          textAlign: 'center'
+        }}
+      >
+        + Add Rule
+      </button>
+    </div>
+  )
+}
+
 /* ---- Per-node-type config sections ---- */
 
 function renderConfigFields(
@@ -827,28 +1140,16 @@ function renderConfigFields(
               placeholder="Form template ObjectID"
             />
           </ConfigField>
-          <ConfigField label="Field Mapping (JSON)">
-            <textarea
-              value={JSON.stringify(config.fieldMapping ?? {}, null, 2)}
-              onChange={(e) => {
-                try {
-                  update('fieldMapping', JSON.parse(e.target.value))
-                } catch {
-                  /* allow invalid JSON while typing */
-                }
-              }}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 6,
-                padding: '7px 10px',
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: 11,
-                fontFamily: 'monospace',
-                outline: 'none',
-                minHeight: 80,
-                resize: 'vertical'
-              }}
+          <ConfigField label="Field Mappings">
+            <FieldMappingBuilder
+              mappings={
+                Array.isArray(config.fieldMapping)
+                  ? (config.fieldMapping as { source: string; target: string }[])
+                  : Object.entries((config.fieldMapping as Record<string, string>) ?? {}).map(
+                    ([target, source]) => ({ source, target })
+                  )
+              }
+              onChange={(mappings) => update('fieldMapping', mappings)}
             />
           </ConfigField>
         </>
@@ -911,35 +1212,21 @@ function renderConfigFields(
     case 'condition':
       return (
         <>
-          <ConfigField label="Rules (JSON)">
-            <textarea
-              value={JSON.stringify(config.rules ?? [], null, 2)}
-              onChange={(e) => {
-                try {
-                  update('rules', JSON.parse(e.target.value))
-                } catch {
-                  /* allow invalid JSON while typing */
-                }
-              }}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 6,
-                padding: '7px 10px',
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: 11,
-                fontFamily: 'monospace',
-                outline: 'none',
-                minHeight: 80,
-                resize: 'vertical'
-              }}
+          <ConfigField label="Condition Rules">
+            <ConditionRuleBuilder
+              rules={
+                Array.isArray(config.rules)
+                  ? (config.rules as { field: string; operator: string; value: string; targetNodeId: string }[])
+                  : []
+              }
+              onChange={(rules) => update('rules', rules)}
             />
           </ConfigField>
           <ConfigField label="Default Target Node ID">
             <TextInput
               value={(config.defaultTargetNodeId as string) ?? ''}
               onChange={(v) => update('defaultTargetNodeId', v)}
-              placeholder="Node ID"
+              placeholder="Node ID for unmatched data"
             />
           </ConfigField>
         </>
