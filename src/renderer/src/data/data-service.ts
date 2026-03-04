@@ -55,6 +55,27 @@ export interface WorkflowsDataBundle {
   readonly edges: readonly PipelineEdge[]
 }
 
+/** Full pipeline object returned by the list endpoint */
+export interface PipelineListItem {
+  readonly _id: string
+  readonly name: string
+  readonly description: string
+  readonly status: string
+  readonly latency: string
+  readonly workspace: string
+  readonly version: string
+  readonly nodes: PipelineNode[]
+  readonly edges: PipelineEdge[]
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+/** A pipeline with its recent runs */
+export interface PipelineWithRuns {
+  readonly pipeline: PipelineListItem
+  readonly runs: PipelineRun[]
+}
+
 /** Health status from backend */
 export interface HealthStatus {
   readonly status: string
@@ -276,6 +297,22 @@ export async function updatePipeline(
   }
 ): Promise<unknown> {
   return apiPatch(`/pipelines/${id}`, updates)
+}
+
+// ─── Pipeline List / Detail APIs ─────────────────────────────────
+
+/** Fetch ALL pipelines (for dashboard) */
+export async function getAllPipelines(): Promise<PipelineListItem[]> {
+  return apiGet<PipelineListItem[]>('/pipelines')
+}
+
+/** Fetch a single pipeline by ID with its recent runs */
+export async function getPipelineWithRuns(id: string): Promise<PipelineWithRuns> {
+  const [pipeline, runs] = await Promise.all([
+    apiGet<PipelineListItem>(`/pipelines/${id}`),
+    listPipelineRuns(id).catch(() => [] as PipelineRun[])
+  ])
+  return { pipeline, runs }
 }
 
 // ─── Pipeline Execution APIs ─────────────────────────────────────

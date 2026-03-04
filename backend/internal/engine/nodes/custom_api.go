@@ -42,6 +42,14 @@ func (e *CustomAPIExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	method, _ := node.Config["method"].(string)
 	url, _ := node.Config["url"].(string)
 
+	// Handle unconfigured node gracefully
+	if url == "" || method == "" {
+		slog.Warn("custom_api: url or method not configured, passing through", "node", node.Name)
+		output.Fields["api_skipped"] = true
+		output.Fields["api_skip_reason"] = "url or method not configured"
+		return output, nil
+	}
+
 	// Interpolate URL templates
 	url = interpolateTemplate(url, input.Fields)
 

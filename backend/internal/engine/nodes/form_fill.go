@@ -27,26 +27,44 @@ func (e *FormFillExecutor) Execute(ctx context.Context, node domain.PipelineNode
 	output := input.Clone()
 	output.Metadata.SourceNode = node.NodeID
 
-	// Get field mapping from config
+	// Get field mapping from config — supports two formats:
+	// 1. Map format: { "formField": "extractedField" }
+	// 2. Array format: [ { "source": "extractedField", "target": "formField" } ]
 	mappingRaw, ok := node.Config["fieldMapping"]
 	if !ok {
 		slog.Info("form_fill node has no field mapping, passing through", "node", node.Name)
 		return output, nil
 	}
 
-	mapping, ok := mappingRaw.(map[string]any)
-	if !ok {
-		return output, fmt.Errorf("fieldMapping must be an object")
+	// Build mapping from either format
+	mapping := make(map[string]string)
+
+	switch v := mappingRaw.(type) {
+	case map[string]any:
+		for formField, extractedFieldRaw := range v {
+			if s, ok := extractedFieldRaw.(string); ok {
+				mapping[formField] = s
+			}
+		}
+	case []any:
+		for _, item := range v {
+			row, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			source, _ := row["source"].(string)
+			target, _ := row["target"].(string)
+			if source != "" && target != "" {
+				mapping[target] = source
+			}
+		}
+	default:
+		return output, fmt.Errorf("fieldMapping must be an object or array")
 	}
 
 	// Apply field mapping: form_field -> extracted_field
 	filledFields := make(map[string]any)
-	for formField, extractedFieldRaw := range mapping {
-		extractedField, ok := extractedFieldRaw.(string)
-		if !ok {
-			continue
-		}
-
+	for formField, extractedField := range mapping {
 		// Support dot notation: "extracted.name" -> look up "name" in input fields
 		fieldName := extractedField
 		if len(fieldName) > 10 && fieldName[:10] == "extracted." {

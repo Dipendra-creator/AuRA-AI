@@ -29,7 +29,7 @@ import WorkflowNode from './WorkflowNode'
 import WorkflowSidebar from './WorkflowSidebar'
 import NodeConfigPanel from './NodeConfigPanel'
 import { NODE_TYPE_MAP } from './node-types'
-import { Save, PlayCircle, Rocket, Zap, Loader2 } from 'lucide-react'
+import { Save, PlayCircle, Rocket, Zap, Loader2, ArrowLeft } from 'lucide-react'
 import type { NodeRunInfo } from '../../pages/Workflows'
 
 const nodeTypes = { workflowNode: WorkflowNode }
@@ -43,6 +43,7 @@ interface WorkflowCanvasProps {
   onExecute: () => void
   isExecuting?: boolean
   nodeRunStatuses?: Record<string, NodeRunInfo>
+  onBack?: () => void
 }
 
 let nodeIdCounter = 0
@@ -113,7 +114,8 @@ export default function WorkflowCanvas({
   onSave,
   onExecute,
   isExecuting = false,
-  nodeRunStatuses = {}
+  nodeRunStatuses = {},
+  onBack
 }: WorkflowCanvasProps): React.JSX.Element {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
@@ -252,6 +254,35 @@ export default function WorkflowCanvas({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {onBack && (
+              <button
+                onClick={onBack}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.04)',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.85)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                }}
+              >
+                <ArrowLeft size={13} />
+                Back
+              </button>
+            )}
             <Zap size={16} style={{ color: '#6366f1' }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
               {pipelineName || 'Untitled Pipeline'}
