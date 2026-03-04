@@ -1,28 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Aura AI — Intelligent Document Processing | Join the Waitlist</title>
-  <meta name="description" content="Aura AI transforms how you process documents. AI-powered extraction, schema discovery, and workflow automation. Join the waitlist for early access." />
+  <meta name="description"
+    content="Aura AI transforms how you process documents. AI-powered extraction, schema discovery, and workflow automation. Join the waitlist for early access." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <!-- Navigation -->
   <nav id="navbar">
     <div class="nav-inner">
       <div class="nav-logo">
         <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="14" stroke="url(#logoGrad)" stroke-width="2"/>
-          <path d="M16 6L20 14H12L16 6Z" fill="url(#logoGrad)"/>
-          <path d="M10 18L16 26L22 18H10Z" fill="url(#logoGrad)" opacity="0.7"/>
+          <circle cx="16" cy="16" r="14" stroke="url(#logoGrad)" stroke-width="2" />
+          <path d="M16 6L20 14H12L16 6Z" fill="url(#logoGrad)" />
+          <path d="M10 18L16 26L22 18H10Z" fill="url(#logoGrad)" opacity="0.7" />
           <defs>
             <linearGradient id="logoGrad" x1="4" y1="4" x2="28" y2="28">
-              <stop stop-color="#00f0ff"/>
-              <stop offset="1" stop-color="#7b61ff"/>
+              <stop stop-color="#00f0ff" />
+              <stop offset="1" stop-color="#7b61ff" />
             </linearGradient>
           </defs>
         </svg>
@@ -34,8 +39,21 @@
         <a href="#how-it-works">How It Works</a>
         <a href="#waitlist" class="nav-cta">Join Waitlist</a>
       </div>
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
   </nav>
+
+  <!-- Mobile Nav Overlay -->
+  <div class="mobile-nav-overlay" id="mobile-nav-overlay">
+    <a href="#features" class="mobile-nav-link">Features</a>
+    <a href="#product" class="mobile-nav-link">Product</a>
+    <a href="#how-it-works" class="mobile-nav-link">How It Works</a>
+    <a href="#waitlist" class="nav-cta mobile-nav-link">Join Waitlist</a>
+  </div>
 
   <!-- Hero Section -->
   <section id="hero">
@@ -57,13 +75,16 @@
         <span class="hero-line hero-gradient">Powered by AI</span>
       </h1>
       <p class="hero-subtitle" id="hero-subtitle">
-        Aura AI transforms how you process documents. From invoices to contracts — 
+        Aura AI transforms how you process documents. From invoices to contracts —
         extract data, discover schemas, and automate workflows with unprecedented accuracy.
       </p>
       <div class="hero-actions" id="hero-actions">
         <a href="#waitlist" class="btn-primary btn-glow">
           <span>Join the Waitlist</span>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
         </a>
         <a href="#product" class="btn-secondary">
           <span>See the Product</span>
@@ -103,19 +124,27 @@
           <h2>Manual document processing is <span class="text-red">broken</span></h2>
           <ul class="ps-list">
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round" />
+              </svg>
               <span>Hours spent manually entering data from invoices</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round" />
+              </svg>
               <span>Error-prone human classification of documents</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round" />
+              </svg>
               <span>No consistency across formats and schemas</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M6 6l8 8M14 6l-8 8" stroke="#ff4d6a" stroke-width="2" stroke-linecap="round" />
+              </svg>
               <span>Siloed data with no workflow integration</span>
             </li>
           </ul>
@@ -125,19 +154,31 @@
           <h2>Aura AI does it <span class="text-cyan">automatically</span></h2>
           <ul class="ps-list">
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
               <span>AI extracts data with 99.8% accuracy in seconds</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
               <span>Auto-schema discovery adapts to any document type</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
               <span>Visual workflow builder for custom pipelines</span>
             </li>
             <li>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10l3 3 7-7" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
               <span>Export directly to ERP, CSV, XLSX, or API</span>
             </li>
           </ul>
@@ -157,31 +198,71 @@
       <div class="features-grid" id="features-grid">
         <div class="feature-card" data-feature="1">
           <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="3" y="3" width="22" height="22" rx="4" stroke="url(#f1)" stroke-width="2"/><path d="M9 12h10M9 16h6" stroke="url(#f1)" stroke-width="2" stroke-linecap="round"/><defs><linearGradient id="f1" x1="3" y1="3" x2="25" y2="25"><stop stop-color="#00f0ff"/><stop offset="1" stop-color="#7b61ff"/></linearGradient></defs></svg>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect x="3" y="3" width="22" height="22" rx="4" stroke="url(#f1)" stroke-width="2" />
+              <path d="M9 12h10M9 16h6" stroke="url(#f1)" stroke-width="2" stroke-linecap="round" />
+              <defs>
+                <linearGradient id="f1" x1="3" y1="3" x2="25" y2="25">
+                  <stop stop-color="#00f0ff" />
+                  <stop offset="1" stop-color="#7b61ff" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
           <h3>AI Data Extraction</h3>
-          <p>Intelligent field extraction with OCR support. Handles invoices, receipts, contracts, and custom document types with near-perfect accuracy.</p>
+          <p>Intelligent field extraction with OCR support. Handles invoices, receipts, contracts, and custom document
+            types with near-perfect accuracy.</p>
         </div>
         <div class="feature-card" data-feature="2">
           <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11" stroke="url(#f2)" stroke-width="2"/><path d="M14 8v6l4 2" stroke="url(#f2)" stroke-width="2" stroke-linecap="round"/><defs><linearGradient id="f2" x1="3" y1="3" x2="25" y2="25"><stop stop-color="#00f0ff"/><stop offset="1" stop-color="#7b61ff"/></linearGradient></defs></svg>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <circle cx="14" cy="14" r="11" stroke="url(#f2)" stroke-width="2" />
+              <path d="M14 8v6l4 2" stroke="url(#f2)" stroke-width="2" stroke-linecap="round" />
+              <defs>
+                <linearGradient id="f2" x1="3" y1="3" x2="25" y2="25">
+                  <stop stop-color="#00f0ff" />
+                  <stop offset="1" stop-color="#7b61ff" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
           <h3>Auto-Schema Discovery</h3>
-          <p>AI automatically identifies key fields and suggests optimal schemas. Adapts to new document types without manual template configuration.</p>
+          <p>AI automatically identifies key fields and suggests optimal schemas. Adapts to new document types without
+            manual template configuration.</p>
         </div>
         <div class="feature-card" data-feature="3">
           <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M4 10h8v8H4zM16 10h8v8h-8z" stroke="url(#f3)" stroke-width="2" rx="2"/><path d="M12 14h4" stroke="url(#f3)" stroke-width="2" stroke-linecap="round"/><defs><linearGradient id="f3" x1="4" y1="4" x2="24" y2="24"><stop stop-color="#00f0ff"/><stop offset="1" stop-color="#7b61ff"/></linearGradient></defs></svg>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M4 10h8v8H4zM16 10h8v8h-8z" stroke="url(#f3)" stroke-width="2" rx="2" />
+              <path d="M12 14h4" stroke="url(#f3)" stroke-width="2" stroke-linecap="round" />
+              <defs>
+                <linearGradient id="f3" x1="4" y1="4" x2="24" y2="24">
+                  <stop stop-color="#00f0ff" />
+                  <stop offset="1" stop-color="#7b61ff" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
           <h3>Visual Workflow Builder</h3>
-          <p>Drag-and-drop pipeline designer with ingest, extract, validate, transform, and export nodes. Design complex automations visually.</p>
+          <p>Drag-and-drop pipeline designer with ingest, extract, validate, transform, and export nodes. Design complex
+            automations visually.</p>
         </div>
         <div class="feature-card" data-feature="4">
           <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M4 20l6-8 4 4 6-8 4 4" stroke="url(#f4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="f4" x1="4" y1="4" x2="24" y2="24"><stop stop-color="#00f0ff"/><stop offset="1" stop-color="#7b61ff"/></linearGradient></defs></svg>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M4 20l6-8 4 4 6-8 4 4" stroke="url(#f4)" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+              <defs>
+                <linearGradient id="f4" x1="4" y1="4" x2="24" y2="24">
+                  <stop stop-color="#00f0ff" />
+                  <stop offset="1" stop-color="#7b61ff" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
           <h3>Real-time Analytics</h3>
-          <p>Track processing accuracy, volume, and time savings on a live dashboard. Get AI-powered insights and anomaly detection.</p>
+          <p>Track processing accuracy, volume, and time savings on a live dashboard. Get AI-powered insights and
+            anomaly detection.</p>
         </div>
       </div>
     </div>
@@ -203,7 +284,8 @@
           <div class="slide-info">
             <span class="slide-tag">Dashboard</span>
             <h3>Command Center</h3>
-            <p>Get a bird's-eye view of your document processing operations. Track documents processed, accuracy rates, and time saved in real-time.</p>
+            <p>Get a bird's-eye view of your document processing operations. Track documents processed, accuracy rates,
+              and time saved in real-time.</p>
           </div>
         </div>
         <div class="product-slide">
@@ -213,7 +295,8 @@
           <div class="slide-info">
             <span class="slide-tag">Upload & Analyze</span>
             <h3>Instant Document Analysis</h3>
-            <p>Drag and drop any document — PDF, JPG, PNG, DOCX. Aura AI processes it instantly with AI-powered field extraction and confidence scoring.</p>
+            <p>Drag and drop any document — PDF, JPG, PNG, DOCX. Aura AI processes it instantly with AI-powered field
+              extraction and confidence scoring.</p>
           </div>
         </div>
         <div class="product-slide">
@@ -223,7 +306,8 @@
           <div class="slide-info">
             <span class="slide-tag">Extraction</span>
             <h3>Intelligent Data Extraction</h3>
-            <p>AI identifies and extracts key fields with confidence scores. Vendor names, dates, amounts, tax IDs — all captured with contextual analysis.</p>
+            <p>AI identifies and extracts key fields with confidence scores. Vendor names, dates, amounts, tax IDs — all
+              captured with contextual analysis.</p>
           </div>
         </div>
         <div class="product-slide">
@@ -233,7 +317,8 @@
           <div class="slide-info">
             <span class="slide-tag">Schema</span>
             <h3>Auto-Schema Discovery</h3>
-            <p>AI finds key attributes automatically and maps them to your ERP system. Approve schemas with one click and export data in bulk.</p>
+            <p>AI finds key attributes automatically and maps them to your ERP system. Approve schemas with one click
+              and export data in bulk.</p>
           </div>
         </div>
         <div class="product-slide">
@@ -243,7 +328,8 @@
           <div class="slide-info">
             <span class="slide-tag">Analytics</span>
             <h3>Deep Analytics</h3>
-            <p>Track AI extraction accuracy over time, view activity timelines, and monitor recent documents — all from a single, powerful dashboard.</p>
+            <p>Track AI extraction accuracy over time, view activity timelines, and monitor recent documents — all from
+              a single, powerful dashboard.</p>
           </div>
         </div>
         <div class="product-slide">
@@ -253,7 +339,8 @@
           <div class="slide-info">
             <span class="slide-tag">Workflows</span>
             <h3>Visual Workflow Builder</h3>
-            <p>Design complex data pipelines visually. Connect extract, validate, and transform nodes to build automation flows that match your business logic.</p>
+            <p>Design complex data pipelines visually. Connect extract, validate, and transform nodes to build
+              automation flows that match your business logic.</p>
           </div>
         </div>
       </div>
@@ -277,7 +364,8 @@
           </div>
           <div class="hiw-step-content">
             <h3>Upload Documents</h3>
-            <p>Drop your invoices, contracts, or receipts. Supports PDF, JPG, PNG, DOCX, and XLSX formats up to 25MB.</p>
+            <p>Drop your invoices, contracts, or receipts. Supports PDF, JPG, PNG, DOCX, and XLSX formats up to 25MB.
+            </p>
           </div>
         </div>
         <div class="hiw-step" data-step="2">
@@ -286,7 +374,8 @@
           </div>
           <div class="hiw-step-content">
             <h3>AI Processes & Extracts</h3>
-            <p>Our AI engine runs OCR, identifies document type, discovers schema fields, and extracts data with confidence scoring — all in seconds.</p>
+            <p>Our AI engine runs OCR, identifies document type, discovers schema fields, and extracts data with
+              confidence scoring — all in seconds.</p>
           </div>
         </div>
         <div class="hiw-step" data-step="3">
@@ -295,7 +384,8 @@
           </div>
           <div class="hiw-step-content">
             <h3>Review & Export</h3>
-            <p>Approve AI suggestions, customize mappings, and export structured data to CSV, XLSX, or directly into your ERP system.</p>
+            <p>Approve AI suggestions, customize mappings, and export structured data to CSV, XLSX, or directly into
+              your ERP system.</p>
           </div>
         </div>
       </div>
@@ -309,10 +399,14 @@
         <div class="waitlist-info">
           <span class="section-tag">Early Access</span>
           <h2>Be among the first to<br /><span class="text-gradient">experience Aura AI</span></h2>
-          <p>Join the waitlist for exclusive early access. We'll notify you as soon as Aura AI launches with special founding member pricing.</p>
+          <p>Join the waitlist for exclusive early access. We'll notify you as soon as Aura AI launches with special
+            founding member pricing.</p>
           <div class="waitlist-counter" id="waitlist-counter">
             <div class="counter-glow"></div>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4a3 3 0 100 6 3 3 0 000-6zM4 16c0-2.21 2.69-4 6-4s6 1.79 6 4" stroke="#00f0ff" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 4a3 3 0 100 6 3 3 0 000-6zM4 16c0-2.21 2.69-4 6-4s6 1.79 6 4" stroke="#00f0ff"
+                stroke-width="1.5" stroke-linecap="round" />
+            </svg>
             <span><strong id="signup-count">0</strong> people have joined</span>
           </div>
         </div>
@@ -333,7 +427,13 @@
             <button type="submit" class="btn-primary btn-glow btn-submit" id="submit-btn">
               <span class="btn-text">Join the Waitlist</span>
               <span class="btn-loading" style="display:none;">
-                <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="50" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" dur="0.8s" from="0 10 10" to="360 10 10" repeatCount="indefinite"/></circle></svg>
+                <svg width="20" height="20" viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="50"
+                    stroke-linecap="round">
+                    <animateTransform attributeName="transform" type="rotate" dur="0.8s" from="0 10 10" to="360 10 10"
+                      repeatCount="indefinite" />
+                  </circle>
+                </svg>
               </span>
             </button>
             <div class="form-message" id="form-message"></div>
@@ -350,13 +450,13 @@
         <div class="footer-brand">
           <div class="nav-logo">
             <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" stroke="url(#logoGrad2)" stroke-width="2"/>
-              <path d="M16 6L20 14H12L16 6Z" fill="url(#logoGrad2)"/>
-              <path d="M10 18L16 26L22 18H10Z" fill="url(#logoGrad2)" opacity="0.7"/>
+              <circle cx="16" cy="16" r="14" stroke="url(#logoGrad2)" stroke-width="2" />
+              <path d="M16 6L20 14H12L16 6Z" fill="url(#logoGrad2)" />
+              <path d="M10 18L16 26L22 18H10Z" fill="url(#logoGrad2)" opacity="0.7" />
               <defs>
                 <linearGradient id="logoGrad2" x1="4" y1="4" x2="28" y2="28">
-                  <stop stop-color="#00f0ff"/>
-                  <stop offset="1" stop-color="#7b61ff"/>
+                  <stop stop-color="#00f0ff" />
+                  <stop offset="1" stop-color="#7b61ff" />
                 </linearGradient>
               </defs>
             </svg>
@@ -394,5 +494,25 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
   <script src="main.js"></script>
+  <script>
+    // Mobile menu toggle
+    const menuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileOverlay = document.getElementById('mobile-nav-overlay');
+
+    menuToggle.addEventListener('click', () => {
+      menuToggle.classList.toggle('active');
+      mobileOverlay.classList.toggle('open');
+      document.body.style.overflow = mobileOverlay.classList.contains('open') ? 'hidden' : '';
+    });
+
+    document.querySelectorAll('.mobile-nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        menuToggle.classList.remove('active');
+        mobileOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+      });
+    });
+  </script>
 </body>
+
 </html>
