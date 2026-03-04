@@ -1,0 +1,16 @@
+{
+  "name": "aura-ai-waitlist",
+  "version": "1.0.0",
+  "description": "Aura AI Waitlist Landing Page",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mongodb": "^6.8.0"
+  }
+}
