@@ -134,6 +134,23 @@ func (e *TransformExecutor) Execute(ctx context.Context, node domain.PipelineNod
 				output.Fields[field+"_format"] = formatStr
 			}
 
+		case "select_fields":
+			// Keep only the specified fields, remove everything else
+			fieldsRaw, _ := op["fields"].([]any)
+			if len(fieldsRaw) > 0 {
+				keep := make(map[string]bool, len(fieldsRaw))
+				for _, f := range fieldsRaw {
+					if fieldName, ok := f.(string); ok {
+						keep[fieldName] = true
+					}
+				}
+				for k := range output.Fields {
+					if !keep[k] {
+						delete(output.Fields, k)
+					}
+				}
+			}
+
 		default:
 			slog.Warn("unknown transform operation", "type", opType, "node", node.Name)
 		}

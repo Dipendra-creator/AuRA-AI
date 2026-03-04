@@ -3,11 +3,11 @@
  * Users drag nodes from this sidebar onto the React Flow canvas.
  */
 import { type DragEvent } from 'react'
-import { Upload, Brain, Cpu, Edit3, Plug, Eye, GitFork, FileOutput } from 'lucide-react'
+import { FileSearch, Brain, Cpu, Edit3, Plug, Eye, GitFork, FileOutput } from 'lucide-react'
 import { NODE_TYPE_DEFINITIONS, type NodeTypeDefinition } from './node-types'
 
 const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
-  upload: Upload,
+  fileSearch: FileSearch,
   brain: Brain,
   cpu: Cpu,
   edit: Edit3,

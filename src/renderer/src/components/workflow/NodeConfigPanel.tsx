@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { PipelineNodeType } from '@shared/types/document.types'
 import { NODE_TYPE_MAP } from './node-types'
 import { X, Trash2, Info, ChevronDown, ChevronUp } from 'lucide-react'
-import IngestUploadZone from './IngestUploadZone'
+import DocumentSelectorPanel from './DocumentSelectorPanel'
 
 interface NodeConfigPanelProps {
   nodeId: string
@@ -351,7 +351,7 @@ function TransformOperationStack({
   const moveUp = (idx: number): void => {
     if (idx === 0) return
     const updated = [...operations]
-    ;[updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]]
+      ;[updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]]
     onChange(updated)
     setExpandedIdx(idx - 1)
   }
@@ -359,7 +359,7 @@ function TransformOperationStack({
   const moveDown = (idx: number): void => {
     if (idx === operations.length - 1) return
     const updated = [...operations]
-    ;[updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]]
+      ;[updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]]
     onChange(updated)
     setExpandedIdx(idx + 1)
   }
@@ -743,53 +743,54 @@ function renderConfigFields(
   update: (key: string, value: unknown) => void
 ): React.JSX.Element {
   switch (type) {
-    case 'ingest':
+    case 'doc_select':
       return (
         <>
-          <ToggleSwitch
-            label="OCR Enabled"
-            checked={(config.ocrEnabled as boolean) ?? true}
-            onChange={(v) => update('ocrEnabled', v)}
-          />
-          <ConfigField label="Accepted Formats">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {(Array.isArray(config.acceptedFormats)
-                ? (config.acceptedFormats as string[])
-                : ['pdf', 'docx', 'jpg', 'png']
-              ).map((fmt) => (
-                <span
-                  key={fmt}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    background: 'rgba(59,130,246,0.15)',
-                    color: '#60a5fa',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}
-                >
-                  {fmt}
-                </span>
-              ))}
-            </div>
-          </ConfigField>
-          <ConfigField label="Upload Documents">
-            <IngestUploadZone
-              acceptedFormats={
-                Array.isArray(config.acceptedFormats)
-                  ? (config.acceptedFormats as string[])
-                  : ['pdf', 'docx', 'jpg', 'png']
+          <ConfigField label="Select Documents">
+            <DocumentSelectorPanel
+              selectedIds={
+                Array.isArray(config.documentIds) ? (config.documentIds as string[]) : []
               }
+              onSelectionChange={(ids) => update('documentIds', ids)}
             />
           </ConfigField>
+          <ToggleSwitch
+            label="Include Raw Text"
+            checked={(config.includeRawText as boolean) ?? true}
+            onChange={(v) => update('includeRawText', v)}
+          />
+          <ToggleSwitch
+            label="Include Extracted Fields"
+            checked={(config.includeExtractedFields as boolean) ?? true}
+            onChange={(v) => update('includeExtractedFields', v)}
+          />
         </>
       )
 
     case 'ai_extract':
       return (
         <>
+          <ConfigField label="Extraction Prompt">
+            <textarea
+              value={(config.prompt as string) ?? ''}
+              onChange={(e) => update('prompt', e.target.value)}
+              placeholder="Describe what fields to extract, e.g.&#10;Extract the invoice number, vendor name, total amount, due date, and line items"
+              rows={4}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 11,
+                padding: '8px 10px',
+                resize: 'vertical',
+                outline: 'none',
+                fontFamily: 'inherit',
+                lineHeight: 1.5
+              }}
+            />
+          </ConfigField>
           <ConfigField label="Confidence Threshold">
             <NumberInput
               value={(config.confidenceThreshold as number) ?? 0.7}

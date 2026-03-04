@@ -18,28 +18,28 @@ export interface NodeTypeDefinition {
 
 export const NODE_TYPE_DEFINITIONS: readonly NodeTypeDefinition[] = [
   {
-    type: 'ingest',
-    label: 'Ingest',
-    description: 'Upload & OCR',
+    type: 'doc_select',
+    label: 'Select Documents',
+    description: 'Choose existing files',
     helpText:
-      'Upload PDF, DOCX, JPG, or PNG files. Runs OCR automatically to extract text from scanned documents and images. Outputs raw text for downstream nodes.',
+      'Select from documents already uploaded and processed in the system. The selected documents\u2019 raw text and extracted fields will be fed into the pipeline. No upload needed.',
     color: '#3b82f6',
     gradientFrom: '#3b82f6',
     gradientTo: '#1d4ed8',
-    icon: 'upload',
-    defaultConfig: { ocrEnabled: true, acceptedFormats: ['pdf', 'docx', 'jpg', 'png'] }
+    icon: 'fileSearch',
+    defaultConfig: { documentIds: [], includeRawText: true, includeExtractedFields: true }
   },
   {
     type: 'ai_extract',
     label: 'AI Extract',
     description: 'AI field extraction',
     helpText:
-      'Uses AI to extract structured fields (name, date, amount, etc.) from the raw text. Set a confidence threshold to filter low-quality extractions.',
+      'Uses AI to extract structured fields from document text. Write a simple prompt describing which fields you need (e.g. "Extract invoice number, vendor name, total amount, and due date"). Leave blank for automatic extraction of all fields.',
     color: '#8b5cf6',
     gradientFrom: '#8b5cf6',
     gradientTo: '#6d28d9',
     icon: 'brain',
-    defaultConfig: { confidenceThreshold: 0.7 }
+    defaultConfig: { confidenceThreshold: 0.7, prompt: '' }
   },
   {
     type: 'transform',

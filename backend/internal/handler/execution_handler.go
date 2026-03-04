@@ -60,7 +60,7 @@ func (h *ExecutionHandler) Execute(w http.ResponseWriter, r *http.Request) {
 			domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(run))
 			return
 		}
-		handleError(w, err)
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse(err.Error()))
 		return
 	}
 

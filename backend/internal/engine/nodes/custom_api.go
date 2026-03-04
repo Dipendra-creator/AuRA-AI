@@ -28,15 +28,9 @@ func NewCustomAPIExecutor() *CustomAPIExecutor {
 }
 
 // Validate checks the custom API node config.
+// Validation is lenient — missing config is accepted so pipelines can be
+// built and tested incrementally.
 func (e *CustomAPIExecutor) Validate(node domain.PipelineNode) error {
-	url, _ := node.Config["url"].(string)
-	if url == "" {
-		return fmt.Errorf("custom_api node requires a url")
-	}
-	method, _ := node.Config["method"].(string)
-	if method == "" {
-		return fmt.Errorf("custom_api node requires a method")
-	}
 	return nil
 }
 
