@@ -146,9 +146,9 @@ func seedPipelines(ctx context.Context, db *database.Client) {
 			Workspace: "AURA PRIME", Version: "8.4.2-STABLE",
 			CreatedAt: now.Add(-720 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour),
 			Nodes: []domain.PipelineNode{
-				{NodeID: "IN-240-A1", Label: "INGEST", Name: "Intake Node", Type: domain.NodeTypeIngest, Icon: "upload_file",
+				{NodeID: "IN-240-A1", Label: "DOC SELECT", Name: "Select Documents", Type: domain.NodeTypeDocSelect, Icon: "fileSearch",
 					Position: domain.NodePosition{X: 50, Y: 300},
-					Config:   map[string]any{"ocrEnabled": true, "acceptedFormats": []string{"pdf", "docx", "jpg", "png"}}},
+					Config:   map[string]any{"documentIds": []string{}, "includeRawText": true, "includeExtractedFields": true}},
 				{NodeID: "EX-240-B2", Label: "AI EXTRACT", Name: "Extract Node", Type: domain.NodeTypeAIExtract, Icon: "auto_awesome",
 					Position: domain.NodePosition{X: 300, Y: 300},
 					Config:   map[string]any{"confidenceThreshold": 0.7, "strictJsonSchema": true}},

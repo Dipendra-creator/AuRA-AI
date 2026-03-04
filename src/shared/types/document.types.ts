@@ -91,7 +91,7 @@ export interface ActivityEvent {
 
 /** Extended pipeline node types */
 export type PipelineNodeType =
-  | 'ingest'
+  | 'doc_select'
   | 'ai_extract'
   | 'transform'
   | 'form_fill'

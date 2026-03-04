@@ -4,6 +4,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/aura-ai/backend/internal/aiservice"
 	"github.com/aura-ai/backend/internal/engine"
 	"github.com/aura-ai/backend/internal/engine/nodes"
 	"github.com/aura-ai/backend/internal/handler"
@@ -24,10 +25,16 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	runRepo := repository.NewPipelineRunRepo(db)
 	formTemplateRepo := repository.NewFormTemplateRepo(db)
 
+	// --- AI Client ---
+	var aiClient *aiservice.KiloClient
+	if kiloAPIKey != "" {
+		aiClient = aiservice.NewKiloClient(kiloAPIKey)
+	}
+
 	// --- Engine: Node Registry ---
 	registry := engine.NewNodeRegistry()
-	registry.Register(domain.NodeTypeIngest, nodes.NewIngestExecutor(docRepo))
-	registry.Register(domain.NodeTypeAIExtract, nodes.NewAIExtractExecutor())
+	registry.Register(domain.NodeTypeDocSelect, nodes.NewDocSelectExecutor(docRepo))
+	registry.Register(domain.NodeTypeAIExtract, nodes.NewAIExtractExecutor(aiClient))
 	registry.Register(domain.NodeTypeTransform, nodes.NewTransformExecutor())
 	registry.Register(domain.NodeTypeFormFill, nodes.NewFormFillExecutor())
 	registry.Register(domain.NodeTypeCustomAPI, nodes.NewCustomAPIExecutor())

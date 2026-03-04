@@ -10,7 +10,7 @@ import (
 type PipelineNodeType string
 
 const (
-	NodeTypeIngest    PipelineNodeType = "ingest"
+	NodeTypeDocSelect PipelineNodeType = "doc_select"
 	NodeTypeAIExtract PipelineNodeType = "ai_extract"
 	NodeTypeTransform PipelineNodeType = "transform"
 	NodeTypeFormFill  PipelineNodeType = "form_fill"
@@ -22,7 +22,7 @@ const (
 
 // ValidNodeTypes lists all valid pipeline node types for validation.
 var ValidNodeTypes = map[PipelineNodeType]bool{
-	NodeTypeIngest:    true,
+	NodeTypeDocSelect: true,
 	NodeTypeAIExtract: true,
 	NodeTypeTransform: true,
 	NodeTypeFormFill:  true,
@@ -49,7 +49,7 @@ type NodePosition struct {
 // PipelineNode represents a single node in a processing pipeline.
 // Config is a flexible map to support per-node-type configuration schemas.
 type PipelineNode struct {
-	NodeID   string           `json:"id"       bson:"node_id"`
+	NodeID   string           `json:"id"       bson:"id"`
 	Label    string           `json:"label"    bson:"label"`
 	Name     string           `json:"name"     bson:"name"`
 	Type     PipelineNodeType `json:"type"     bson:"type"`

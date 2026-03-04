@@ -12,10 +12,10 @@ import { memo, useState } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { PipelineNodeType } from '@shared/types/document.types'
 import { NODE_TYPE_MAP } from './node-types'
-import { Upload, Brain, Cpu, Edit3, Plug, Eye, GitFork, FileOutput } from 'lucide-react'
+import { FileSearch, Brain, Cpu, Edit3, Plug, Eye, GitFork, FileOutput } from 'lucide-react'
 
 const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
-  upload: Upload,
+  fileSearch: FileSearch,
   brain: Brain,
   cpu: Cpu,
   edit: Edit3,

@@ -39,7 +39,7 @@ interface WorkflowCanvasProps {
   pipelineName: string
   initialNodes: DomainPipelineNode[]
   initialEdges: PipelineEdge[]
-  onSave: (nodes: DomainPipelineNode[], edges: PipelineEdge[]) => void
+  onSave: (nodes: DomainPipelineNode[], edges: PipelineEdge[]) => void | Promise<void>
   onExecute: () => void
   isExecuting?: boolean
   nodeRunStatuses?: Record<string, NodeRunInfo>
@@ -220,9 +220,15 @@ export default function WorkflowCanvas({
     [setNodes]
   )
 
-  const handleSave = useCallback(() => {
-    onSave(toDomainNodes(nodes), toDomainEdges(edges))
+  const handleSave = useCallback(async () => {
+    await onSave(toDomainNodes(nodes), toDomainEdges(edges))
   }, [nodes, edges, onSave])
+
+  /** Auto-save, then execute */
+  const handleExecute = useCallback(async () => {
+    await onSave(toDomainNodes(nodes), toDomainEdges(edges))
+    onExecute()
+  }, [nodes, edges, onSave, onExecute])
 
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null
 
@@ -265,7 +271,7 @@ export default function WorkflowCanvas({
                 )
               }
               label={isExecuting ? 'Running...' : 'Test Run'}
-              onClick={onExecute}
+              onClick={handleExecute}
               accent
               disabled={isExecuting}
             />
