@@ -25,21 +25,6 @@ const DEFAULT_FIELDS: SchemaField[] = [
       "Find the invoice number, usually after 'Invoice #' or 'Invoice No.'",
       'Check header area for invoice identifier'
     ]
-  },
-  {
-    field: 'vendor_name',
-    columnName: 'Vendor Name',
-    rules: ['Extract the seller/vendor company name from the document header']
-  },
-  {
-    field: 'total_amount',
-    columnName: 'Total Amount',
-    rules: ['Find the total/grand total amount with currency symbol']
-  },
-  {
-    field: 'due_date',
-    columnName: 'Due Date',
-    rules: ['Look for payment due date or deadline']
   }
 ]
 
