@@ -219,6 +219,22 @@ export interface FormTemplateField {
   readonly default?: unknown
 }
 
+/** Schema field definition for custom data extraction */
+export interface SchemaField {
+  readonly field: string
+  readonly columnName: string
+  readonly rules: readonly string[]
+}
+
+/** Extraction schema — a named collection of schema fields */
+export interface ExtractionSchema {
+  readonly _id?: string
+  readonly name: string
+  readonly fields: readonly SchemaField[]
+  readonly createdAt?: string
+  readonly updatedAt?: string
+}
+
 /** Document analysis view metadata */
 export interface AnalysisViewMeta {
   readonly overallConfidence: number

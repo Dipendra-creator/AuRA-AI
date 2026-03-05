@@ -17,7 +17,7 @@ import {
   updateDocument
 } from '../data/data-service'
 import type { AnalysisEvent } from '../data/data-service'
-import type { AuraDocument } from '../../../shared/types/document.types'
+import type { AuraDocument, SchemaField } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
 import { Search } from '../components/Icons'
 
@@ -95,7 +95,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
 
   /** Start WebSocket-based analysis for a document */
   const startWSAnalysis = useCallback(
-    (docId: string, docName: string) => {
+    (docId: string, docName: string, schema?: readonly SchemaField[]) => {
       // Cleanup previous WS subscription if any
       wsCleanupRef.current?.()
 
@@ -178,7 +178,8 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
           setAnalysisProgress(null)
           addToast('error', `WebSocket connection failed: ${err.message}`)
           loadDocuments()
-        }
+        },
+        schema
       )
 
       wsCleanupRef.current = cleanup
@@ -279,6 +280,9 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         onApprove={() => handleApprove(selectedDocument)}
         addToast={addToast}
         analysisProgress={analysisProgress}
+        onSchemaExtract={(schema) =>
+          startWSAnalysis(selectedDocument._id, selectedDocument.name, schema)
+        }
       />
     )
   }

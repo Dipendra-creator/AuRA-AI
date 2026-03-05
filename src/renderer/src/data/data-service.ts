@@ -18,7 +18,8 @@ import type {
   PipelineRun,
   FormTemplate,
   AnalysisViewMeta,
-  CreateDocumentInput
+  CreateDocumentInput,
+  SchemaField
 } from '../../../shared/types/document.types'
 
 import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
@@ -27,6 +28,7 @@ import { wsClient } from './ws-client'
 
 // Re-export for consumers
 export type { AnalysisEvent }
+export type { SchemaField }
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
@@ -206,7 +208,7 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
     return {
       pipeline: workflowsMock.pipeline as PipelineMetadata,
       nodes: workflowsMock.nodes as unknown as PipelineNode[],
-      edges: (workflowsMock as Record<string, unknown>).edges as PipelineEdge[] ?? []
+      edges: ((workflowsMock as Record<string, unknown>).edges as PipelineEdge[]) ?? []
     }
   }
 }
@@ -250,15 +252,17 @@ export async function analyzeDocument(id: string): Promise<AuraDocument> {
 
 /**
  * Triggers AI analysis on a document with real-time WebSocket progress streaming.
+ * Optionally accepts a custom extraction schema.
  * Returns a cleanup function to cancel the subscription.
  */
 export function analyzeDocumentWS(
   id: string,
   onEvent: (event: AnalysisEvent) => void,
   onDone?: () => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error) => void,
+  schema?: readonly SchemaField[]
 ): () => void {
-  return wsClient.analyzeDocument(id, onEvent, onDone, onError)
+  return wsClient.analyzeDocument(id, onEvent, onDone, onError, schema)
 }
 
 /**
@@ -318,7 +322,10 @@ export async function getPipelineWithRuns(id: string): Promise<PipelineWithRuns>
 // ─── Pipeline Execution APIs ─────────────────────────────────────
 
 /** Execute a pipeline */
-export async function executePipeline(id: string, input?: Record<string, unknown>): Promise<PipelineRun> {
+export async function executePipeline(
+  id: string,
+  input?: Record<string, unknown>
+): Promise<PipelineRun> {
   return apiPost<PipelineRun>(`/pipelines/${id}/execute`, input ?? {})
 }
 
@@ -362,7 +369,9 @@ export async function listFormTemplates(): Promise<FormTemplate[]> {
 }
 
 /** Create a form template */
-export async function createFormTemplate(template: Omit<FormTemplate, '_id'>): Promise<FormTemplate> {
+export async function createFormTemplate(
+  template: Omit<FormTemplate, '_id'>
+): Promise<FormTemplate> {
   return apiPost<FormTemplate>('/form-templates', template)
 }
 

@@ -36,6 +36,13 @@ type ExtractedField struct {
 	Verified   bool    `json:"verified"   bson:"verified"`
 }
 
+// SchemaField represents a user-defined extraction field with rules.
+type SchemaField struct {
+	Field      string   `json:"field"      bson:"field"`
+	ColumnName string   `json:"columnName" bson:"column_name"`
+	Rules      []string `json:"rules"      bson:"rules"`
+}
+
 // Document is the core business entity for uploaded documents.
 type Document struct {
 	ID              bson.ObjectID    `json:"_id"             bson:"_id,omitempty"`
