@@ -91,6 +91,7 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
   try {
     const pipelines = await apiGet<Array<{
       name: string
+      description: string // Added description
       status: string
       latency: string
       workspace: string
@@ -102,6 +103,7 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
     return {
       pipeline: {
         name: first.name,
+        description: first.description, // Added description
         status: first.status,
         latency: first.latency,
         workspace: first.workspace,

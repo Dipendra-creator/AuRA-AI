@@ -9,3 +9,4 @@ tools
 uploads
 server
 *prompt.md
+*.env*

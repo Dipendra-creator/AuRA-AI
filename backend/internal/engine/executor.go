@@ -81,12 +81,6 @@ func (e *PipelineExecutor) Execute(
 		nodeMap[n.NodeID] = n
 	}
 
-	// Build edge map: source -> targets
-	edgeMap := make(map[string][]string)
-	for _, edge := range pipeline.Edges {
-		edgeMap[edge.SourceID] = append(edgeMap[edge.SourceID], edge.TargetID)
-	}
-
 	// Execute nodes in topological order
 	nodeOutputs := make(map[string]DataPacket)
 	var lastOutput DataPacket = input
@@ -96,7 +90,7 @@ func (e *PipelineExecutor) Execute(
 		case <-ctx.Done():
 			_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCancelled, nil)
 			e.sendEvent(progressCh, domain.PipelineEvent{
-				Type:  "pipeline:run:failed",
+				Type:  "pipeline:run:cancelled",
 				RunID: runIDHex,
 				Error: "pipeline execution cancelled",
 			})

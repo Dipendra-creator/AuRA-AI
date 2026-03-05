@@ -30,7 +30,7 @@ import WorkflowSidebar from './WorkflowSidebar'
 import NodeConfigPanel from './NodeConfigPanel'
 import { NODE_TYPE_MAP } from './node-types'
 import { Save, PlayCircle, Rocket, Zap, Loader2, ArrowLeft } from 'lucide-react'
-import type { NodeRunInfo } from '../../pages/Workflows'
+import type { NodeRunInfo } from '@shared/types/document.types'
 
 const nodeTypes = { workflowNode: WorkflowNode }
 
@@ -125,18 +125,16 @@ export default function WorkflowCanvas({
 
   // Merge execution statuses into node data whenever they change
   useEffect(() => {
-    if (Object.keys(nodeRunStatuses).length === 0) return
     setNodes((nds) =>
       nds.map((n) => {
         const info = nodeRunStatuses[n.id]
-        if (!info) return n
         return {
           ...n,
           data: {
             ...n.data,
-            runStatus: info.status,
-            runError: info.error,
-            runDurationMs: info.durationMs
+            runStatus: info?.status,
+            runError: info?.error,
+            runDurationMs: info?.durationMs
           }
         }
       })

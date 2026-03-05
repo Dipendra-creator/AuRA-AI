@@ -20,7 +20,8 @@ import type {
   PipelineNode,
   PipelineEdge,
   NodeRunResult,
-  PipelineRun
+  PipelineRun,
+  NodeRunInfo
 } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
 import WorkflowCanvas from '../components/workflow/WorkflowCanvas'
@@ -38,13 +39,6 @@ import {
   GitBranch
 } from 'lucide-react'
 
-/** Per-node run status exposed to the canvas */
-export interface NodeRunInfo {
-  status: string
-  error?: string
-  durationMs?: number
-  output?: Record<string, unknown>
-}
 
 type ViewMode = 'dashboard' | 'editor'
 
