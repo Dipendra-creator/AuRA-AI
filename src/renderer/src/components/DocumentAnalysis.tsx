@@ -399,6 +399,7 @@ export function DocumentAnalysis({
                 setRightPanelTab('data')
               }}
               extracting={isProcessing || analysisProgress?.active}
+              addToast={addToast}
             />
           ) : (
             <>

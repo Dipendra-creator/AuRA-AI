@@ -24,6 +24,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	activityRepo := repository.NewActivityRepo(db)
 	runRepo := repository.NewPipelineRunRepo(db)
 	formTemplateRepo := repository.NewFormTemplateRepo(db)
+	schemaRepo := repository.NewSchemaRepo(db)
 
 	// --- AI Client ---
 	var aiClient *aiservice.KiloClient
@@ -61,6 +62,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	execH := handler.NewExecutionHandler(pipeExecSvc)
 	reviewH := handler.NewReviewHandler(runRepo)
 	formH := handler.NewFormTemplateHandler(formTemplateRepo)
+	schemaH := handler.NewSchemaHandler(schemaRepo)
 
 	// --- Routes ---
 	mux := http.NewServeMux()
@@ -115,6 +117,13 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	mux.HandleFunc("POST /api/v1/form-templates", formH.CreateTemplate)
 	mux.HandleFunc("GET /api/v1/form-templates/{id}", formH.GetTemplate)
 	mux.HandleFunc("DELETE /api/v1/form-templates/{id}", formH.DeleteTemplate)
+
+	// Extraction Schemas
+	mux.HandleFunc("GET /api/v1/schemas", schemaH.ListSchemas)
+	mux.HandleFunc("POST /api/v1/schemas", schemaH.CreateSchema)
+	mux.HandleFunc("GET /api/v1/schemas/{id}", schemaH.GetSchema)
+	mux.HandleFunc("PATCH /api/v1/schemas/{id}", schemaH.UpdateSchema)
+	mux.HandleFunc("DELETE /api/v1/schemas/{id}", schemaH.DeleteSchema)
 
 	// Activity
 	mux.HandleFunc("GET /api/v1/activity", actH.List)
