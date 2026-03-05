@@ -101,3 +101,15 @@ func (r *PipelineRunRepo) UpdateNodeRun(ctx context.Context, runID bson.ObjectID
 	}
 	return nil
 }
+
+// UpdateNodeRunStatus updates the status of a specific node run within a pipeline run.
+func (r *PipelineRunRepo) UpdateNodeRunStatus(ctx context.Context, runID bson.ObjectID, nodeID string, status domain.NodeRunStatus) error {
+	now := time.Now()
+	filter := bson.M{"_id": runID, "node_runs.node_id": nodeID}
+	update := bson.M{"$set": bson.M{
+		"node_runs.$.status":   string(status),
+		"node_runs.$.ended_at": now,
+	}}
+	_, err := r.coll.UpdateOne(ctx, filter, update)
+	return err
+}

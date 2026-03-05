@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -52,6 +54,11 @@ func (e *CustomAPIExecutor) Execute(ctx context.Context, node domain.PipelineNod
 
 	// Interpolate URL templates
 	url = interpolateTemplate(url, input.Fields)
+
+	// SSRF protection: block requests to private/loopback/link-local addresses
+	if err := validateOutboundURL(url); err != nil {
+		return output, fmt.Errorf("custom_api URL blocked: %w", err)
+	}
 
 	// Get timeout from config
 	timeoutSecs := 30
@@ -215,4 +222,40 @@ func resolveJSONPath(data map[string]any, path string) any {
 	}
 
 	return current
+}
+
+// validateOutboundURL blocks SSRF by rejecting non-HTTP(S) schemes and
+// private/loopback/link-local IP addresses.
+func validateOutboundURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("scheme %q is not allowed, only http and https are permitted", scheme)
+	}
+
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("URL has no hostname")
+	}
+
+	ips, err := net.LookupHost(hostname)
+	if err != nil {
+		return fmt.Errorf("failed to resolve hostname %q: %w", hostname, err)
+	}
+
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("address %s (%s) is not allowed: private/loopback/link-local addresses are blocked", hostname, ipStr)
+		}
+	}
+
+	return nil
 }

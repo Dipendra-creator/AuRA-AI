@@ -65,6 +65,8 @@ export async function listDocuments(): Promise<Result<AuraDocument[]>> {
       confidence: doc.confidence as number,
       filePath: doc.filePath as string,
       fileSize: doc.fileSize as number,
+      rawText: (doc.rawText as string) || '',
+      processingStep: (doc.processingStep as string) || 'none',
       extractedFields: (doc.extractedFields ?? []) as AuraDocument['extractedFields'],
       createdAt: doc.createdAt as string,
       updatedAt: doc.updatedAt as string
@@ -92,6 +94,8 @@ export async function getDocumentById(id: string): Promise<Result<AuraDocument>>
       confidence: doc.confidence as number,
       filePath: doc.filePath as string,
       fileSize: doc.fileSize as number,
+      rawText: (doc.rawText as string) || '',
+      processingStep: (doc.processingStep as string) || 'none',
       extractedFields: (doc.extractedFields ?? []) as AuraDocument['extractedFields'],
       createdAt: doc.createdAt as string,
       updatedAt: doc.updatedAt as string
@@ -109,7 +113,9 @@ export async function createDocument(input: CreateDocumentInput): Promise<Result
     const doc = {
       ...input,
       status: 'pending' as const,
+      processingStep: 'uploading',
       confidence: 0,
+      rawText: '',
       extractedFields: [],
       createdAt: now,
       updatedAt: now
@@ -156,8 +162,12 @@ export async function getDashboardStats(): Promise<Result<DashboardStats>> {
       totalDocuments,
       accuracyRate: Math.round(accuracyRate * 100) / 100,
       manualTimeSaved: Math.round(processedDocs * 0.35),
+      avgProcessingTime: 1.2,
+      activePipelines: 3,
       documentsProcessedChange: 12,
       accuracyChange: 0.2,
+      processingTimeChange: -0.1,
+      pipelinesChange: 1,
       timeSavedChange: 15
     })
   } catch (error) {

@@ -32,7 +32,10 @@ func (h *ExecutionHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Parse optional input data from request body
 	var inputData map[string]any
 	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&inputData)
+		if err := json.NewDecoder(r.Body).Decode(&inputData); err != nil {
+			domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("invalid request body: "+err.Error()))
+			return
+		}
 	}
 
 	input := engine.NewDataPacket()

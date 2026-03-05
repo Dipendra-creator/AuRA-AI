@@ -193,6 +193,14 @@ export interface PipelineEvent {
   readonly durationMs?: number
 }
 
+/** Per-node run status exposed to the canvas */
+export interface NodeRunInfo {
+  readonly status: string
+  readonly error?: string
+  readonly durationMs?: number
+  readonly output?: Record<string, unknown>
+}
+
 /** Form template for the form-fill node */
 export interface FormTemplate {
   readonly _id: string
