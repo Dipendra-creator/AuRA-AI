@@ -3433,3 +3433,62 @@ body {
   color: white;
   font-weight: 700;
 }
+
+/* Schema Meta Bar (name input + saved schemas) */
+.schema-meta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.schema-name-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schema-name-input {
+  max-width: 320px;
+}
+
+.schema-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schema-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.schema-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.schema-chip:hover {
+  border-color: rgba(var(--color-accent-purple-rgb), 0.4);
+  color: var(--color-text-primary);
+  background: rgba(var(--color-accent-purple-rgb), 0.1);
+}
+
+.schema-chip.active {
+  background: linear-gradient(135deg, rgba(var(--color-accent-purple-rgb), 0.25), rgba(var(--color-primary-rgb), 0.15));
+  border-color: rgba(var(--color-accent-purple-rgb), 0.5);
+  color: var(--color-accent-purple);
+  font-weight: 700;
+}

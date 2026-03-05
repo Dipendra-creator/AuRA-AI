@@ -19,7 +19,8 @@ import type {
   FormTemplate,
   AnalysisViewMeta,
   CreateDocumentInput,
-  SchemaField
+  SchemaField,
+  ExtractionSchema
 } from '../../../shared/types/document.types'
 
 import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
@@ -29,6 +30,7 @@ import { wsClient } from './ws-client'
 // Re-export for consumers
 export type { AnalysisEvent }
 export type { SchemaField }
+export type { ExtractionSchema }
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
@@ -412,6 +414,34 @@ export async function createActivity(input: {
  */
 export async function exportDocument(id: string, format: 'csv' | 'xlsx'): Promise<Blob> {
   return apiPostBlob(`/documents/${id}/export`, { format })
+}
+
+// ─── Extraction Schema APIs ──────────────────────────────────────
+
+/** List all saved extraction schemas */
+export async function listSchemas(): Promise<ExtractionSchema[]> {
+  return apiGet<ExtractionSchema[]>('/schemas')
+}
+
+/** Create a new extraction schema */
+export async function createSchema(input: {
+  name: string
+  fields: SchemaField[]
+}): Promise<ExtractionSchema> {
+  return apiPost<ExtractionSchema>('/schemas', input)
+}
+
+/** Update an existing extraction schema */
+export async function updateSchema(
+  id: string,
+  updates: { name?: string; fields?: SchemaField[] }
+): Promise<ExtractionSchema> {
+  return apiPatch<ExtractionSchema>(`/schemas/${id}`, updates)
+}
+
+/** Delete an extraction schema by ID */
+export async function deleteSchema(id: string): Promise<void> {
+  return apiDelete(`/schemas/${id}`)
 }
 
 // ─── Health Check ────────────────────────────────────────────────

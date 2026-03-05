@@ -3,15 +3,18 @@
  *
  * Users define columns (field name + column name + rules) that guide AI
  * data extraction. Each rule is a natural-language instruction for the AI.
+ * Schemas are persisted to MongoDB and can be saved/loaded across sessions.
  */
 
-import { useState, useCallback, type ReactElement } from 'react'
-import type { SchemaField } from '../../../shared/types/document.types'
+import { useState, useCallback, useEffect, type ReactElement } from 'react'
+import type { SchemaField, ExtractionSchema } from '../../../shared/types/document.types'
+import { listSchemas, createSchema, updateSchema } from '../data/data-service'
 import { Sparkles, Plus, Trash2, GripVertical, X, FileText, Save } from './Icons'
 
 interface SchemaCustomizationProps {
   readonly onExtract: (schema: SchemaField[]) => void
   readonly extracting?: boolean
+  readonly addToast?: (type: 'success' | 'error' | 'info', text: string) => void
 }
 
 const DEFAULT_FIELDS: SchemaField[] = [
@@ -42,11 +45,108 @@ const DEFAULT_FIELDS: SchemaField[] = [
 
 export function SchemaCustomization({
   onExtract,
-  extracting = false
+  extracting = false,
+  addToast
 }: SchemaCustomizationProps): ReactElement {
   const [fields, setFields] = useState<SchemaField[]>(DEFAULT_FIELDS)
   const [newRuleInputs, setNewRuleInputs] = useState<Record<number, string>>({})
   const [expandedField, setExpandedField] = useState<number | null>(0)
+
+  /** Currently loaded/saved schema ID — null means unsaved */
+  const [schemaId, setSchemaId] = useState<string | null>(null)
+  /** Schema name for saving */
+  const [schemaName, setSchemaName] = useState('')
+  /** List of saved schemas for the dropdown */
+  const [savedSchemas, setSavedSchemas] = useState<ExtractionSchema[]>([])
+  /** Whether the save operation is in progress */
+  const [saving, setSaving] = useState(false)
+  /** Whether to show the schema name input */
+  const [showNameInput, setShowNameInput] = useState(false)
+
+  // Load saved schemas on mount
+  useEffect(() => {
+    let ignore = false
+    const loadSchemas = async (): Promise<void> => {
+      try {
+        const schemas = await listSchemas()
+        if (!ignore) {
+          setSavedSchemas(schemas)
+        }
+      } catch {
+        // Silently fail — schemas are optional enhancement
+      }
+    }
+    loadSchemas()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  /** Load a saved schema into the editor */
+  const handleLoadSchema = useCallback(
+    (schema: ExtractionSchema): void => {
+      setFields([...schema.fields] as SchemaField[])
+      setSchemaId(schema._id ?? null)
+      setSchemaName(schema.name)
+      setExpandedField(0)
+      setNewRuleInputs({})
+      setShowNameInput(false)
+      addToast?.('info', `Loaded schema "${schema.name}"`)
+    },
+    [addToast]
+  )
+
+  /** Save or update the current schema */
+  const handleSave = useCallback(async (): Promise<void> => {
+    // If no name yet, show the name input
+    if (!schemaName.trim() && !showNameInput) {
+      setShowNameInput(true)
+      return
+    }
+
+    const trimmedName = schemaName.trim()
+    if (!trimmedName) {
+      addToast?.('error', 'Schema name is required')
+      return
+    }
+
+    const validFields = fields.filter((f) => f.field.trim() && f.columnName.trim())
+    if (validFields.length === 0) {
+      addToast?.('error', 'At least one valid field is required')
+      return
+    }
+
+    setSaving(true)
+    try {
+      if (schemaId) {
+        // Update existing
+        const updated = await updateSchema(schemaId, {
+          name: trimmedName,
+          fields: validFields
+        })
+        addToast?.('success', `Schema "${trimmedName}" updated`)
+        // Refresh the list
+        setSavedSchemas((prev) => prev.map((s) => (s._id === schemaId ? updated : s)))
+      } else {
+        // Create new
+        const created = await createSchema({
+          name: trimmedName,
+          fields: validFields
+        })
+        setSchemaId(created._id ?? null)
+        addToast?.('success', `Schema "${trimmedName}" saved`)
+        setSavedSchemas((prev) => [created, ...prev])
+      }
+      setShowNameInput(false)
+    } catch (err) {
+      addToast?.(
+        'error',
+        `Failed to save schema: ${err instanceof Error ? err.message : 'Unknown error'}`
+      )
+    } finally {
+      setSaving(false)
+    }
+  }, [schemaId, schemaName, fields, addToast, showNameInput])
 
   const updateField = useCallback(
     (index: number, key: keyof SchemaField, value: string | string[]): void => {
@@ -116,9 +216,13 @@ export function SchemaCustomization({
           </div>
         </div>
         <div className="schema-actions">
-          <button className="schema-btn schema-btn-secondary" disabled={extracting}>
+          <button
+            className="schema-btn schema-btn-secondary"
+            disabled={extracting || saving}
+            onClick={handleSave}
+          >
             <Save size={14} />
-            Save Schema
+            {saving ? 'Saving...' : schemaId ? 'Update Schema' : 'Save Schema'}
           </button>
           <button
             className="schema-btn schema-btn-primary"
@@ -129,6 +233,48 @@ export function SchemaCustomization({
             {extracting ? 'Extracting...' : 'Extract Data'}
           </button>
         </div>
+      </div>
+
+      {/* Schema Name Input + Saved Schemas Selector */}
+      <div className="schema-meta-bar">
+        {showNameInput || schemaId ? (
+          <div className="schema-name-group">
+            <label className="schema-input-label">Schema Name</label>
+            <input
+              type="text"
+              className="schema-input schema-name-input"
+              placeholder="e.g. Invoice Extraction"
+              value={schemaName}
+              onChange={(e) => setSchemaName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSave()
+                }
+              }}
+              autoFocus={showNameInput && !schemaId}
+            />
+          </div>
+        ) : null}
+
+        {savedSchemas.length > 0 && (
+          <div className="schema-saved-list">
+            <label className="schema-input-label">Saved Schemas</label>
+            <div className="schema-chips">
+              {savedSchemas.map((s) => (
+                <button
+                  key={s._id}
+                  className={`schema-chip ${schemaId === s._id ? 'active' : ''}`}
+                  onClick={() => handleLoadSchema(s)}
+                  title={`Load "${s.name}" — ${s.fields.length} fields`}
+                >
+                  <FileText size={12} />
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Fields List */}
