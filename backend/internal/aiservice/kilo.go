@@ -447,3 +447,122 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
+
+// ExtractFieldsFromPageWithSchema sends a single page's text to the AI using a user-defined schema.
+func (c *KiloClient) ExtractFieldsFromPageWithSchema(ctx context.Context, pageText string, pageNum, totalPages int, schema []domain.SchemaField) ([]domain.ExtractedField, error) {
+	if strings.TrimSpace(pageText) == "" {
+		return nil, fmt.Errorf("page %d text is empty", pageNum)
+	}
+
+	prompt := buildSchemaPageExtractionPrompt(pageText, pageNum, totalPages, schema)
+
+	reqBody := chatRequest{
+		Model: c.model,
+		Messages: []chatMessage{
+			{
+				Role:    "system",
+				Content: "You are a document analysis AI. You extract structured data from documents according to a user-defined schema. Always respond with valid JSON only — no markdown, no explanation.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := kiloBaseURL + "chat/completions"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("AI API request failed for page %d: %w", pageNum, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read AI response for page %d: %w", pageNum, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AI API returned status %d for page %d: %s", resp.StatusCode, pageNum, string(respBody))
+	}
+
+	var chatResp chatResponse
+	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+		return nil, fmt.Errorf("failed to parse AI response for page %d: %w", pageNum, err)
+	}
+
+	if chatResp.Error != nil {
+		return nil, fmt.Errorf("AI API error for page %d: %s", pageNum, chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("AI returned no choices for page %d", pageNum)
+	}
+
+	content := chatResp.Choices[0].Message.Content
+	return parseExtractedFields(content)
+}
+
+// buildSchemaFieldGuide converts user-defined schema fields into an AI extraction guide.
+func buildSchemaFieldGuide(schema []domain.SchemaField) string {
+	var b strings.Builder
+	b.WriteString("CUSTOM EXTRACTION SCHEMA — Extract ONLY the following fields:\n\n")
+	for i, sf := range schema {
+		b.WriteString(fmt.Sprintf("%d. Field: \"%s\" (output as \"%s\")\n", i+1, sf.Field, sf.ColumnName))
+		if len(sf.Rules) > 0 {
+			b.WriteString("   Extraction rules:\n")
+			for _, rule := range sf.Rules {
+				b.WriteString(fmt.Sprintf("   - %s\n", rule))
+			}
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// buildSchemaPageExtractionPrompt creates a prompt for a single page using a user-defined schema.
+func buildSchemaPageExtractionPrompt(text string, pageNum, totalPages int, schema []domain.SchemaField) string {
+	const maxTextLen = 30000
+	if len(text) > maxTextLen {
+		text = text[:maxTextLen] + "\n... [text truncated]"
+	}
+
+	fieldGuide := buildSchemaFieldGuide(schema)
+
+	return fmt.Sprintf(`You are an expert document data extraction AI. Analyze page %d of %d and extract data for the user-defined schema fields.
+
+%s
+EXTRACTION RULES:
+1. Extract ONLY the fields defined in the schema above.
+2. Use the "fieldName" from the schema as the field name in your output (use the Field value, not ColumnName).
+3. Follow each field's extraction rules carefully to identify the correct values.
+4. If a field's value is not found on this page, skip it — do NOT include it in the output.
+5. Include units and currency symbols in values (e.g. "$1,234.56", "30 days").
+6. For dates, preserve the original format found in the document.
+7. Set confidence based on text clarity: 0.95+ for clearly printed text, 0.7-0.94 for partially unclear, below 0.7 for guessed/uncertain values.
+8. If this page contains none of the schema fields, return an empty JSON array: []
+
+Return a JSON array of objects. Each object MUST have:
+- "fieldName": the field identifier from the schema
+- "value": the extracted value as a string
+- "confidence": a float between 0.0 and 1.0
+
+IMPORTANT: Return ONLY the JSON array — no markdown fences, no explanation.
+
+Page %d text:
+---
+%s
+---`, pageNum, totalPages, fieldGuide, pageNum, text)
+}

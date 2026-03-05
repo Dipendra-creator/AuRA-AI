@@ -277,6 +277,182 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 	})
 }
 
+// AnalyzeWithProgressAndSchema performs page-level OCR + parallel AI extraction
+// using a user-defined extraction schema. Fields are extracted according to the
+// schema rules instead of the default document-type field guide.
+func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id bson.ObjectID, schema []domain.SchemaField, progressCh chan<- domain.AnalysisEvent) {
+	defer close(progressCh)
+
+	send := func(evt domain.AnalysisEvent) {
+		select {
+		case progressCh <- evt:
+		case <-ctx.Done():
+		}
+	}
+
+	// 1. Fetch document
+	doc, err := s.GetByID(ctx, id)
+	if err != nil {
+		send(domain.AnalysisEvent{Type: "error", Error: fmt.Sprintf("document not found: %v", err)})
+		return
+	}
+
+	// 2. Set status to processing and clear stale fields
+	processingStatus := domain.StatusProcessing
+	stepExtract := "extracting_text"
+	emptyFields := []domain.ExtractedField{}
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
+		Status:          &processingStatus,
+		ProcessingStep:  &stepExtract,
+		ExtractedFields: emptyFields,
+	})
+
+	// 3. Extract pages
+	slog.Info("extracting pages (schema mode)", "id", id.Hex(), "path", doc.FilePath, "schemaFields", len(schema))
+	pages, _, err := ocr.ExtractPages(doc.FilePath)
+	if err != nil {
+		errStatus := domain.StatusError
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
+		send(domain.AnalysisEvent{Type: "error", Error: fmt.Sprintf("text extraction failed: %v", err)})
+		return
+	}
+
+	// 3b. Build raw text
+	var rawBuf strings.Builder
+	for _, p := range pages {
+		rawBuf.WriteString(p.Text)
+		rawBuf.WriteString("\n")
+	}
+	rawText := strings.TrimSpace(rawBuf.String())
+	stepAI := "ai_analysis"
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{ProcessingStep: &stepAI, RawText: &rawText})
+
+	// 4. Check AI client
+	if s.aiClient == nil {
+		errStatus := domain.StatusError
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — set KILO_API_KEY in .env"})
+		return
+	}
+
+	// 5. Send start event
+	send(domain.AnalysisEvent{Type: "start", TotalPages: len(pages)})
+
+	// 6. Process pages in parallel with schema-aware extraction
+	type pageResult struct {
+		pageNum int
+		fields  []domain.ExtractedField
+		err     error
+	}
+
+	resultsCh := make(chan pageResult, len(pages))
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+
+	for _, page := range pages {
+		wg.Add(1)
+		go func(p ocr.PageText) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			slog.Info("processing page with AI (schema mode)", "id", id.Hex(), "page", p.PageNumber)
+			fields, err := s.aiClient.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
+
+			if err != nil {
+				slog.Warn("schema page analysis failed, retrying", "id", id.Hex(), "page", p.PageNumber, "error", err)
+				fields, err = s.aiClient.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
+			}
+
+			resultsCh <- pageResult{pageNum: p.PageNumber, fields: fields, err: err}
+		}(page)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	// 7. Collect results
+	var allFields []domain.ExtractedField
+	pagesProcessed := 0
+	pagesSucceeded := 0
+	pagesFailed := 0
+
+	for res := range resultsCh {
+		pagesProcessed++
+		if res.err != nil {
+			pagesFailed++
+			slog.Warn("schema page analysis failed", "id", id.Hex(), "page", res.pageNum, "error", res.err)
+			send(domain.AnalysisEvent{
+				Type:  "page_done",
+				Page:  res.pageNum,
+				Error: res.err.Error(),
+			})
+			continue
+		}
+
+		pagesSucceeded++
+		allFields = append(allFields, res.fields...)
+
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
+			AppendFields: res.fields,
+		})
+
+		send(domain.AnalysisEvent{
+			Type:        "page_done",
+			Page:        res.pageNum,
+			FieldsFound: len(res.fields),
+			Fields:      res.fields,
+		})
+	}
+
+	// 8. Handle results
+	if pagesSucceeded == 0 {
+		errStatus := domain.StatusError
+		stepFailed := "failed"
+		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
+		send(domain.AnalysisEvent{
+			Type:        "error",
+			Error:       fmt.Sprintf("AI returned no valid fields from any page (%d pages failed)", pagesFailed),
+			PagesFailed: pagesFailed,
+		})
+		return
+	}
+
+	// 9. Deduplicate and compute confidence
+	deduped := deduplicateFields(allFields)
+	var totalConf float64
+	for _, f := range deduped {
+		totalConf += f.Confidence
+	}
+	avgConf := 0.0
+	if len(deduped) > 0 {
+		avgConf = math.Round((totalConf/float64(len(deduped)))*1000) / 10
+	}
+
+	// 10. Save final results
+	status := domain.StatusProcessed
+	stepComplete := "complete"
+	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
+		Status:          &status,
+		ProcessingStep:  &stepComplete,
+		Confidence:      &avgConf,
+		ExtractedFields: deduped,
+	})
+
+	slog.Info("schema analysis complete", "id", id.Hex(), "totalFields", len(deduped), "confidence", avgConf)
+	send(domain.AnalysisEvent{
+		Type:           "complete",
+		TotalFields:    len(deduped),
+		Confidence:     avgConf,
+		PagesSucceeded: pagesSucceeded,
+		PagesFailed:    pagesFailed,
+	})
+}
+
 // Analyze performs OCR + AI analysis (non-streaming wrapper).
 func (s *DocumentService) Analyze(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
 	ch := make(chan domain.AnalysisEvent, 64)

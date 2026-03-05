@@ -13,6 +13,7 @@
  */
 
 import type { AnalysisEvent } from './api-client'
+import type { SchemaField } from '../../../shared/types/document.types'
 
 const WS_URL = 'ws://localhost:8080/api/v1/ws'
 
@@ -146,12 +147,14 @@ class WebSocketClient {
   /**
    * Triggers document analysis over the WebSocket.
    * Returns a cleanup function to cancel the subscription.
+   * Optionally accepts a custom schema for targeted extraction.
    */
   analyzeDocument(
     documentId: string,
     onEvent: (event: AnalysisEvent) => void,
     onDone?: () => void,
-    onError?: (err: Error) => void
+    onError?: (err: Error) => void,
+    schema?: readonly SchemaField[]
   ): () => void {
     // Set up subscription BEFORE connecting (events may arrive fast)
     this.activeSubscription = { onEvent, onDone, onError }
@@ -159,7 +162,11 @@ class WebSocketClient {
     // Connect if needed, then send the analyze command
     this.connect()
       .then(() => {
-        this.send({ action: 'analyze', documentId })
+        const msg: Record<string, unknown> = { action: 'analyze', documentId }
+        if (schema && schema.length > 0) {
+          msg.schema = schema
+        }
+        this.send(msg)
       })
       .catch((err) => {
         onError?.(err instanceof Error ? err : new Error(String(err)))

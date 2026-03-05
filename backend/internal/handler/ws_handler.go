@@ -43,8 +43,9 @@ var upgrader = websocket.Upgrader{
 
 // wsInbound is the message format sent from the client to the server.
 type wsInbound struct {
-	Action     string `json:"action"`     // "analyze" | "ping"
-	DocumentID string `json:"documentId"` // required for "analyze"
+	Action     string               `json:"action"`           // "analyze" | "ping"
+	DocumentID string               `json:"documentId"`       // required for "analyze"
+	Schema     []domain.SchemaField `json:"schema,omitempty"` // optional custom extraction schema
 }
 
 // WSHandler handles WebSocket connections for real-time streaming.
@@ -171,9 +172,15 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 			analysisCancelMu.Unlock()
 
 			// Run analysis in a goroutine so the read loop continues.
-			go func(aCtx context.Context, id bson.ObjectID) {
+			// Use schema-aware analysis when schema is provided.
+			schema := msg.Schema
+			go func(aCtx context.Context, id bson.ObjectID, s []domain.SchemaField) {
 				progressCh := make(chan domain.AnalysisEvent, 32)
-				go h.svc.AnalyzeWithProgress(aCtx, id, progressCh)
+				if len(s) > 0 {
+					go h.svc.AnalyzeWithProgressAndSchema(aCtx, id, s, progressCh)
+				} else {
+					go h.svc.AnalyzeWithProgress(aCtx, id, progressCh)
+				}
 
 				for evt := range progressCh {
 					select {
@@ -182,7 +189,7 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 				}
-			}(analysisCtx, oid)
+			}(analysisCtx, oid, schema)
 
 		default:
 			h.sendError(writeCh, "unknown action: "+msg.Action)

@@ -11,8 +11,9 @@ import type { AnalysisProgress } from '../pages/Documents'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
-import type { AuraDocument } from '../../../shared/types/document.types'
+import type { AuraDocument, SchemaField } from '../../../shared/types/document.types'
 import { exportDocument } from '../data/data-service'
+import { SchemaCustomization } from './SchemaCustomization'
 import {
   FileText,
   BarChart3,
@@ -44,6 +45,7 @@ interface DocumentAnalysisProps {
   readonly onApprove?: () => void
   readonly addToast?: (type: 'success' | 'error' | 'info', text: string) => void
   readonly analysisProgress?: AnalysisProgress | null
+  readonly onSchemaExtract?: (schema: SchemaField[]) => void
 }
 
 function getConfidenceClass(confidence: number): string {
@@ -133,7 +135,8 @@ export function DocumentAnalysis({
   onRescan,
   onApprove,
   addToast,
-  analysisProgress
+  analysisProgress,
+  onSchemaExtract
 }: DocumentAnalysisProps): ReactElement {
   const [rescanning, setRescanning] = useState(false)
   const [approving, setApproving] = useState(false)
@@ -144,6 +147,7 @@ export function DocumentAnalysis({
   const [numPages, setNumPages] = useState<number>(0)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(100)
+  const [rightPanelTab, setRightPanelTab] = useState<'data' | 'schema'>('data')
 
   const DEFAULT_WIDTH = 480
   const pageWidth = Math.round(DEFAULT_WIDTH * (zoomLevel / 100))
@@ -370,136 +374,172 @@ export function DocumentAnalysis({
           </div>
         </div>
 
-        {/* Right — Extracted Data */}
+        {/* Right — Extracted Data / Schema Customization */}
         <div className="doc-analysis-extracted">
-          <div className="extracted-header">
-            <div className="extracted-header-title">
-              <span>
-                <BarChart3 size={16} />
-              </span>
-              <h3>Extracted Data</h3>
-            </div>
-            {hasFields && (
-              <span className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}>
-                {overallConfidence}% Overall Confidence
-              </span>
-            )}
+          {/* Tab Toggle */}
+          <div className="analysis-schema-toggle">
+            <button
+              className={`schema-toggle-btn ${rightPanelTab === 'data' ? 'active' : ''}`}
+              onClick={() => setRightPanelTab('data')}
+            >
+              Extracted Data
+            </button>
+            <button
+              className={`schema-toggle-btn ${rightPanelTab === 'schema' ? 'active' : ''}`}
+              onClick={() => setRightPanelTab('schema')}
+            >
+              Schema
+            </button>
           </div>
 
-          {(isProcessing || analysisProgress?.active) && (
-            <div className="processing-indicator glass-panel">
-              <div className="processing-indicator-spinner" />
-              <div className="processing-indicator-text">
-                <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
-                {analysisProgress && analysisProgress.totalPages > 0 && (
-                  <div className="analysis-progress">
-                    <div className="analysis-progress-bar">
+          {rightPanelTab === 'schema' ? (
+            <SchemaCustomization
+              onExtract={(schema) => {
+                onSchemaExtract?.(schema)
+                setRightPanelTab('data')
+              }}
+              extracting={isProcessing || analysisProgress?.active}
+            />
+          ) : (
+            <>
+              <div className="extracted-header">
+                <div className="extracted-header-title">
+                  <span>
+                    <BarChart3 size={16} />
+                  </span>
+                  <h3>Extracted Data</h3>
+                </div>
+                {hasFields && (
+                  <span
+                    className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}
+                  >
+                    {overallConfidence}% Overall Confidence
+                  </span>
+                )}
+              </div>
+
+              {(isProcessing || analysisProgress?.active) && (
+                <div className="processing-indicator glass-panel">
+                  <div className="processing-indicator-spinner" />
+                  <div className="processing-indicator-text">
+                    <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
+                    {analysisProgress && analysisProgress.totalPages > 0 && (
+                      <div className="analysis-progress">
+                        <div className="analysis-progress-bar">
+                          <div
+                            className="analysis-progress-fill"
+                            style={{
+                              width: `${(analysisProgress.pagesProcessed / analysisProgress.totalPages) * 100}%`
+                            }}
+                          />
+                        </div>
+                        <p className="analysis-progress-text">
+                          Page {analysisProgress.pagesProcessed} of {analysisProgress.totalPages}{' '}
+                          processed
+                          {analysisProgress.fieldsFound > 0 && (
+                            <span className="analysis-fields-count">
+                              {' '}
+                              · {analysisProgress.fieldsFound} fields found
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    {(!analysisProgress || analysisProgress.totalPages === 0) && (
+                      <p className="processing-indicator-hint">This may take a moment...</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!hasFields && !isProcessing && !analysisProgress?.active && (
+                <div className="extracted-empty glass-panel">
+                  <span className="empty-state-icon">
+                    <Search size={28} />
+                  </span>
+                  <p>
+                    No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document
+                    with AI, or switch to the <strong>Schema</strong> tab to define custom
+                    extraction fields.
+                  </p>
+                </div>
+              )}
+
+              {analysisProgress && analysisProgress.pagesFailed > 0 && !analysisProgress.active && (
+                <div
+                  className="extracted-field-card glass-panel conf-low"
+                  style={{ marginBottom: '12px' }}
+                >
+                  <div className="field-card-header">
+                    <span className="field-label">
+                      <AlertTriangle size={14} /> PARTIAL FAILURE
+                    </span>
+                  </div>
+                  <div className="field-card-value">
+                    <span className="field-value">
+                      {analysisProgress.pagesFailed} page
+                      {analysisProgress.pagesFailed > 1 ? 's' : ''} failed during analysis.
+                      {analysisProgress.pagesSucceeded > 0
+                        ? ` ${analysisProgress.pagesSucceeded} page${analysisProgress.pagesSucceeded > 1 ? 's' : ''} succeeded.`
+                        : ''}{' '}
+                      Results shown are from successfully processed pages.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="extracted-fields-list">
+                {doc.extractedFields.map((field, index) => (
+                  <div
+                    key={field.fieldName}
+                    className={`extracted-field-card glass-panel ${getConfidenceClass(field.confidence)} ${hoveredField === field.value ? 'field-hovered' : ''}`}
+                    style={{ animationDelay: `${index * 60}ms` }}
+                    onMouseEnter={() => setHoveredField(field.value)}
+                    onMouseLeave={() => setHoveredField(null)}
+                  >
+                    <div className="field-card-header">
+                      <span className="field-label">{field.fieldName.toUpperCase()}</span>
+                      <span className={`field-confidence ${getConfidenceClass(field.confidence)}`}>
+                        <span className="conf-icon">{getConfidenceIcon(field.confidence)}</span>
+                        {formatConfidence(field.confidence)}
+                      </span>
+                    </div>
+                    <div className="field-card-value">
+                      <span className="field-value">{field.value}</span>
+                      <button className="field-edit-btn" title="Edit field">
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                    <div className="field-confidence-bar">
                       <div
-                        className="analysis-progress-fill"
-                        style={{
-                          width: `${(analysisProgress.pagesProcessed / analysisProgress.totalPages) * 100}%`
-                        }}
+                        className={`confidence-bar-fill ${field.confidence >= 0.9 ? 'high' : field.confidence >= 0.7 ? 'medium' : 'low'} animate-bar-fill`}
+                        style={
+                          {
+                            '--target-width': `${field.confidence * 100}%`
+                          } as React.CSSProperties
+                        }
                       />
                     </div>
-                    <p className="analysis-progress-text">
-                      Page {analysisProgress.pagesProcessed} of {analysisProgress.totalPages}{' '}
-                      processed
-                      {analysisProgress.fieldsFound > 0 && (
-                        <span className="analysis-fields-count">
-                          {' '}
-                          · {analysisProgress.fieldsFound} fields found
-                        </span>
-                      )}
-                    </p>
+                    {field.confidence < 0.7 && (
+                      <p className="field-warning">
+                        OCR detected potential character overlap. Please verify manually.
+                      </p>
+                    )}
                   </div>
-                )}
-                {(!analysisProgress || analysisProgress.totalPages === 0) && (
-                  <p className="processing-indicator-hint">This may take a moment...</p>
-                )}
+                ))}
               </div>
-            </div>
+            </>
           )}
-
-          {!hasFields && !isProcessing && !analysisProgress?.active && (
-            <div className="extracted-empty glass-panel">
-              <span className="empty-state-icon">
-                <Search size={28} />
-              </span>
-              <p>
-                No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document
-                with AI.
-              </p>
-            </div>
-          )}
-
-          {analysisProgress && analysisProgress.pagesFailed > 0 && !analysisProgress.active && (
-            <div
-              className="extracted-field-card glass-panel conf-low"
-              style={{ marginBottom: '12px' }}
-            >
-              <div className="field-card-header">
-                <span className="field-label">
-                  <AlertTriangle size={14} /> PARTIAL FAILURE
-                </span>
-              </div>
-              <div className="field-card-value">
-                <span className="field-value">
-                  {analysisProgress.pagesFailed} page{analysisProgress.pagesFailed > 1 ? 's' : ''}{' '}
-                  failed during analysis.
-                  {analysisProgress.pagesSucceeded > 0
-                    ? ` ${analysisProgress.pagesSucceeded} page${analysisProgress.pagesSucceeded > 1 ? 's' : ''} succeeded.`
-                    : ''}{' '}
-                  Results shown are from successfully processed pages.
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="extracted-fields-list">
-            {doc.extractedFields.map((field, index) => (
-              <div
-                key={field.fieldName}
-                className={`extracted-field-card glass-panel ${getConfidenceClass(field.confidence)} ${hoveredField === field.value ? 'field-hovered' : ''}`}
-                style={{ animationDelay: `${index * 60}ms` }}
-                onMouseEnter={() => setHoveredField(field.value)}
-                onMouseLeave={() => setHoveredField(null)}
-              >
-                <div className="field-card-header">
-                  <span className="field-label">{field.fieldName.toUpperCase()}</span>
-                  <span className={`field-confidence ${getConfidenceClass(field.confidence)}`}>
-                    <span className="conf-icon">{getConfidenceIcon(field.confidence)}</span>
-                    {formatConfidence(field.confidence)}
-                  </span>
-                </div>
-                <div className="field-card-value">
-                  <span className="field-value">{field.value}</span>
-                  <button className="field-edit-btn" title="Edit field">
-                    <Pencil size={14} />
-                  </button>
-                </div>
-                <div className="field-confidence-bar">
-                  <div
-                    className={`confidence-bar-fill ${field.confidence >= 0.9 ? 'high' : field.confidence >= 0.7 ? 'medium' : 'low'} animate-bar-fill`}
-                    style={
-                      { '--target-width': `${field.confidence * 100}%` } as React.CSSProperties
-                    }
-                  />
-                </div>
-                {field.confidence < 0.7 && (
-                  <p className="field-warning">
-                    OCR detected potential character overlap. Please verify manually.
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* Bottom Action Bar */}
       <div className="doc-analysis-actions">
-        <button className="btn-ghost action-btn">
-          <Settings size={14} /> Schema Customization
+        <button
+          className="btn-ghost action-btn"
+          onClick={() => setRightPanelTab(rightPanelTab === 'schema' ? 'data' : 'schema')}
+        >
+          <Settings size={14} /> {rightPanelTab === 'schema' ? 'View Data' : 'Schema'}
         </button>
         <button
           className="btn-ghost action-btn"
