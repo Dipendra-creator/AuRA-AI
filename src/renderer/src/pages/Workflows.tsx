@@ -518,10 +518,24 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
       </header>
 
       {showCreate && (
-        <div
+        <button
+          type="button"
+          aria-label="Close modal"
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowCreate(false)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowCreate(false)
+          }}
+          style={{
+            border: 'none',
+            cursor: 'default',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            padding: 0,
+            margin: 0,
+            background: 'none'
           }}
         >
           <div
@@ -645,7 +659,7 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
               </button>
             </div>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Pipeline Cards */}
