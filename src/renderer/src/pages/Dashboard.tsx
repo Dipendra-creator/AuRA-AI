@@ -137,12 +137,24 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
       {/* Floating AI Assistant */}
       <div className="ai-assistant">
         {showBubble && (
-          <div className="ai-assistant-bubble glass-panel" onClick={() => setShowBubble(false)}>
+          <button
+            type="button"
+            className="ai-assistant-bubble glass-panel"
+            onClick={() => setShowBubble(false)}
+            style={{
+              cursor: 'pointer',
+              textAlign: 'left',
+              font: 'inherit',
+              color: 'inherit',
+              background: 'inherit',
+              border: 'inherit'
+            }}
+          >
             <p>
               I&apos;ve detected <span className="highlight">3 anomalies</span> in your legal
               documents. Would you like to review them now?
             </p>
-          </div>
+          </button>
         )}
         <button
           className="ai-assistant-btn"

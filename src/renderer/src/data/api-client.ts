@@ -30,7 +30,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   if (!envelope.success) {
     throw new Error(envelope.error ?? 'Unknown API error')
   }
-  return envelope.data as T
+  return envelope.data!
 }
 
 /** Makes a POST request and returns the unwrapped data */
@@ -47,7 +47,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   if (!envelope.success) {
     throw new Error(envelope.error ?? 'Unknown API error')
   }
-  return envelope.data as T
+  return envelope.data!
 }
 
 /** Makes a PATCH request and returns the unwrapped data */
@@ -64,7 +64,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   if (!envelope.success) {
     throw new Error(envelope.error ?? 'Unknown API error')
   }
-  return envelope.data as T
+  return envelope.data!
 }
 
 /** Makes a DELETE request */
@@ -88,7 +88,7 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
   if (!envelope.success) {
     throw new Error(envelope.error ?? 'Unknown API error')
   }
-  return envelope.data as T
+  return envelope.data!
 }
 
 /** Makes a POST request and returns the response as a Blob (for file downloads) */

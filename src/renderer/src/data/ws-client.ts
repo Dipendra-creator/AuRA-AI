@@ -63,7 +63,7 @@ class WebSocketClient {
     }
 
     // If already connecting, return the existing promise
-    if (this.connectPromise) {
+    if (this.connectPromise !== null) {
       return this.connectPromise
     }
 

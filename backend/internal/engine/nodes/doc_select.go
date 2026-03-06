@@ -41,9 +41,9 @@ func (e *DocSelectExecutor) Validate(node domain.PipelineNode) error {
 	case string:
 		// Single ID passed as a string — acceptable
 		return nil
-	default:
-		return nil // be lenient — let Execute handle the actual parsing
 	}
+	// Be lenient for any unknown types — let Execute handle the actual parsing
+	return nil
 }
 
 // Execute fetches the selected documents from the database and populates the
@@ -83,59 +83,12 @@ func (e *DocSelectExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	var processedDocs []string
 
 	for _, idStr := range docIDs {
-		objID, err := bson.ObjectIDFromHex(idStr)
-		if err != nil {
-			slog.Warn("doc_select: invalid document ID", "id", idStr, "error", err)
-			output.Errors = append(output.Errors, engine.DataPacketError{
-				NodeID:  node.NodeID,
-				Message: fmt.Sprintf("Invalid document ID: %s", idStr),
-			})
+		doc, docErr := e.fetchDocument(ctx, idStr, node.NodeID, &output)
+		if docErr != nil || doc == nil {
 			continue
 		}
 
-		doc, err := e.docRepo.GetByID(ctx, objID)
-		if err != nil {
-			slog.Warn("doc_select: failed to fetch document", "id", idStr, "error", err)
-			output.Errors = append(output.Errors, engine.DataPacketError{
-				NodeID:  node.NodeID,
-				Message: fmt.Sprintf("Failed to fetch document %s: %s", idStr, err.Error()),
-			})
-			continue
-		}
-		if doc == nil {
-			slog.Warn("doc_select: document not found", "id", idStr)
-			output.Errors = append(output.Errors, engine.DataPacketError{
-				NodeID:  node.NodeID,
-				Message: fmt.Sprintf("Document not found: %s", idStr),
-			})
-			continue
-		}
-
-		// Add file reference
-		if doc.FilePath != "" {
-			output.Files = append(output.Files, engine.FileReference{
-				Path:      doc.FilePath,
-				Name:      doc.Name,
-				MimeType:  doc.MimeType,
-				SizeBytes: doc.FileSize,
-			})
-		}
-
-		// Add raw text
-		if includeRawText && doc.RawText != "" {
-			allText = append(allText, doc.RawText)
-		}
-
-		// Add extracted fields
-		if includeExtractedFields && len(doc.ExtractedFields) > 0 {
-			for _, field := range doc.ExtractedFields {
-				output.Fields[field.FieldName] = field.Value
-				output.Fields[field.FieldName+"_confidence"] = field.Confidence
-			}
-		}
-
-		// Track document ID
-		output.Fields["documentId_"+idStr] = idStr
+		e.populateDocData(doc, idStr, includeRawText, includeExtractedFields, &output, &allText)
 		processedDocs = append(processedDocs, doc.Name)
 
 		slog.Info("doc_select: loaded document",
@@ -163,6 +116,64 @@ func (e *DocSelectExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	)
 
 	return output, nil
+}
+
+// fetchDocument fetches a single document by hex ID, appending errors to output if retrieval fails.
+func (e *DocSelectExecutor) fetchDocument(ctx context.Context, idStr, nodeID string, output *engine.DataPacket) (*domain.Document, error) {
+	objID, err := bson.ObjectIDFromHex(idStr)
+	if err != nil {
+		slog.Warn("doc_select: invalid document ID", "id", idStr, "error", err)
+		output.Errors = append(output.Errors, engine.DataPacketError{
+			NodeID:  nodeID,
+			Message: fmt.Sprintf("Invalid document ID: %s", idStr),
+		})
+		return nil, err
+	}
+
+	doc, err := e.docRepo.GetByID(ctx, objID)
+	if err != nil {
+		slog.Warn("doc_select: failed to fetch document", "id", idStr, "error", err)
+		output.Errors = append(output.Errors, engine.DataPacketError{
+			NodeID:  nodeID,
+			Message: fmt.Sprintf("Failed to fetch document %s: %s", idStr, err.Error()),
+		})
+		return nil, err
+	}
+	if doc == nil {
+		slog.Warn("doc_select: document not found", "id", idStr)
+		output.Errors = append(output.Errors, engine.DataPacketError{
+			NodeID:  nodeID,
+			Message: fmt.Sprintf("Document not found: %s", idStr),
+		})
+		return nil, fmt.Errorf("document not found: %s", idStr)
+	}
+
+	return doc, nil
+}
+
+// populateDocData adds a document's data (file refs, raw text, extracted fields) to the output.
+func (e *DocSelectExecutor) populateDocData(doc *domain.Document, idStr string, includeRawText, includeExtractedFields bool, output *engine.DataPacket, allText *[]string) {
+	if doc.FilePath != "" {
+		output.Files = append(output.Files, engine.FileReference{
+			Path:      doc.FilePath,
+			Name:      doc.Name,
+			MimeType:  doc.MimeType,
+			SizeBytes: doc.FileSize,
+		})
+	}
+
+	if includeRawText && doc.RawText != "" {
+		*allText = append(*allText, doc.RawText)
+	}
+
+	if includeExtractedFields && len(doc.ExtractedFields) > 0 {
+		for _, field := range doc.ExtractedFields {
+			output.Fields[field.FieldName] = field.Value
+			output.Fields[field.FieldName+"_confidence"] = field.Confidence
+		}
+	}
+
+	output.Fields["documentId_"+idStr] = idStr
 }
 
 // extractStringSlice converts an interface{} to []string.
