@@ -98,8 +98,6 @@ function WorkflowNode({
       onMouseLeave={() => setShowError(false)}
       onFocus={() => isFailed && setShowError(true)}
       onBlur={() => setShowError(false)}
-      tabIndex={isFailed ? 0 : -1}
-      role={isFailed ? 'tooltip' : undefined}
     >
       {/* Status indicator dot */}
       {statusColor && (

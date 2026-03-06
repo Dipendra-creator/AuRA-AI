@@ -84,19 +84,19 @@ export default function DocumentSelectorPanel({
     [selectedIds, onSelectionChange]
   )
 
-  const selectAll = useCallback(() => {
-    const filteredIds = filteredDocs.map((d) => d._id as string)
-    onSelectionChange(filteredIds)
-  }, [documents, searchQuery, onSelectionChange])
-
-  const deselectAll = useCallback(() => {
-    onSelectionChange([])
-  }, [onSelectionChange])
-
   // Filter documents by search query
   const filteredDocs = documents.filter((doc) =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const selectAll = useCallback(() => {
+    const filteredIds = filteredDocs.map((d) => d._id as string)
+    onSelectionChange(filteredIds)
+  }, [filteredDocs, onSelectionChange])
+
+  const deselectAll = useCallback(() => {
+    onSelectionChange([])
+  }, [onSelectionChange])
 
   if (loading) {
     return (
@@ -256,17 +256,9 @@ export default function DocumentSelectorPanel({
             const typeColor = TYPE_COLORS[doc.type] ?? '#6b7280'
 
             return (
-              <div
+              <button
                 key={doc._id}
-                role="button"
-                tabIndex={0}
                 onClick={() => toggleDocument(doc._id as string)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    toggleDocument(doc._id as string)
-                  }
-                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -277,7 +269,11 @@ export default function DocumentSelectorPanel({
                   border: `1px solid ${isSelected ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  userSelect: 'none'
+                  userSelect: 'none',
+                  textAlign: 'left',
+                  width: '100%',
+                  outline: 'none',
+                  fontFamily: 'inherit'
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
@@ -363,7 +359,7 @@ export default function DocumentSelectorPanel({
                     </span>
                   </div>
                 </div>
-              </div>
+              </button>
             )
           })
         )}

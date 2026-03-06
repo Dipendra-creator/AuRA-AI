@@ -148,10 +148,10 @@ export function DocumentAnalysis({
   const overallConfidence =
     doc.extractedFields.length > 0
       ? Math.round(
-          (doc.extractedFields.reduce((sum, f) => sum + f.confidence, 0) /
-            doc.extractedFields.length) *
-            1000
-        ) / 10
+        (doc.extractedFields.reduce((sum, f) => sum + f.confidence, 0) /
+          doc.extractedFields.length) *
+        1000
+      ) / 10
       : 0
 
   const fileUrl = useMemo(() => getFileUrl(doc.filePath), [doc.filePath])
@@ -162,10 +162,8 @@ export function DocumentAnalysis({
   const customTextRenderer = useCallback(
     ({ str }: { str: string }) => {
       if (!hoveredField) return str
-      const regex = new RegExp(
-        `(${hoveredField.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)})`,
-        'gi'
-      )
+      const exactMatchStr = hoveredField.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+      const regex = new RegExp(`(${exactMatchStr})`, 'gi')
       const parts = str.split(regex)
       return parts
         .map((part) =>

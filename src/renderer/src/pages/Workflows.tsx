@@ -515,26 +515,8 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
           <Plus size={16} />
           Create Pipeline
         </button>
-      </header>
-
-      {/* Create Pipeline Modal */}
-      {showCreate && (
         <div
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowCreate(false)
-          }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(4px)'
-          }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowCreate(false)
           }}
@@ -663,253 +645,250 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
         </div>
       )}
 
-      {/* Pipeline Cards */}
-      {pipelines.length === 0 ? (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '80px 0',
-            gap: 16
-          }}
-        >
+        {/* Pipeline Cards */}
+        {pipelines.length === 0 ? (
           <div
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              background: 'rgba(99,102,241,0.1)',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              padding: '80px 0',
+              gap: 16
             }}
           >
-            <Workflow size={28} style={{ color: '#6366f1' }} />
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: 'rgba(99,102,241,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Workflow size={28} style={{ color: '#6366f1' }} />
+            </div>
+            <h3 style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
+              No pipelines yet
+            </h3>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+              Create your first document processing pipeline to get started
+            </p>
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{
+                marginTop: 8,
+                padding: '8px 20px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={14} style={{ marginRight: 4, verticalAlign: -2 }} />
+              Create Pipeline
+            </button>
           </div>
-          <h3 style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
-            No pipelines yet
-          </h3>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-            Create your first document processing pipeline to get started
-          </p>
-          <button
-            onClick={() => setShowCreate(true)}
+        ) : (
+          <div
             style={{
-              marginTop: 8,
-              padding: '8px 20px',
-              borderRadius: 8,
-              border: 'none',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+              gap: 16,
+              paddingBottom: 32
             }}
           >
-            <Plus size={14} style={{ marginRight: 4, verticalAlign: -2 }} />
-            Create Pipeline
-          </button>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-            gap: 16,
-            paddingBottom: 32
-          }}
-        >
-          {pipelines.map((pipeline) => {
-            const runs = pipelineRuns[pipeline._id] ?? []
-            const nodeCount = (pipeline.nodes ?? []).length
-            const edgeCount = (pipeline.edges ?? []).length
+            {pipelines.map((pipeline) => {
+              const runs = pipelineRuns[pipeline._id] ?? []
+              const nodeCount = (pipeline.nodes ?? []).length
+              const edgeCount = (pipeline.edges ?? []).length
 
-            return (
-              <div
-                key={pipeline._id}
-                role="button"
-                tabIndex={0}
-                onClick={() => openEditor(pipeline)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openEditor(pipeline)
-                  }
-                }}
-                style={{
-                  background: 'linear-gradient(145deg, rgba(30,30,50,0.6), rgba(20,20,35,0.6))',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 14,
-                  padding: 0,
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s, transform 0.15s, box-shadow 0.2s',
-                  overflow: 'hidden'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
-                  e.currentTarget.style.transform = ''
-                  e.currentTarget.style.boxShadow = ''
-                }}
-              >
-                {/* Card Header */}
-                <div
+              return (
+                <button
+                  key={pipeline._id}
+                  onClick={() => openEditor(pipeline)}
                   style={{
-                    padding: '16px 18px 12px',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)'
+                    display: 'block',
+                    textAlign: 'left',
+                    width: '100%',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    background: 'linear-gradient(145deg, rgba(30,30,50,0.6), rgba(20,20,35,0.6))',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 14,
+                    padding: 0,
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s, transform 0.15s, box-shadow 0.2s',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                    e.currentTarget.style.transform = ''
+                    e.currentTarget.style.boxShadow = ''
                   }}
                 >
+                  {/* Card Header */}
                   <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: 6
+                      padding: '16px 18px 12px',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)'
                     }}
                   >
-                    <h3
+                    <div
                       style={{
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: 'rgba(255,255,255,0.92)',
-                        margin: 0,
-                        flex: 1,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 6
                       }}
                     >
-                      {pipeline.name}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <StatusBadge status={pipeline.status ?? 'operational'} />
+                      <h3
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          color: 'rgba(255,255,255,0.92)',
+                          margin: 0,
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {pipeline.name}
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StatusBadge status={pipeline.status ?? 'operational'} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(pipeline._id, pipeline.name)
+                          }}
+                          title="Delete pipeline"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'rgba(239,68,68,0.5)',
+                            cursor: 'pointer',
+                            padding: 4,
+                            borderRadius: 4,
+                            transition: 'color 0.15s'
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(239,68,68,0.5)')}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    {pipeline.description && (
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: 'rgba(255,255,255,0.4)',
+                          margin: '0 0 8px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {pipeline.description}
+                      </p>
+                    )}
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.35)'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Layers size={11} /> {nodeCount} node{nodeCount === 1 ? '' : 's'}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <GitBranch size={11} /> {edgeCount} edge{edgeCount === 1 ? '' : 's'}
+                      </span>
+                      {pipeline.updatedAt && <span>Updated {timeAgo(pipeline.updatedAt)}</span>}
+                    </div>
+                  </div>
+
+                  {/* Recent Runs */}
+                  <div style={{ padding: '10px 18px 14px' }}>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.35)',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        marginBottom: 6
+                      }}
+                    >
+                      Recent Runs
+                    </div>
+                    {runs.length === 0 ? (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: 'rgba(255,255,255,0.25)',
+                          fontStyle: 'italic',
+                          padding: '4px 0'
+                        }}
+                      >
+                        No runs yet
+                      </div>
+                    ) : (
+                      runs.slice(0, 3).map((run) => <RunRow key={run._id} run={run} />)
+                    )}
+                    {/* Quick run button */}
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(pipeline._id, pipeline.name)
+                          openEditor(pipeline)
                         }}
-                        title="Delete pipeline"
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'rgba(239,68,68,0.5)',
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 5,
+                          padding: '6px 0',
+                          borderRadius: 7,
+                          border: '1px solid rgba(99,102,241,0.25)',
+                          background: 'rgba(99,102,241,0.08)',
+                          color: '#a5b4fc',
+                          fontSize: 11,
+                          fontWeight: 500,
                           cursor: 'pointer',
-                          padding: 4,
-                          borderRadius: 4,
-                          transition: 'color 0.15s'
+                          transition: 'background 0.15s'
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(239,68,68,0.5)')}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = 'rgba(99,102,241,0.08)')
+                        }
                       >
-                        <Trash2 size={13} />
+                        <Play size={11} /> Open Editor
                       </button>
                     </div>
                   </div>
-                  {pipeline.description && (
-                    <p
-                      style={{
-                        fontSize: 11,
-                        color: 'rgba(255,255,255,0.4)',
-                        margin: '0 0 8px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {pipeline.description}
-                    </p>
-                  )}
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      fontSize: 11,
-                      color: 'rgba(255,255,255,0.35)'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Layers size={11} /> {nodeCount} node{nodeCount === 1 ? '' : 's'}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <GitBranch size={11} /> {edgeCount} edge{edgeCount === 1 ? '' : 's'}
-                    </span>
-                    {pipeline.updatedAt && <span>Updated {timeAgo(pipeline.updatedAt)}</span>}
-                  </div>
-                </div>
-
-                {/* Recent Runs */}
-                <div style={{ padding: '10px 18px 14px' }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: 'rgba(255,255,255,0.35)',
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      marginBottom: 6
-                    }}
-                  >
-                    Recent Runs
-                  </div>
-                  {runs.length === 0 ? (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: 'rgba(255,255,255,0.25)',
-                        fontStyle: 'italic',
-                        padding: '4px 0'
-                      }}
-                    >
-                      No runs yet
-                    </div>
-                  ) : (
-                    runs.slice(0, 3).map((run) => <RunRow key={run._id} run={run} />)
-                  )}
-                  {/* Quick run button */}
-                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEditor(pipeline)
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 5,
-                        padding: '6px 0',
-                        borderRadius: 7,
-                        border: '1px solid rgba(99,102,241,0.25)',
-                        background: 'rgba(99,102,241,0.08)',
-                        color: '#a5b4fc',
-                        fontSize: 11,
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        transition: 'background 0.15s'
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = 'rgba(99,102,241,0.08)')
-                      }
-                    >
-                      <Play size={11} /> Open Editor
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+                </button>
+              )
+            })}
+          </div>
+        )}
     </div>
   )
 }
