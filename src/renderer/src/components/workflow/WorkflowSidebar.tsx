@@ -26,16 +26,10 @@ function NodePaletteItem({ def }: Readonly<{ def: NodeTypeDefinition }>): React.
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       draggable
       onDragStart={onDragStart}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-        }
-      }}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -46,7 +40,11 @@ function NodePaletteItem({ def }: Readonly<{ def: NodeTypeDefinition }>): React.
         border: '1px solid rgba(255,255,255,0.06)',
         cursor: 'grab',
         transition: 'all 0.15s ease',
-        userSelect: 'none'
+        userSelect: 'none',
+        width: '100%',
+        textAlign: 'left',
+        color: 'inherit',
+        font: 'inherit'
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = `${def.color}15`
@@ -81,7 +79,7 @@ function NodePaletteItem({ def }: Readonly<{ def: NodeTypeDefinition }>): React.
           {def.description}
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 

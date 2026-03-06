@@ -41,6 +41,13 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+function getStatusColor(runStatus?: string): string | undefined {
+  if (runStatus === 'completed') return '#10b981'
+  if (runStatus === 'running') return '#f59e0b'
+  if (runStatus === 'failed') return '#ef4444'
+  return undefined
+}
+
 function WorkflowNode({
   data,
   selected
@@ -49,14 +56,7 @@ function WorkflowNode({
   const IconComp = ICON_MAP[typeDef?.icon ?? 'cpu'] ?? Cpu
   const [showError, setShowError] = useState(false)
 
-  const statusColor =
-    data.runStatus === 'completed'
-      ? '#10b981'
-      : data.runStatus === 'running'
-        ? '#f59e0b'
-        : data.runStatus === 'failed'
-          ? '#ef4444'
-          : undefined
+  const statusColor = getStatusColor(data.runStatus)
 
   const isRunning = data.runStatus === 'running'
   const isFailed = data.runStatus === 'failed'

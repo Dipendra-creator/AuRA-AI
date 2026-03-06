@@ -28,11 +28,11 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
   }, [])
 
   const handleFiles = useCallback(
-    async (files: FileList) => {
+    (files: FileList) => {
       if (!onFilesSelected || files.length === 0) return
       setUploadState('uploading')
       try {
-        await onFilesSelected(files)
+        onFilesSelected(files)
         setUploadState('success')
         setTimeout(() => setUploadState('idle'), 3000)
       } catch {
@@ -84,13 +84,30 @@ export function FileDropZone({ onFilesSelected }: FileDropZoneProps): ReactEleme
     error: 'Upload failed — is the backend running?'
   }[uploadState]
 
+  const dropZoneClass = [
+    'drop-zone',
+    'glass-panel',
+    isDragging ? 'active' : '',
+    uploadState === 'idle' ? '' : `drop-zone-${uploadState}`
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div
-      className={`drop-zone glass-panel ${isDragging ? 'active' : ''} ${uploadState !== 'idle' ? `drop-zone-${uploadState}` : ''}`}
+      className={dropZoneClass}
+      tabIndex={0}
+      aria-label="File drop zone"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick()
+        }
+      }}
     >
       <div className="drop-zone-icon">
         <span>{stateIcon[uploadState]}</span>

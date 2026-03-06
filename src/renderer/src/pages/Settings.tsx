@@ -6,6 +6,22 @@
 import { useState, useEffect, type ReactElement } from 'react'
 import { checkBackendHealth, type HealthStatus } from '../data/data-service'
 
+function getStatusDisplay(
+  isLoading: boolean,
+  isConnected: boolean,
+  health: HealthStatus | null | undefined
+): string {
+  if (isLoading) return '...'
+  if (isConnected && health) return health.status
+  return 'Unreachable'
+}
+
+function getMongoStatusText(isLoading: boolean, isConnected: boolean): string {
+  if (isLoading) return 'Checking...'
+  if (isConnected) return 'Connected'
+  return 'Disconnected'
+}
+
 export function Settings(): ReactElement {
   const [health, setHealth] = useState<HealthStatus | null | undefined>(undefined) // undefined = loading
 
@@ -58,7 +74,7 @@ export function Settings(): ReactElement {
           <div className="settings-row">
             <span className="settings-label">Status</span>
             <span className="settings-value">
-              {isLoading ? '...' : isConnected ? health.status : 'Unreachable'}
+              {getStatusDisplay(isLoading, isConnected, health)}
             </span>
           </div>
           {isConnected && health.database && (
@@ -85,7 +101,7 @@ export function Settings(): ReactElement {
                     : 'var(--color-accent-red, #ef4444)'
                 }}
               >
-                {isLoading ? 'Checking...' : isConnected ? 'Connected' : 'Disconnected'}
+                {getMongoStatusText(isLoading, isConnected)}
               </span>
             </div>
           </div>
