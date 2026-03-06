@@ -1518,7 +1518,7 @@ body {
 
 .event-amber {
   background: rgba(255, 180, 50, 0.15);
-  color: #d97706;
+  color: #fbbf24;
   border: 1px solid rgba(255, 180, 50, 0.3);
 }
 
@@ -1865,7 +1865,7 @@ body {
 
 .overall-confidence.conf-medium {
   background: rgba(255, 180, 50, 0.1);
-  color: #d97706;
+  color: #fbbf24;
 }
 
 .overall-confidence.conf-low {
@@ -2216,7 +2216,7 @@ body {
 }
 
 .table-cell-conf.conf-medium {
-  color: #d97706;
+  color: #fbbf24;
   background: rgba(255, 180, 50, 0.1);
 }
 
