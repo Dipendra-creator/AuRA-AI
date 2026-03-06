@@ -15,9 +15,16 @@ import (
 )
 
 const (
-	kiloBaseURL    = "https://api.kilo.ai/api/openrouter/"
-	defaultModel   = "minimax/minimax-m2.5:free"
-	requestTimeout = 120 * time.Second
+	kiloBaseURL         = "https://api.kilo.ai/api/openrouter/"
+	defaultModel        = "minimax/minimax-m2.5:free"
+	requestTimeout      = 120 * time.Second
+	chatCompletionsPath = "chat/completions"
+	errMsgMarshalReq    = "failed to marshal request: %w"
+	errMsgCreateReq     = "failed to create request: %w"
+	headerContentType   = "Content-Type"
+	contentTypeJSON     = "application/json"
+	authBearerPrefix    = "Bearer "
+	textTruncatedSuffix = "\n... [text truncated]"
 )
 
 // KiloClient communicates with the Kilo AI API for document field extraction.
@@ -92,16 +99,16 @@ func (c *KiloClient) ExtractFields(ctx context.Context, documentText string, doc
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf(errMsgMarshalReq, err)
 	}
 
-	url := kiloBaseURL + "chat/completions"
+	url := kiloBaseURL + chatCompletionsPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf(errMsgCreateReq, err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set(headerContentType, contentTypeJSON)
+	req.Header.Set("Authorization", authBearerPrefix+c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -159,16 +166,16 @@ func (c *KiloClient) ExtractFieldsFromPage(ctx context.Context, pageText string,
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf(errMsgMarshalReq, err)
 	}
 
-	url := kiloBaseURL + "chat/completions"
+	url := kiloBaseURL + chatCompletionsPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf(errMsgCreateReq, err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set(headerContentType, contentTypeJSON)
+	req.Header.Set("Authorization", authBearerPrefix+c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -318,7 +325,7 @@ func buildExtractionPrompt(text string, docType domain.DocumentType) string {
 
 	const maxTextLen = 30000
 	if len(text) > maxTextLen {
-		text = text[:maxTextLen] + "\n... [text truncated]"
+		text = text[:maxTextLen] + textTruncatedSuffix
 	}
 
 	fieldGuide := documentTypeFieldGuide(docType)
@@ -358,7 +365,7 @@ func buildPageExtractionPrompt(text string, pageNum, totalPages int, docType dom
 
 	const maxTextLen = 30000
 	if len(text) > maxTextLen {
-		text = text[:maxTextLen] + "\n... [text truncated]"
+		text = text[:maxTextLen] + textTruncatedSuffix
 	}
 
 	fieldGuide := documentTypeFieldGuide(docType)
@@ -399,30 +406,49 @@ func parseExtractedFields(content string) ([]domain.ExtractedField, error) {
 	content = strings.TrimSuffix(content, "```")
 	content = strings.TrimSpace(content)
 
+	rawFields, err := extractAndUnmarshalJSON(content)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := mapToDomainFields(rawFields)
+
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("AI returned no valid fields")
+	}
+
+	return fields, nil
+}
+
+// extractAndUnmarshalJSON attempts to parse the JSON array from the response content.
+func extractAndUnmarshalJSON(content string) ([]extractedFieldJSON, error) {
 	var rawFields []extractedFieldJSON
-	if err := json.Unmarshal([]byte(content), &rawFields); err != nil {
+	if err := json.Unmarshal([]byte(content), &rawFields); err == nil {
+		return rawFields, nil
+	} else {
 		// Try to find JSON array in the content
 		start := strings.Index(content, "[")
 		end := strings.LastIndex(content, "]")
 		if start >= 0 && end > start {
-			if err2 := json.Unmarshal([]byte(content[start:end+1]), &rawFields); err2 != nil {
-				return nil, fmt.Errorf("failed to parse AI output as JSON: %w (raw: %s)", err, truncate(content, 200))
+			if err2 := json.Unmarshal([]byte(content[start:end+1]), &rawFields); err2 == nil {
+				return rawFields, nil
 			}
-		} else {
-			return nil, fmt.Errorf("failed to parse AI output as JSON: %w (raw: %s)", err, truncate(content, 200))
 		}
+		return nil, fmt.Errorf("failed to parse AI output as JSON: %w (raw: %s)", err, truncate(content, 200))
 	}
+}
 
-	fields := make([]domain.ExtractedField, 0, len(rawFields))
-	for _, rf := range rawFields {
+// mapToDomainFields converts raw JSON fields to domain fields, applying constraints.
+func mapToDomainFields(raw []extractedFieldJSON) []domain.ExtractedField {
+	fields := make([]domain.ExtractedField, 0, len(raw))
+	for _, rf := range raw {
 		if rf.FieldName == "" || rf.Value == "" {
 			continue
 		}
 		conf := rf.Confidence
 		if conf < 0 {
 			conf = 0
-		}
-		if conf > 1 {
+		} else if conf > 1 {
 			conf = 1
 		}
 		fields = append(fields, domain.ExtractedField{
@@ -432,12 +458,7 @@ func parseExtractedFields(content string) ([]domain.ExtractedField, error) {
 			Verified:   false,
 		})
 	}
-
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("AI returned no valid fields")
-	}
-
-	return fields, nil
+	return fields
 }
 
 // truncate shortens a string to maxLen characters.
@@ -472,16 +493,16 @@ func (c *KiloClient) ExtractFieldsFromPageWithSchema(ctx context.Context, pageTe
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf(errMsgMarshalReq, err)
 	}
 
-	url := kiloBaseURL + "chat/completions"
+	url := kiloBaseURL + chatCompletionsPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf(errMsgCreateReq, err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set(headerContentType, contentTypeJSON)
+	req.Header.Set("Authorization", authBearerPrefix+c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -536,7 +557,7 @@ func buildSchemaFieldGuide(schema []domain.SchemaField) string {
 func buildSchemaPageExtractionPrompt(text string, pageNum, totalPages int, schema []domain.SchemaField) string {
 	const maxTextLen = 30000
 	if len(text) > maxTextLen {
-		text = text[:maxTextLen] + "\n... [text truncated]"
+		text = text[:maxTextLen] + textTruncatedSuffix
 	}
 
 	fieldGuide := buildSchemaFieldGuide(schema)

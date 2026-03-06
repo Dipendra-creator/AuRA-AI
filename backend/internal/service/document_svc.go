@@ -433,7 +433,7 @@ func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id b
 		avgConf = math.Round((totalConf/float64(len(deduped)))*1000) / 10
 	}
 
-	// 10. Save final results
+	// 10. Save final results with applied schema
 	status := domain.StatusProcessed
 	stepComplete := "complete"
 	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{
@@ -441,6 +441,7 @@ func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id b
 		ProcessingStep:  &stepComplete,
 		Confidence:      &avgConf,
 		ExtractedFields: deduped,
+		AppliedSchema:   schema,
 	})
 
 	slog.Info("schema analysis complete", "id", id.Hex(), "totalFields", len(deduped), "confidence", avgConf)
