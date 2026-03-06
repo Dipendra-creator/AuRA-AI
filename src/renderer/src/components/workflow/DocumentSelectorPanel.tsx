@@ -41,7 +41,7 @@ function formatBytes(bytes: number): string {
 export default function DocumentSelectorPanel({
   selectedIds,
   onSelectionChange
-}: DocumentSelectorPanelProps): ReactElement {
+}: Readonly<DocumentSelectorPanelProps>): ReactElement {
   const [documents, setDocuments] = useState<AuraDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -258,7 +258,15 @@ export default function DocumentSelectorPanel({
             return (
               <div
                 key={doc._id}
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleDocument(doc._id as string)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    toggleDocument(doc._id as string)
+                  }
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

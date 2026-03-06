@@ -134,6 +134,9 @@ func (r *DocumentRepo) Update(ctx context.Context, id bson.ObjectID, input domai
 	if input.ExtractedFields != nil {
 		set["extracted_fields"] = input.ExtractedFields
 	}
+	if input.AppliedSchema != nil {
+		set["applied_schema"] = input.AppliedSchema
+	}
 
 	// Build the update document
 	update := bson.M{"$set": set}

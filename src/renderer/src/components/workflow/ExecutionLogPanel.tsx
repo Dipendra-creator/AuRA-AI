@@ -62,8 +62,13 @@ export default function ExecutionLogPanel({
   selectedNodeId,
   onNodeClick,
   onClose
-}: ExecutionLogPanelProps): ReactElement {
+}: Readonly<ExecutionLogPanelProps>): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const hasFailed = logs.some((l) => l.status === 'failed')
+  let statusColor = '#10b981'
+  if (isRunning) statusColor = '#f59e0b'
+  else if (hasFailed) statusColor = '#ef4444'
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -106,12 +111,8 @@ export default function ExecutionLogPanel({
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: isRunning
-                ? '#f59e0b'
-                : logs.some((l) => l.status === 'failed')
-                  ? '#ef4444'
-                  : '#10b981',
-              boxShadow: `0 0 8px ${isRunning ? '#f59e0b' : logs.some((l) => l.status === 'failed') ? '#ef4444' : '#10b981'}`
+              background: statusColor,
+              boxShadow: `0 0 8px ${statusColor}`
             }}
           />
           <span
@@ -126,7 +127,7 @@ export default function ExecutionLogPanel({
             Execution Log
           </span>
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-            {logs.length} node{logs.length !== 1 ? 's' : ''}
+            {logs.length} node{logs.length === 1 ? '' : 's'}
           </span>
         </div>
         <button

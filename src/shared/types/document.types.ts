@@ -40,6 +40,7 @@ export interface AuraDocument {
   readonly fileSize: number
   readonly rawText: string
   readonly extractedFields: readonly ExtractedField[]
+  readonly appliedSchema?: readonly SchemaField[]
   readonly createdAt: string
   readonly updatedAt: string
 }
