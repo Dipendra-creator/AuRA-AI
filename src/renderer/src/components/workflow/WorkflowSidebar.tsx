@@ -17,7 +17,7 @@ const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> 
   fileOutput: FileOutput
 }
 
-function NodePaletteItem({ def }: { def: NodeTypeDefinition }): React.JSX.Element {
+function NodePaletteItem({ def }: Readonly<{ def: NodeTypeDefinition }>): React.JSX.Element {
   const IconComp = ICON_MAP[def.icon] ?? Cpu
 
   const onDragStart = (e: DragEvent): void => {
@@ -27,8 +27,15 @@ function NodePaletteItem({ def }: { def: NodeTypeDefinition }): React.JSX.Elemen
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       draggable
       onDragStart={onDragStart}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+        }
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',

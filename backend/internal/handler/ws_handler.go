@@ -69,51 +69,58 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("websocket connection established", "remote", r.RemoteAddr)
 
-	// Create a context that is cancelled when the connection closes.
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	// writeCh serialises all outbound messages through a single write goroutine.
 	writeCh := make(chan interface{}, 64)
 	var writeWg sync.WaitGroup
 
-	// ── Write Goroutine ──────────────────────────────────────────────
 	writeWg.Add(1)
-	go func() {
-		defer writeWg.Done()
-		ticker := time.NewTicker(pingPeriod)
-		defer ticker.Stop()
+	go h.startWritePump(ctx, conn, writeCh, &writeWg)
 
-		for {
-			select {
-			case msg, ok := <-writeCh:
-				if !ok {
-					// Channel closed — send close message and exit.
-					conn.SetWriteDeadline(time.Now().Add(writeWait))
-					conn.WriteMessage(websocket.CloseMessage,
-						websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-					return
-				}
+	h.handleMessages(ctx, conn, writeCh)
+
+	cancel()
+	close(writeCh)
+	writeWg.Wait()
+	conn.Close()
+
+	slog.Info("websocket connection closed", "remote", r.RemoteAddr)
+}
+
+func (h *WSHandler) startWritePump(ctx context.Context, conn *websocket.Conn, writeCh <-chan interface{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case msg, ok := <-writeCh:
+			if !ok {
 				conn.SetWriteDeadline(time.Now().Add(writeWait))
-				if err := conn.WriteJSON(msg); err != nil {
-					slog.Warn("websocket write error", "error", err)
-					return
-				}
-
-			case <-ticker.C:
-				conn.SetWriteDeadline(time.Now().Add(writeWait))
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					slog.Warn("websocket ping error", "error", err)
-					return
-				}
-
-			case <-ctx.Done():
+				conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				return
 			}
-		}
-	}()
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.WriteJSON(msg); err != nil {
+				slog.Warn("websocket write error", "error", err)
+				return
+			}
 
-	// ── Read Loop ────────────────────────────────────────────────────
+		case <-ticker.C:
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				slog.Warn("websocket ping error", "error", err)
+				return
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *WSHandler) handleMessages(ctx context.Context, conn *websocket.Conn, writeCh chan<- interface{}) {
 	conn.SetReadLimit(maxMessageSize)
 	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
@@ -121,17 +128,13 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	// Track any in-flight analysis so we can cancel it if a new one arrives.
 	var analysisCancelMu sync.Mutex
 	var analysisCancel context.CancelFunc
 
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err,
-				websocket.CloseGoingAway,
-				websocket.CloseNormalClosure,
-				websocket.CloseNoStatusReceived) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {
 				slog.Warn("websocket read error", "error", err)
 			}
 			break
@@ -143,73 +146,68 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		switch msg.Action {
-		case "ping":
-			select {
-			case writeCh <- domain.AnalysisEvent{Type: "pong"}:
-			case <-ctx.Done():
-			}
-
-		case "analyze":
-			if msg.DocumentID == "" {
-				h.sendError(writeCh, "documentId is required for analyze action")
-				continue
-			}
-
-			oid, parseErr := bson.ObjectIDFromHex(msg.DocumentID)
-			if parseErr != nil {
-				h.sendError(writeCh, "invalid documentId format")
-				continue
-			}
-
-			// Cancel any previous in-flight analysis.
-			analysisCancelMu.Lock()
-			if analysisCancel != nil {
-				analysisCancel()
-			}
-			analysisCtx, aCancel := context.WithTimeout(ctx, 5*time.Minute)
-			analysisCancel = aCancel
-			analysisCancelMu.Unlock()
-
-			// Run analysis in a goroutine so the read loop continues.
-			// Use schema-aware analysis when schema is provided.
-			schema := msg.Schema
-			go func(aCtx context.Context, id bson.ObjectID, s []domain.SchemaField) {
-				progressCh := make(chan domain.AnalysisEvent, 32)
-				if len(s) > 0 {
-					go h.svc.AnalyzeWithProgressAndSchema(aCtx, id, s, progressCh)
-				} else {
-					go h.svc.AnalyzeWithProgress(aCtx, id, progressCh)
-				}
-
-				for evt := range progressCh {
-					select {
-					case writeCh <- evt:
-					case <-aCtx.Done():
-						return
-					}
-				}
-			}(analysisCtx, oid, schema)
-
-		default:
-			h.sendError(writeCh, "unknown action: "+msg.Action)
-		}
+		h.processMessage(ctx, msg, writeCh, &analysisCancelMu, &analysisCancel)
 	}
-
-	// Cleanup: cancel context, close write channel, wait for writer to finish.
-	cancel()
 
 	analysisCancelMu.Lock()
 	if analysisCancel != nil {
 		analysisCancel()
 	}
 	analysisCancelMu.Unlock()
+}
 
-	close(writeCh)
-	writeWg.Wait()
-	conn.Close()
+func (h *WSHandler) processMessage(ctx context.Context, msg wsInbound, writeCh chan<- interface{}, mu *sync.Mutex, cancelRef *context.CancelFunc) {
+	switch msg.Action {
+	case "ping":
+		select {
+		case writeCh <- domain.AnalysisEvent{Type: "pong"}:
+		case <-ctx.Done():
+		}
 
-	slog.Info("websocket connection closed", "remote", r.RemoteAddr)
+	case "analyze":
+		if msg.DocumentID == "" {
+			h.sendError(writeCh, "documentId is required for analyze action")
+			return
+		}
+
+		oid, err := bson.ObjectIDFromHex(msg.DocumentID)
+		if err != nil {
+			h.sendError(writeCh, "invalid documentId format")
+			return
+		}
+
+		mu.Lock()
+		if *cancelRef != nil {
+			(*cancelRef)()
+		}
+		analysisCtx, aCancel := context.WithTimeout(ctx, 5*time.Minute)
+		*cancelRef = aCancel
+		mu.Unlock()
+
+		h.startAnalysis(analysisCtx, oid, msg.Schema, writeCh)
+
+	default:
+		h.sendError(writeCh, "unknown action: "+msg.Action)
+	}
+}
+
+func (h *WSHandler) startAnalysis(ctx context.Context, id bson.ObjectID, schema []domain.SchemaField, writeCh chan<- interface{}) {
+	go func() {
+		progressCh := make(chan domain.AnalysisEvent, 32)
+		if len(schema) > 0 {
+			go h.svc.AnalyzeWithProgressAndSchema(ctx, id, schema, progressCh)
+		} else {
+			go h.svc.AnalyzeWithProgress(ctx, id, progressCh)
+		}
+
+		for evt := range progressCh {
+			select {
+			case writeCh <- evt:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 // sendError pushes an error event onto the write channel.

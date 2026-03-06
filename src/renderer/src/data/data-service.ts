@@ -28,9 +28,8 @@ import type { AnalysisEvent } from './api-client'
 import { wsClient } from './ws-client'
 
 // Re-export for consumers
-export type { AnalysisEvent }
-export type { SchemaField }
-export type { ExtractionSchema }
+export type { AnalysisEvent } from './api-client'
+export type { SchemaField, ExtractionSchema } from '../../../shared/types/document.types'
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'

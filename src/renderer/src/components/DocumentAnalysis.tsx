@@ -14,6 +14,7 @@ import 'react-pdf/dist/Page/TextLayer.css'
 import type { AuraDocument, SchemaField } from '../../../shared/types/document.types'
 import { exportDocument } from '../data/data-service'
 import { SchemaCustomization } from './SchemaCustomization'
+import { ExtractedDataTable } from './ExtractedDataTable'
 import {
   FileText,
   BarChart3,
@@ -22,15 +23,14 @@ import {
   CheckCircle,
   XCircle,
   AlignLeft,
-  Pencil,
   Settings,
   RefreshCw,
   FileDown,
   Loader2,
   Check,
   AlertTriangle,
-  Search,
-  ArrowLeft
+  ArrowLeft,
+  Sparkles
 } from './Icons'
 
 // Configure PDF.js worker — served from public/ directory
@@ -54,16 +54,6 @@ function getConfidenceClass(confidence: number): string {
   return 'conf-low'
 }
 
-function formatConfidence(confidence: number): string {
-  return `${Math.round(confidence * 100)}%`
-}
-
-function getConfidenceIcon(confidence: number): string {
-  if (confidence >= 0.9) return '●'
-  if (confidence >= 0.7) return '!'
-  return '▲'
-}
-
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -71,7 +61,7 @@ function downloadBlob(blob: Blob, filename: string): void {
   a.download = filename
   document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
+  a.remove()
   URL.revokeObjectURL(url)
 }
 
@@ -137,7 +127,7 @@ export function DocumentAnalysis({
   addToast,
   analysisProgress,
   onSchemaExtract
-}: DocumentAnalysisProps): ReactElement {
+}: Readonly<DocumentAnalysisProps>): ReactElement {
   const [rescanning, setRescanning] = useState(false)
   const [approving, setApproving] = useState(false)
   const [exportingCSV, setExportingCSV] = useState(false)
@@ -172,7 +162,10 @@ export function DocumentAnalysis({
   const customTextRenderer = useCallback(
     ({ str }: { str: string }) => {
       if (!hoveredField) return str
-      const regex = new RegExp(`(${hoveredField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+      const regex = new RegExp(
+        `(${hoveredField.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)})`,
+        'gi'
+      )
       const parts = str.split(regex)
       return parts
         .map((part) =>
@@ -184,6 +177,191 @@ export function DocumentAnalysis({
     },
     [hoveredField]
   )
+
+  /** Renders the document preview content without nested ternaries */
+  const renderPreviewContent = (): ReactNode => {
+    if (showRawText && doc.rawText) {
+      return (
+        <div className="raw-text-panel">
+          <pre className="raw-text-content">
+            {hoveredField ? highlightRawText(doc.rawText, hoveredField) : doc.rawText}
+          </pre>
+        </div>
+      )
+    }
+
+    if (isPDF) {
+      return (
+        <div className="pdf-viewer-container">
+          <Document
+            file={fileUrl}
+            onLoadSuccess={({ numPages: n }) => {
+              setNumPages(n)
+              setPdfError(null)
+            }}
+            onLoadError={(err) => setPdfError(err.message)}
+            loading={
+              <div className="pdf-loading">
+                <div className="processing-indicator-spinner" />
+                <p>Loading PDF preview...</p>
+              </div>
+            }
+            error={
+              <div className="pdf-error">
+                <p>
+                  <AlertTriangle size={16} /> Could not load PDF preview
+                </p>
+                {pdfError && <p className="pdf-error-detail">{pdfError}</p>}
+              </div>
+            }
+          >
+            {Array.from({ length: numPages }, (_, i) => (
+              <Page
+                key={`page-${i + 1}`}
+                pageNumber={i + 1}
+                width={pageWidth}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                customTextRenderer={hoveredField ? customTextRenderer : undefined}
+              />
+            ))}
+          </Document>
+          {numPages > 0 && (
+            <div className="pdf-page-count">
+              {numPages} page{numPages === 1 ? '' : 's'}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="doc-placeholder">
+        <div className="doc-placeholder-header">
+          <div className="doc-placeholder-logo" />
+          <div className="doc-placeholder-title-area">
+            <span className="doc-placeholder-invoice-label">{doc.name}</span>
+          </div>
+        </div>
+        <div className="doc-placeholder-separator" />
+        {doc.rawText && <pre className="raw-text-content">{doc.rawText.slice(0, 2000)}</pre>}
+      </div>
+    )
+  }
+
+  const renderDataTab = (): ReactNode => {
+    return (
+      <>
+        <div className="extracted-header">
+          <div className="extracted-header-title">
+            <span>
+              <BarChart3 size={16} />
+            </span>
+            <h3>Extracted Data</h3>
+          </div>
+          {hasFields && (
+            <span className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}>
+              {overallConfidence}% Overall Confidence
+            </span>
+          )}
+        </div>
+
+        {(isProcessing || analysisProgress?.active) && (
+          <div className="processing-indicator glass-panel">
+            <div className="processing-indicator-spinner" />
+            <div className="processing-indicator-text">
+              <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
+              {analysisProgress && analysisProgress.totalPages > 0 && (
+                <div className="analysis-progress">
+                  <div className="analysis-progress-bar">
+                    <div
+                      className="analysis-progress-fill"
+                      style={{
+                        width: `${(analysisProgress.pagesProcessed / analysisProgress.totalPages) * 100}%`
+                      }}
+                    />
+                  </div>
+                  <p className="analysis-progress-text">
+                    Page {analysisProgress.pagesProcessed} of {analysisProgress.totalPages}{' '}
+                    processed
+                    {analysisProgress.fieldsFound > 0 && (
+                      <span className="analysis-fields-count">
+                        {' '}
+                        · {analysisProgress.fieldsFound} fields found
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+              {(!analysisProgress || analysisProgress.totalPages === 0) && (
+                <p className="processing-indicator-hint">This may take a moment...</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!hasFields && !isProcessing && !analysisProgress?.active && (
+          <div className="schema-prompt glass-panel">
+            <div className="schema-prompt-icon">
+              <Brain size={32} />
+            </div>
+            <h3 className="schema-prompt-title">Configure Data Extraction</h3>
+            <p className="schema-prompt-description">
+              Would you like to customize the extraction schema? Define specific fields and rules to
+              guide the AI, or extract with default settings.
+            </p>
+            <div className="schema-prompt-actions">
+              <button
+                className="schema-prompt-btn schema-prompt-btn-secondary"
+                onClick={() => setRightPanelTab('schema')}
+              >
+                <Settings size={16} />
+                Customize Schema
+              </button>
+              <button
+                className="schema-prompt-btn schema-prompt-btn-primary"
+                onClick={() => onRescan?.()}
+              >
+                <Sparkles size={16} />
+                Extract with Defaults
+              </button>
+            </div>
+          </div>
+        )}
+
+        {analysisProgress && analysisProgress.pagesFailed > 0 && !analysisProgress.active && (
+          <div
+            className="extracted-field-card glass-panel conf-low"
+            style={{ marginBottom: '12px' }}
+          >
+            <div className="field-card-header">
+              <span className="field-label">
+                <AlertTriangle size={14} /> PARTIAL FAILURE
+              </span>
+            </div>
+            <div className="field-card-value">
+              <span className="field-value">
+                {analysisProgress.pagesFailed} page
+                {analysisProgress.pagesFailed === 1 ? '' : 's'} failed during analysis.
+                {analysisProgress.pagesSucceeded > 0 &&
+                  ` ${analysisProgress.pagesSucceeded} page${analysisProgress.pagesSucceeded === 1 ? '' : 's'} succeeded.`}{' '}
+                Results shown are from successfully processed pages.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {hasFields && (
+          <ExtractedDataTable
+            fields={doc.extractedFields}
+            schema={doc.appliedSchema}
+            hoveredField={hoveredField}
+            onHoverField={setHoveredField}
+          />
+        )}
+      </>
+    )
+  }
 
   const handleRescan = async (): Promise<void> => {
     if (!onRescan) return
@@ -211,7 +389,7 @@ export function DocumentAnalysis({
     try {
       const blob = await exportDocument(doc._id, format)
       const ext = format === 'csv' ? 'csv' : 'xlsx'
-      const baseName = doc.name.replace(/\.[^/.]+$/, '').replace(/\s+/g, '_')
+      const baseName = doc.name.replace(/\.[^/.]+$/, '').replaceAll(/\s+/g, '_')
       downloadBlob(blob, `${baseName}_extracted.${ext}`)
       addToast?.('success', `Exported "${doc.name}" as ${ext.toUpperCase()}`)
     } catch (err) {
@@ -309,69 +487,7 @@ export function DocumentAnalysis({
             </div>
           </div>
 
-          <div className="doc-preview-body glass-panel">
-            {showRawText && doc.rawText ? (
-              <div className="raw-text-panel">
-                <pre className="raw-text-content">
-                  {hoveredField ? highlightRawText(doc.rawText, hoveredField) : doc.rawText}
-                </pre>
-              </div>
-            ) : isPDF ? (
-              <div className="pdf-viewer-container">
-                <Document
-                  file={fileUrl}
-                  onLoadSuccess={({ numPages: n }) => {
-                    setNumPages(n)
-                    setPdfError(null)
-                  }}
-                  onLoadError={(err) => setPdfError(err.message)}
-                  loading={
-                    <div className="pdf-loading">
-                      <div className="processing-indicator-spinner" />
-                      <p>Loading PDF preview...</p>
-                    </div>
-                  }
-                  error={
-                    <div className="pdf-error">
-                      <p>
-                        <AlertTriangle size={16} /> Could not load PDF preview
-                      </p>
-                      {pdfError && <p className="pdf-error-detail">{pdfError}</p>}
-                    </div>
-                  }
-                >
-                  {Array.from({ length: numPages }, (_, i) => (
-                    <Page
-                      key={`page_${i + 1}`}
-                      pageNumber={i + 1}
-                      width={pageWidth}
-                      renderTextLayer={true}
-                      renderAnnotationLayer={true}
-                      customTextRenderer={hoveredField ? customTextRenderer : undefined}
-                    />
-                  ))}
-                </Document>
-                {numPages > 0 && (
-                  <div className="pdf-page-count">
-                    {numPages} page{numPages !== 1 ? 's' : ''}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="doc-placeholder">
-                <div className="doc-placeholder-header">
-                  <div className="doc-placeholder-logo" />
-                  <div className="doc-placeholder-title-area">
-                    <span className="doc-placeholder-invoice-label">{doc.name}</span>
-                  </div>
-                </div>
-                <div className="doc-placeholder-separator" />
-                {doc.rawText && (
-                  <pre className="raw-text-content">{doc.rawText.slice(0, 2000)}</pre>
-                )}
-              </div>
-            )}
-          </div>
+          <div className="doc-preview-body glass-panel">{renderPreviewContent()}</div>
         </div>
 
         {/* Right — Extracted Data / Schema Customization */}
@@ -402,134 +518,7 @@ export function DocumentAnalysis({
               addToast={addToast}
             />
           ) : (
-            <>
-              <div className="extracted-header">
-                <div className="extracted-header-title">
-                  <span>
-                    <BarChart3 size={16} />
-                  </span>
-                  <h3>Extracted Data</h3>
-                </div>
-                {hasFields && (
-                  <span
-                    className={`overall-confidence ${getConfidenceClass(overallConfidence / 100)}`}
-                  >
-                    {overallConfidence}% Overall Confidence
-                  </span>
-                )}
-              </div>
-
-              {(isProcessing || analysisProgress?.active) && (
-                <div className="processing-indicator glass-panel">
-                  <div className="processing-indicator-spinner" />
-                  <div className="processing-indicator-text">
-                    <p className="processing-indicator-step">{getStepLabel(doc.processingStep)}</p>
-                    {analysisProgress && analysisProgress.totalPages > 0 && (
-                      <div className="analysis-progress">
-                        <div className="analysis-progress-bar">
-                          <div
-                            className="analysis-progress-fill"
-                            style={{
-                              width: `${(analysisProgress.pagesProcessed / analysisProgress.totalPages) * 100}%`
-                            }}
-                          />
-                        </div>
-                        <p className="analysis-progress-text">
-                          Page {analysisProgress.pagesProcessed} of {analysisProgress.totalPages}{' '}
-                          processed
-                          {analysisProgress.fieldsFound > 0 && (
-                            <span className="analysis-fields-count">
-                              {' '}
-                              · {analysisProgress.fieldsFound} fields found
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                    {(!analysisProgress || analysisProgress.totalPages === 0) && (
-                      <p className="processing-indicator-hint">This may take a moment...</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {!hasFields && !isProcessing && !analysisProgress?.active && (
-                <div className="extracted-empty glass-panel">
-                  <span className="empty-state-icon">
-                    <Search size={28} />
-                  </span>
-                  <p>
-                    No fields extracted yet. Click <strong>Re-scan</strong> to analyze this document
-                    with AI, or switch to the <strong>Schema</strong> tab to define custom
-                    extraction fields.
-                  </p>
-                </div>
-              )}
-
-              {analysisProgress && analysisProgress.pagesFailed > 0 && !analysisProgress.active && (
-                <div
-                  className="extracted-field-card glass-panel conf-low"
-                  style={{ marginBottom: '12px' }}
-                >
-                  <div className="field-card-header">
-                    <span className="field-label">
-                      <AlertTriangle size={14} /> PARTIAL FAILURE
-                    </span>
-                  </div>
-                  <div className="field-card-value">
-                    <span className="field-value">
-                      {analysisProgress.pagesFailed} page
-                      {analysisProgress.pagesFailed > 1 ? 's' : ''} failed during analysis.
-                      {analysisProgress.pagesSucceeded > 0
-                        ? ` ${analysisProgress.pagesSucceeded} page${analysisProgress.pagesSucceeded > 1 ? 's' : ''} succeeded.`
-                        : ''}{' '}
-                      Results shown are from successfully processed pages.
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <div className="extracted-fields-list">
-                {doc.extractedFields.map((field, index) => (
-                  <div
-                    key={field.fieldName}
-                    className={`extracted-field-card glass-panel ${getConfidenceClass(field.confidence)} ${hoveredField === field.value ? 'field-hovered' : ''}`}
-                    style={{ animationDelay: `${index * 60}ms` }}
-                    onMouseEnter={() => setHoveredField(field.value)}
-                    onMouseLeave={() => setHoveredField(null)}
-                  >
-                    <div className="field-card-header">
-                      <span className="field-label">{field.fieldName.toUpperCase()}</span>
-                      <span className={`field-confidence ${getConfidenceClass(field.confidence)}`}>
-                        <span className="conf-icon">{getConfidenceIcon(field.confidence)}</span>
-                        {formatConfidence(field.confidence)}
-                      </span>
-                    </div>
-                    <div className="field-card-value">
-                      <span className="field-value">{field.value}</span>
-                      <button className="field-edit-btn" title="Edit field">
-                        <Pencil size={14} />
-                      </button>
-                    </div>
-                    <div className="field-confidence-bar">
-                      <div
-                        className={`confidence-bar-fill ${field.confidence >= 0.9 ? 'high' : field.confidence >= 0.7 ? 'medium' : 'low'} animate-bar-fill`}
-                        style={
-                          {
-                            '--target-width': `${field.confidence * 100}%`
-                          } as React.CSSProperties
-                        }
-                      />
-                    </div>
-                    {field.confidence < 0.7 && (
-                      <p className="field-warning">
-                        OCR detected potential character overlap. Please verify manually.
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
+            renderDataTab()
           )}
         </div>
       </div>

@@ -152,10 +152,12 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
                   : prev
               )
               {
-                const failInfo =
-                  (event.pagesFailed ?? 0) > 0
-                    ? ` (${event.pagesFailed} page${(event.pagesFailed ?? 0) > 1 ? 's' : ''} failed)`
-                    : ''
+                let failInfo = ''
+                const failed = event.pagesFailed ?? 0
+                if (failed > 0) {
+                  const plural = failed > 1 ? 's' : ''
+                  failInfo = ` (${failed} page${plural} failed)`
+                }
                 addToast(
                   'success',
                   `"${docName}" analyzed — ${event.totalFields ?? 0} fields extracted${failInfo}`
@@ -192,13 +194,13 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
       for (const file of Array.from(files)) {
         try {
           const uploaded = await uploadDocument(file)
-          addToast('info', `Uploaded "${file.name}" — starting analysis...`)
+          addToast('info', `Uploaded "${file.name}" — configure extraction`)
 
           // Refresh immediately to show the uploaded document
           await loadDocuments()
 
-          // Fire SSE analysis in the background
-          startWSAnalysis(uploaded._id, file.name)
+          // Navigate to document analysis view so user can configure schema first
+          setSelectedDocument(uploaded)
         } catch (err) {
           addToast(
             'error',
@@ -207,7 +209,7 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
         }
       }
     },
-    [addToast, loadDocuments, startWSAnalysis]
+    [addToast, loadDocuments]
   )
 
   const handleDeleteDocument = useCallback(

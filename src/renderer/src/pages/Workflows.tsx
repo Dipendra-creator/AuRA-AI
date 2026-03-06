@@ -39,7 +39,6 @@ import {
   GitBranch
 } from 'lucide-react'
 
-
 type ViewMode = 'dashboard' | 'editor'
 
 interface WorkflowsProps {
@@ -51,10 +50,10 @@ interface WorkflowsProps {
 function StatusBadge({
   status,
   size = 'sm'
-}: {
+}: Readonly<{
   status: string
   size?: 'sm' | 'md'
-}): ReactElement {
+}>): ReactElement {
   const colors: Record<string, { bg: string; text: string; border: string }> = {
     completed: { bg: 'rgba(16,185,129,0.12)', text: '#34d399', border: 'rgba(16,185,129,0.25)' },
     failed: { bg: 'rgba(239,68,68,0.12)', text: '#f87171', border: 'rgba(239,68,68,0.25)' },
@@ -68,7 +67,8 @@ function StatusBadge({
     }
   }
   const c = colors[status] ?? colors.pending
-  const sz = size === 'md' ? { fontSize: 11, padding: '3px 10px' } : { fontSize: 9, padding: '2px 7px' }
+  const sz =
+    size === 'md' ? { fontSize: 11, padding: '3px 10px' } : { fontSize: 9, padding: '2px 7px' }
   return (
     <span
       style={{
@@ -90,7 +90,7 @@ function StatusBadge({
 
 /* ─── Run Status Icon ──────────────────────────────────────────── */
 
-function RunStatusIcon({ status }: { status: string }): ReactElement {
+function RunStatusIcon({ status }: Readonly<{ status: string }>): ReactElement {
   switch (status) {
     case 'completed':
       return <CheckCircle2 size={14} style={{ color: '#34d399' }} />
@@ -98,10 +98,7 @@ function RunStatusIcon({ status }: { status: string }): ReactElement {
       return <XCircle size={14} style={{ color: '#f87171' }} />
     case 'running':
       return (
-        <Loader2
-          size={14}
-          style={{ color: '#a5b4fc', animation: 'spin 1s linear infinite' }}
-        />
+        <Loader2 size={14} style={{ color: '#a5b4fc', animation: 'spin 1s linear infinite' }} />
       )
     default:
       return <Clock size={14} style={{ color: '#9ca3af' }} />
@@ -122,10 +119,17 @@ function timeAgo(dateStr: string): string {
 
 /* ─── Run History Row ──────────────────────────────────────────── */
 
-function RunRow({ run }: { run: PipelineRun }): ReactElement {
+function RunRow({ run }: Readonly<{ run: PipelineRun }>): ReactElement {
   const nodeCount = (run.nodeRuns ?? []).length
   const failedCount = (run.nodeRuns ?? []).filter((n) => n.status === 'failed').length
   const totalMs = (run.nodeRuns ?? []).reduce((sum, n) => sum + (n.durationMs ?? 0), 0)
+
+  let statusText: string = run.status
+  if (run.status === 'completed') {
+    statusText = `${nodeCount} node${nodeCount === 1 ? '' : 's'} completed`
+  } else if (run.status === 'failed') {
+    statusText = `Failed at ${failedCount} node${failedCount === 1 ? '' : 's'}`
+  }
 
   return (
     <div
@@ -138,19 +142,17 @@ function RunRow({ run }: { run: PipelineRun }): ReactElement {
       }}
     >
       <RunStatusIcon status={run.status} />
-      <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-        {run.status === 'completed'
-          ? `${nodeCount} node${nodeCount !== 1 ? 's' : ''} completed`
-          : run.status === 'failed'
-            ? `Failed at ${failedCount} node${failedCount !== 1 ? 's' : ''}`
-            : run.status}
-      </span>
-      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>
+      <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>{statusText}</span>
+      <span
+        style={{
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.35)',
+          fontVariantNumeric: 'tabular-nums'
+        }}
+      >
         {totalMs > 0 ? `${totalMs}ms` : ''}
       </span>
-      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-        {timeAgo(run.startedAt)}
-      </span>
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{timeAgo(run.startedAt)}</span>
     </div>
   )
 }
@@ -159,7 +161,7 @@ function RunRow({ run }: { run: PipelineRun }): ReactElement {
  *  MAIN COMPONENT
  * ═══════════════════════════════════════════════════════════════════ */
 
-export function Workflows({ addToast }: WorkflowsProps): ReactElement {
+export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement {
   const [view, setView] = useState<ViewMode>('dashboard')
   const [loading, setLoading] = useState(true)
 
@@ -312,8 +314,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
             if (pollRef.current) clearInterval(pollRef.current)
             pollRef.current = null
             setIsExecuting(false)
-            if (run.status === 'completed')
-              addToast('success', 'Pipeline execution completed')
+            if (run.status === 'completed') addToast('success', 'Pipeline execution completed')
             else if (run.status === 'failed') {
               const fn = (run.nodeRuns ?? []).find((n) => n.status === 'failed')
               addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
@@ -352,8 +353,7 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
 
       if (['completed', 'failed', 'cancelled'].includes(run.status)) {
         setIsExecuting(false)
-        if (run.status === 'completed')
-          addToast('success', 'Pipeline execution completed')
+        if (run.status === 'completed') addToast('success', 'Pipeline execution completed')
         else if (run.status === 'failed') {
           const fn = (run.nodeRuns ?? []).find((n) => n.status === 'failed')
           addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
@@ -413,7 +413,8 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
         <div className="workflow-status-bar">
           <div className="status-bar-left">
             <span className="status-bar-label">
-              STATUS: {isExecuting ? 'EXECUTING' : editingPipeline.status?.toUpperCase() ?? 'IDLE'}
+              STATUS:{' '}
+              {isExecuting ? 'EXECUTING' : (editingPipeline.status?.toUpperCase() ?? 'IDLE')}
             </span>
           </div>
           <div className="status-bar-right">
@@ -445,14 +446,39 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
    * ══════════════════════════════════════════════════════════════ */
 
   return (
-    <div style={{ padding: '0 32px', maxWidth: 1200, margin: '0 auto', height: '100%', overflowY: 'auto' }}>
+    <div
+      style={{
+        padding: '0 32px',
+        maxWidth: 1200,
+        margin: '0 auto',
+        height: '100%',
+        overflowY: 'auto'
+      }}
+    >
       {/* Page Header */}
-      <header className="page-header" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '28px 0 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 24
-      }}>
+      <header
+        className="page-header"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '28px 0 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          marginBottom: 24
+        }}
+      >
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,0.95)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: 'rgba(255,255,255,0.95)',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10
+            }}
+          >
             <Workflow size={22} style={{ color: '#6366f1' }} />
             Workflows
           </h2>
@@ -494,6 +520,11 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
       {/* Create Pipeline Modal */}
       {showCreate && (
         <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowCreate(false)
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -504,10 +535,11 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
             justifyContent: 'center',
             backdropFilter: 'blur(4px)'
           }}
-          onClick={() => setShowCreate(false)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCreate(false)
+          }}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
             style={{
               background: 'linear-gradient(145deg, rgba(30,30,50,0.98), rgba(20,20,35,0.98))',
               border: '1px solid rgba(255,255,255,0.08)',
@@ -517,15 +549,32 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
               boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
             }}
           >
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.95)', margin: '0 0 16px' }}>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: 'rgba(255,255,255,0.95)',
+                margin: '0 0 16px'
+              }}
+            >
               Create New Pipeline
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>
+                <label
+                  htmlFor="modal-new-name"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'rgba(255,255,255,0.5)',
+                    display: 'block',
+                    marginBottom: 4
+                  }}
+                >
                   Name
                 </label>
                 <input
+                  id="modal-new-name"
                   autoFocus
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -545,10 +594,20 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>
+                <label
+                  htmlFor="modal-new-desc"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'rgba(255,255,255,0.5)',
+                    display: 'block',
+                    marginBottom: 4
+                  }}
+                >
                   Description (optional)
                 </label>
                 <textarea
+                  id="modal-new-desc"
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="What does this pipeline do?"
@@ -654,7 +713,14 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16, paddingBottom: 32 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+            gap: 16,
+            paddingBottom: 32
+          }}
+        >
           {pipelines.map((pipeline) => {
             const runs = pipelineRuns[pipeline._id] ?? []
             const nodeCount = (pipeline.nodes ?? []).length
@@ -663,7 +729,15 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
             return (
               <div
                 key={pipeline._id}
+                role="button"
+                tabIndex={0}
                 onClick={() => openEditor(pipeline)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openEditor(pipeline)
+                  }
+                }}
                 style={{
                   background: 'linear-gradient(145deg, rgba(30,30,50,0.6), rgba(20,20,35,0.6))',
                   border: '1px solid rgba(255,255,255,0.06)',
@@ -685,12 +759,32 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                 }}
               >
                 {/* Card Header */}
-                <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <h3 style={{
-                      fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.92)',
-                      margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
+                <div
+                  style={{
+                    padding: '16px 18px 12px',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 6
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.92)',
+                        margin: 0,
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {pipeline.name}
                     </h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -702,8 +796,12 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                         }}
                         title="Delete pipeline"
                         style={{
-                          background: 'none', border: 'none', color: 'rgba(239,68,68,0.5)',
-                          cursor: 'pointer', padding: 4, borderRadius: 4,
+                          background: 'none',
+                          border: 'none',
+                          color: 'rgba(239,68,68,0.5)',
+                          cursor: 'pointer',
+                          padding: 4,
+                          borderRadius: 4,
                           transition: 'color 0.15s'
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
@@ -714,33 +812,60 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                     </div>
                   </div>
                   {pipeline.description && (
-                    <p style={{
-                      fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '0 0 8px',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.4)',
+                        margin: '0 0 8px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {pipeline.description}
                     </p>
                   )}
-                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      fontSize: 11,
+                      color: 'rgba(255,255,255,0.35)'
+                    }}
+                  >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Layers size={11} /> {nodeCount} node{nodeCount !== 1 ? 's' : ''}
+                      <Layers size={11} /> {nodeCount} node{nodeCount === 1 ? '' : 's'}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <GitBranch size={11} /> {edgeCount} edge{edgeCount !== 1 ? 's' : ''}
+                      <GitBranch size={11} /> {edgeCount} edge{edgeCount === 1 ? '' : 's'}
                     </span>
-                    {pipeline.updatedAt && (
-                      <span>Updated {timeAgo(pipeline.updatedAt)}</span>
-                    )}
+                    {pipeline.updatedAt && <span>Updated {timeAgo(pipeline.updatedAt)}</span>}
                   </div>
                 </div>
 
                 {/* Recent Runs */}
                 <div style={{ padding: '10px 18px 14px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.35)',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      marginBottom: 6
+                    }}
+                  >
                     Recent Runs
                   </div>
                   {runs.length === 0 ? (
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic', padding: '4px 0' }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.25)',
+                        fontStyle: 'italic',
+                        padding: '4px 0'
+                      }}
+                    >
                       No runs yet
                     </div>
                   ) : (
@@ -769,8 +894,12 @@ export function Workflows({ addToast }: WorkflowsProps): ReactElement {
                         cursor: 'pointer',
                         transition: 'background 0.15s'
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.08)')}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = 'rgba(99,102,241,0.08)')
+                      }
                     >
                       <Play size={11} /> Open Editor
                     </button>

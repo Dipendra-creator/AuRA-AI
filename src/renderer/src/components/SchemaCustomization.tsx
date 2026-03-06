@@ -169,11 +169,17 @@ export function SchemaCustomization({
   )
 
   const removeRule = useCallback((fieldIndex: number, ruleIndex: number): void => {
-    setFields((prev) =>
-      prev.map((f, i) =>
-        i === fieldIndex ? { ...f, rules: f.rules.filter((_, ri) => ri !== ruleIndex) } : f
-      )
-    )
+    setFields((prev) => {
+      const newFields = [...prev]
+      const field = newFields[fieldIndex]
+      if (field) {
+        newFields[fieldIndex] = {
+          ...field,
+          rules: field.rules.filter((_, ri) => ri !== ruleIndex)
+        }
+      }
+      return newFields
+    })
   }, [])
 
   const handleExtract = useCallback((): void => {
@@ -183,6 +189,13 @@ export function SchemaCustomization({
   }, [fields, onExtract])
 
   const isValid = fields.some((f) => f.field.trim() && f.columnName.trim())
+
+  let saveButtonText = 'Save Schema'
+  if (saving) {
+    saveButtonText = 'Saving...'
+  } else if (schemaId) {
+    saveButtonText = 'Update Schema'
+  }
 
   return (
     <div className="schema-panel">
@@ -207,7 +220,7 @@ export function SchemaCustomization({
             onClick={handleSave}
           >
             <Save size={14} />
-            {saving ? 'Saving...' : schemaId ? 'Update Schema' : 'Save Schema'}
+            {saveButtonText}
           </button>
           <button
             className="schema-btn schema-btn-primary"
@@ -224,8 +237,11 @@ export function SchemaCustomization({
       <div className="schema-meta-bar">
         {showNameInput || schemaId ? (
           <div className="schema-name-group">
-            <label className="schema-input-label">Schema Name</label>
+            <label className="schema-input-label" htmlFor="schema-name-input">
+              Schema Name
+            </label>
             <input
+              id="schema-name-input"
               type="text"
               className="schema-input schema-name-input"
               placeholder="e.g. Invoice Extraction"
@@ -244,7 +260,7 @@ export function SchemaCustomization({
 
         {savedSchemas.length > 0 && (
           <div className="schema-saved-list">
-            <label className="schema-input-label">Saved Schemas</label>
+            <span className="schema-input-label">Saved Schemas</span>
             <div className="schema-chips">
               {savedSchemas.map((s) => (
                 <button
@@ -264,116 +280,131 @@ export function SchemaCustomization({
 
       {/* Fields List */}
       <div className="schema-fields-list">
-        {fields.map((field, index) => (
-          <div
-            key={index}
-            className={`schema-field-card ${expandedField === index ? 'expanded' : ''}`}
-          >
-            <div className="schema-field-header">
-              <div className="schema-field-drag">
-                <GripVertical size={16} />
-              </div>
-              <div className="schema-field-type-icon">
-                <FileText size={14} />
-              </div>
-
-              <div className="schema-field-inputs">
-                <div className="schema-input-group">
-                  <label className="schema-input-label">Field Name</label>
-                  <input
-                    type="text"
-                    className="schema-input"
-                    value={field.field}
-                    placeholder="e.g. invoice_number"
-                    onChange={(e) => updateField(index, 'field', e.target.value)}
-                  />
+        {fields.map((field, index) => {
+          const fieldKey = field.field ? `${field.field}-${index}` : `field-${index}`
+          return (
+            <div
+              key={fieldKey}
+              className={`schema-field-card ${expandedField === index ? 'expanded' : ''}`}
+            >
+              <div className="schema-field-header">
+                <div className="schema-field-drag">
+                  <GripVertical size={16} />
                 </div>
-                <div className="schema-input-group">
-                  <label className="schema-input-label">Column Name</label>
-                  <input
-                    type="text"
-                    className="schema-input"
-                    value={field.columnName}
-                    placeholder="e.g. Invoice Number"
-                    onChange={(e) => updateField(index, 'columnName', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="schema-field-actions">
-                <button
-                  className="schema-icon-btn"
-                  onClick={() => setExpandedField(expandedField === index ? null : index)}
-                  title="Toggle rules"
-                >
-                  <span
-                    className={`schema-expand-arrow ${expandedField === index ? 'rotated' : ''}`}
-                  >
-                    ▾
-                  </span>
-                </button>
-                <button
-                  className="schema-icon-btn schema-icon-btn-danger"
-                  onClick={() => removeField(index)}
-                  title="Remove field"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* Rules Section (expandable) */}
-            {expandedField === index && (
-              <div className="schema-rules-section">
-                <div className="schema-rules-label">
-                  Extraction Rules
-                  <span className="schema-rules-count">{field.rules.length}</span>
+                <div className="schema-field-type-icon">
+                  <FileText size={14} />
                 </div>
 
-                {field.rules.length > 0 && (
-                  <div className="schema-rules-list">
-                    {field.rules.map((rule, ruleIndex) => (
-                      <div key={ruleIndex} className="schema-rule-pill">
-                        <span className="schema-rule-text">{rule}</span>
-                        <button
-                          className="schema-rule-remove"
-                          onClick={() => removeRule(index, ruleIndex)}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
+                <div className="schema-field-inputs">
+                  <div className="schema-input-group">
+                    <label className="schema-input-label" htmlFor={`field-name-${index}`}>
+                      Field Name
+                    </label>
+                    <input
+                      id={`field-name-${index}`}
+                      type="text"
+                      className="schema-input"
+                      value={field.field}
+                      placeholder="e.g. invoice_number"
+                      onChange={(e) => updateField(index, 'field', e.target.value)}
+                    />
                   </div>
-                )}
+                  <div className="schema-input-group">
+                    <label className="schema-input-label" htmlFor={`column-name-${index}`}>
+                      Column Name
+                    </label>
+                    <input
+                      id={`column-name-${index}`}
+                      type="text"
+                      className="schema-input"
+                      value={field.columnName}
+                      placeholder="e.g. Invoice Number"
+                      onChange={(e) => updateField(index, 'columnName', e.target.value)}
+                    />
+                  </div>
+                </div>
 
-                <div className="schema-add-rule">
-                  <input
-                    type="text"
-                    className="schema-input schema-rule-input"
-                    placeholder="Add a rule, e.g. 'Look for text after Invoice #'"
-                    value={newRuleInputs[index] ?? ''}
-                    onChange={(e) =>
-                      setNewRuleInputs((prev) => ({
-                        ...prev,
-                        [index]: e.target.value
-                      }))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        addRule(index)
-                      }
-                    }}
-                  />
-                  <button className="schema-btn schema-btn-add-rule" onClick={() => addRule(index)}>
-                    <Plus size={14} />
-                    Add Rule
+                <div className="schema-field-actions">
+                  <button
+                    className="schema-icon-btn"
+                    onClick={() => setExpandedField(expandedField === index ? null : index)}
+                    title="Toggle rules"
+                  >
+                    <span
+                      className={`schema-expand-arrow ${expandedField === index ? 'rotated' : ''}`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+                  <button
+                    className="schema-icon-btn schema-icon-btn-danger"
+                    onClick={() => removeField(index)}
+                    title="Remove field"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Rules Section (expandable) */}
+              {expandedField === index && (
+                <div className="schema-rules-section">
+                  <div className="schema-rules-label">
+                    Extraction Rules{' '}
+                    <span className="schema-rules-count">{field.rules.length}</span>
+                  </div>
+
+                  {field.rules.length > 0 && (
+                    <div className="schema-rules-list">
+                      {field.rules.map((rule, ruleIndex) => {
+                        const ruleKey = `rule-${index}-${ruleIndex}`
+                        return (
+                          <div key={ruleKey} className="schema-rule-pill">
+                            <span className="schema-rule-text">{rule}</span>
+                            <button
+                              className="schema-rule-remove"
+                              onClick={() => removeRule(index, ruleIndex)}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="schema-add-rule">
+                    <input
+                      type="text"
+                      className="schema-input schema-rule-input"
+                      placeholder="Add a rule, e.g. 'Look for text after Invoice #'"
+                      value={newRuleInputs[index] ?? ''}
+                      onChange={(e) =>
+                        setNewRuleInputs((prev) => ({
+                          ...prev,
+                          [index]: e.target.value
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          addRule(index)
+                        }
+                      }}
+                    />
+                    <button
+                      className="schema-btn schema-btn-add-rule"
+                      onClick={() => addRule(index)}
+                    >
+                      <Plus size={14} />
+                      Add Rule
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Add Field Button */}
