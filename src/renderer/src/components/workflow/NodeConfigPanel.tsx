@@ -745,10 +745,10 @@ interface FieldMapping {
 function FieldMappingBuilder({
   mappings,
   onChange
-}: {
+}: Readonly<{
   mappings: FieldMapping[]
   onChange: (mappings: FieldMapping[]) => void
-}): React.JSX.Element {
+}>): React.JSX.Element {
   const addRow = (): void => {
     onChange([...mappings, { source: '', target: '' }])
   }
@@ -781,7 +781,7 @@ function FieldMappingBuilder({
 
       {mappings.map((m, idx) => (
         <div
-          key={idx}
+          key={`${m.source}-${idx}`}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -882,10 +882,10 @@ interface ConditionRule {
 function ConditionRuleBuilder({
   rules,
   onChange
-}: {
+}: Readonly<{
   rules: ConditionRule[]
   onChange: (rules: ConditionRule[]) => void
-}): React.JSX.Element {
+}>): React.JSX.Element {
   const addRule = (): void => {
     onChange([...rules, { field: '', operator: '==', value: '', targetNodeId: '' }])
   }
@@ -918,7 +918,7 @@ function ConditionRuleBuilder({
 
       {rules.map((rule, idx) => (
         <div
-          key={idx}
+          key={`rule-${rule.field}-${idx}`}
           style={{
             borderRadius: 8,
             background: 'rgba(255,255,255,0.03)',

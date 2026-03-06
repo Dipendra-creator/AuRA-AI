@@ -23,14 +23,14 @@ import '@xyflow/react/dist/style.css'
 import type {
   PipelineNodeType,
   PipelineNode as DomainPipelineNode,
-  PipelineEdge
+  PipelineEdge,
+  NodeRunInfo
 } from '@shared/types/document.types'
 import WorkflowNode from './WorkflowNode'
 import WorkflowSidebar from './WorkflowSidebar'
 import NodeConfigPanel from './NodeConfigPanel'
 import { NODE_TYPE_MAP } from './node-types'
 import { Save, PlayCircle, Rocket, Zap, Loader2, ArrowLeft } from 'lucide-react'
-import type { NodeRunInfo } from '@shared/types/document.types'
 
 const nodeTypes = { workflowNode: WorkflowNode }
 
@@ -116,7 +116,7 @@ export default function WorkflowCanvas({
   isExecuting = false,
   nodeRunStatuses = {},
   onBack
-}: WorkflowCanvasProps): React.JSX.Element {
+}: Readonly<WorkflowCanvasProps>): React.JSX.Element {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(toFlowNodes(initialNodes))
@@ -400,13 +400,13 @@ function ToolbarButton({
   onClick,
   accent = false,
   disabled = false
-}: {
+}: Readonly<{
   icon: React.ReactNode
   label: string
   onClick: () => void
   accent?: boolean
   disabled?: boolean
-}): React.JSX.Element {
+}>): React.JSX.Element {
   return (
     <button
       onClick={disabled ? undefined : onClick}

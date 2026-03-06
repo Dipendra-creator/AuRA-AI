@@ -56,6 +56,7 @@ type Document struct {
 	FileSize        int64            `json:"fileSize"        bson:"file_size"`
 	RawText         string           `json:"rawText"         bson:"raw_text"`
 	ExtractedFields []ExtractedField `json:"extractedFields" bson:"extracted_fields"`
+	AppliedSchema   []SchemaField    `json:"appliedSchema,omitempty" bson:"applied_schema,omitempty"`
 	CreatedAt       time.Time        `json:"createdAt"       bson:"created_at"`
 	UpdatedAt       time.Time        `json:"updatedAt"       bson:"updated_at"`
 	DeletedAt       *time.Time       `json:"deletedAt,omitempty" bson:"deleted_at,omitempty"`
@@ -77,6 +78,7 @@ type UpdateDocumentInput struct {
 	Confidence      *float64         `json:"confidence,omitempty"`
 	RawText         *string          `json:"rawText,omitempty"`
 	ExtractedFields []ExtractedField `json:"extractedFields,omitempty"`
+	AppliedSchema   []SchemaField    `json:"appliedSchema,omitempty"`
 	AppendFields    []ExtractedField `json:"-"` // used internally for $push operations, not exposed via JSON
 }
 

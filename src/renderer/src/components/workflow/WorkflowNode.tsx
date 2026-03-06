@@ -62,27 +62,22 @@ function WorkflowNode({
   const isFailed = data.runStatus === 'failed'
   const isCompleted = data.runStatus === 'completed'
 
-  // Border: use status color when available, otherwise default
-  const borderColor = isFailed
-    ? '#ef4444'
-    : isRunning
-      ? '#f59e0b'
-      : isCompleted
-        ? '#10b981'
-        : selected
-          ? (typeDef?.color ?? '#6366f1')
-          : 'rgba(255,255,255,0.08)'
+  let borderColor = 'rgba(255,255,255,0.08)'
+  if (isFailed) borderColor = '#ef4444'
+  else if (isRunning) borderColor = '#f59e0b'
+  else if (isCompleted) borderColor = '#10b981'
+  else if (selected) borderColor = typeDef?.color ?? '#6366f1'
 
-  // Box shadow: enhanced glow for active states
-  const boxShadow = isFailed
-    ? '0 0 20px rgba(239,68,68,0.3), 0 0 6px rgba(239,68,68,0.2)'
-    : isRunning
-      ? '0 0 20px rgba(245,158,11,0.3), 0 0 6px rgba(245,158,11,0.2)'
-      : isCompleted
-        ? '0 0 12px rgba(16,185,129,0.2)'
-        : selected
-          ? `0 0 20px ${typeDef?.color ?? '#6366f1'}40`
-          : '0 2px 12px rgba(0,0,0,0.3)'
+  let boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
+  if (isFailed) boxShadow = '0 0 20px rgba(239,68,68,0.3), 0 0 6px rgba(239,68,68,0.2)'
+  else if (isRunning) boxShadow = '0 0 20px rgba(245,158,11,0.3), 0 0 6px rgba(245,158,11,0.2)'
+  else if (isCompleted) boxShadow = '0 0 12px rgba(16,185,129,0.2)'
+  else if (selected) boxShadow = `0 0 20px ${typeDef?.color ?? '#6366f1'}40`
+
+  let statusText = typeDef?.label ?? data.nodeType
+  if (isRunning) statusText = 'Running...'
+  else if (isFailed) statusText = 'Failed'
+  else if (isCompleted) statusText = 'Completed'
 
   return (
     <div
@@ -101,6 +96,10 @@ function WorkflowNode({
       }}
       onMouseEnter={() => isFailed && setShowError(true)}
       onMouseLeave={() => setShowError(false)}
+      onFocus={() => isFailed && setShowError(true)}
+      onBlur={() => setShowError(false)}
+      tabIndex={isFailed ? 0 : -1}
+      role={isFailed ? 'tooltip' : undefined}
     >
       {/* Status indicator dot */}
       {statusColor && (
@@ -220,13 +219,7 @@ function WorkflowNode({
               marginTop: 1
             }}
           >
-            {isRunning
-              ? 'Running...'
-              : isFailed
-                ? 'Failed'
-                : isCompleted
-                  ? 'Completed'
-                  : (typeDef?.label ?? data.nodeType)}
+            {statusText}
           </div>
         </div>
       </div>
