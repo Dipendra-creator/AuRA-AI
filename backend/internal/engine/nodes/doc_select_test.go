@@ -8,43 +8,45 @@ import (
 	"github.com/aura-ai/backend/internal/engine"
 )
 
+const errExpectedNoError = "expected no error, got %v"
+
 func TestDocSelectExecutorValidate(t *testing.T) {
 	e := &DocSelectExecutor{}
 
 	// Test case 1: No documentIds
 	node1 := domain.PipelineNode{Config: map[string]any{}}
 	if err := e.Validate(node1); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 
 	// Test case 2: documentIds is nil
 	node2 := domain.PipelineNode{Config: map[string]any{"documentIds": nil}}
 	if err := e.Validate(node2); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 
 	// Test case 3: String array
 	node3 := domain.PipelineNode{Config: map[string]any{"documentIds": []string{"id1", "id2"}}}
 	if err := e.Validate(node3); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 
 	// Test case 4: Any array
 	node4 := domain.PipelineNode{Config: map[string]any{"documentIds": []any{"id1", 123}}}
 	if err := e.Validate(node4); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 
 	// Test case 5: Single string
 	node5 := domain.PipelineNode{Config: map[string]any{"documentIds": "id1"}}
 	if err := e.Validate(node5); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 
 	// Test case 6: Unknown type
 	node6 := domain.PipelineNode{Config: map[string]any{"documentIds": 123}}
 	if err := e.Validate(node6); err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf(errExpectedNoError, err)
 	}
 }
 
@@ -101,7 +103,7 @@ func TestDocSelectExecutorExecute(t *testing.T) {
 
 		out, err := e.Execute(ctx, node, input)
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(errExpectedNoError, err)
 		}
 
 		if out.Fields["documentsSelected"] != 0 {
@@ -121,7 +123,7 @@ func TestDocSelectExecutorExecute(t *testing.T) {
 
 		out, err := e.Execute(ctx, node, input)
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(errExpectedNoError, err)
 		}
 
 		if out.Fields["documentsSelected"] != 0 {
