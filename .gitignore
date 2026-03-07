@@ -11,3 +11,5 @@ server
 *prompt.md
 *.env*
 *.out
+coverage.html
+repo_cov.html
