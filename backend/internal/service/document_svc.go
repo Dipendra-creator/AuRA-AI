@@ -17,15 +17,29 @@ import (
 	"github.com/aura-ai/backend/internal/repository"
 )
 
+// DocumentRepository defines the interface for database operations on documents.
+type DocumentRepository interface {
+	List(ctx context.Context, f domain.DocumentFilter) ([]domain.Document, int64, error)
+	GetByID(ctx context.Context, id bson.ObjectID) (*domain.Document, error)
+	Create(ctx context.Context, input domain.CreateDocumentInput) (*domain.Document, error)
+	Update(ctx context.Context, id bson.ObjectID, input domain.UpdateDocumentInput) (*domain.Document, error)
+	SoftDelete(ctx context.Context, id bson.ObjectID) error
+	Count(ctx context.Context) (int64, error)
+	CountByStatus(ctx context.Context, status domain.DocumentStatus) (int64, error)
+	AverageConfidence(ctx context.Context) (float64, error)
+	Recent(ctx context.Context, limit int) ([]domain.Document, error)
+	InsertMany(ctx context.Context, docs []domain.Document) error
+}
+
 // DocumentService encapsulates document business logic.
 type DocumentService struct {
-	repo     *repository.DocumentRepo
+	repo     DocumentRepository
 	aiClient *aiservice.KiloClient
 }
 
 // NewDocumentService creates a new DocumentService.
 // If apiKey is empty, AI analysis will return an error when called.
-func NewDocumentService(repo *repository.DocumentRepo, apiKey string) *DocumentService {
+func NewDocumentService(repo DocumentRepository, apiKey string) *DocumentService {
 	var client *aiservice.KiloClient
 	if apiKey != "" {
 		client = aiservice.NewKiloClient(apiKey)
