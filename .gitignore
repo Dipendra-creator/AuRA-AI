@@ -10,3 +10,4 @@ uploads
 server
 *prompt.md
 *.env*
+*.out
