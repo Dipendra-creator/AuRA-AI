@@ -1,0 +1,904 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>repository: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/aura-ai/backend/internal/repository/activity_repo.go (0.0%)</option>
+				
+				<option value="file1">github.com/aura-ai/backend/internal/repository/document_repo.go (0.0%)</option>
+				
+				<option value="file2">github.com/aura-ai/backend/internal/repository/form_template_repo.go (0.0%)</option>
+				
+				<option value="file3">github.com/aura-ai/backend/internal/repository/pipeline_repo.go (0.0%)</option>
+				
+				<option value="file4">github.com/aura-ai/backend/internal/repository/pipeline_run_repo.go (0.0%)</option>
+				
+				<option value="file5">github.com/aura-ai/backend/internal/repository/schema_repo.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package repository
+
+import (
+        "context"
+        "fmt"
+        "math"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const activityCollection = "activity_events"
+
+// ActivityRepo handles MongoDB operations for activity events.
+type ActivityRepo struct {
+        coll *mongo.Collection
+}
+
+// NewActivityRepo creates a new ActivityRepo.
+func NewActivityRepo(db *mongo.Database) *ActivityRepo <span class="cov0" title="0">{
+        return &amp;ActivityRepo{coll: db.Collection(activityCollection)}
+}</span>
+
+// List returns recent activity events.
+func (r *ActivityRepo) List(ctx context.Context, limit int) ([]domain.ActivityEvent, error) <span class="cov0" title="0">{
+        if limit &lt;= 0 </span><span class="cov0" title="0">{
+                limit = 20
+        }</span>
+        <span class="cov0" title="0">opts := options.Find().SetSort(bson.M{"created_at": -1}).SetLimit(int64(limit))
+        cursor, err := r.coll.Find(ctx, bson.M{}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var events []domain.ActivityEvent
+        if err := cursor.All(ctx, &amp;events); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Compute human-readable timestamps
+        <span class="cov0" title="0">now := time.Now()
+        for i := range events </span><span class="cov0" title="0">{
+                events[i].Timestamp = humanizeTimestamp(events[i].CreatedAt, now)
+        }</span>
+
+        <span class="cov0" title="0">if events == nil </span><span class="cov0" title="0">{
+                events = []domain.ActivityEvent{}
+        }</span>
+        <span class="cov0" title="0">return events, nil</span>
+}
+
+// Create inserts a new activity event.
+func (r *ActivityRepo) Create(ctx context.Context, input domain.CreateActivityInput) (*domain.ActivityEvent, error) <span class="cov0" title="0">{
+        event := domain.ActivityEvent{
+                Type:      input.Type,
+                Title:     input.Title,
+                Source:    input.Source,
+                Icon:      input.Icon,
+                CreatedAt: time.Now(),
+        }
+
+        result, err := r.coll.InsertOne(ctx, event)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">event.ID = result.InsertedID.(bson.ObjectID)
+        event.Timestamp = "just now"
+        return &amp;event, nil</span>
+}
+
+// InsertMany bulk-inserts events (used by seeder).
+func (r *ActivityRepo) InsertMany(ctx context.Context, events []domain.ActivityEvent) error <span class="cov0" title="0">{
+        ifaces := make([]interface{}, len(events))
+        for i, e := range events </span><span class="cov0" title="0">{
+                ifaces[i] = e
+        }</span>
+        <span class="cov0" title="0">_, err := r.coll.InsertMany(ctx, ifaces)
+        return err</span>
+}
+
+// humanizeTimestamp converts a time.Time to a human-readable relative string.
+func humanizeTimestamp(t time.Time, now time.Time) string <span class="cov0" title="0">{
+        diff := now.Sub(t)
+        minutes := int(math.Round(diff.Minutes()))
+        hours := int(math.Round(diff.Hours()))
+        days := int(math.Round(diff.Hours() / 24))
+
+        switch </span>{
+        case minutes &lt; 1:<span class="cov0" title="0">
+                return "just now"</span>
+        case minutes == 1:<span class="cov0" title="0">
+                return "1 min ago"</span>
+        case minutes &lt; 60:<span class="cov0" title="0">
+                return fmt.Sprintf("%d mins ago", minutes)</span>
+        case hours == 1:<span class="cov0" title="0">
+                return "1 hour ago"</span>
+        case hours &lt; 24:<span class="cov0" title="0">
+                return fmt.Sprintf("%d hours ago", hours)</span>
+        case days == 1:<span class="cov0" title="0">
+                return "1 day ago"</span>
+        default:<span class="cov0" title="0">
+                return fmt.Sprintf("%d days ago", days)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package repository provides MongoDB data access for domain entities.
+package repository
+
+import (
+        "context"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const documentCollection = "documents"
+
+// DocumentRepo handles MongoDB operations for documents.
+type DocumentRepo struct {
+        coll *mongo.Collection
+}
+
+// NewDocumentRepo creates a new DocumentRepo.
+func NewDocumentRepo(db *mongo.Database) *DocumentRepo <span class="cov0" title="0">{
+        return &amp;DocumentRepo{coll: db.Collection(documentCollection)}
+}</span>
+
+// List returns documents matching the given filter with pagination.
+func (r *DocumentRepo) List(ctx context.Context, f domain.DocumentFilter) ([]domain.Document, int64, error) <span class="cov0" title="0">{
+        filter := bson.M{"deleted_at": bson.M{"$eq": nil}}
+
+        if f.Status != "" </span><span class="cov0" title="0">{
+                filter["status"] = f.Status
+        }</span>
+        <span class="cov0" title="0">if f.Type != "" </span><span class="cov0" title="0">{
+                filter["type"] = f.Type
+        }</span>
+        <span class="cov0" title="0">if f.Search != "" </span><span class="cov0" title="0">{
+                filter["name"] = bson.M{"$regex": f.Search, "$options": "i"}
+        }</span>
+
+        <span class="cov0" title="0">total, err := r.coll.CountDocuments(ctx, filter)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, 0, err
+        }</span>
+
+        <span class="cov0" title="0">skip := int64((f.Page - 1) * f.Limit)
+        sortField := "created_at"
+        sortOrder := -1
+        if f.Sort != "" </span><span class="cov0" title="0">{
+                if f.Sort[0] == '-' </span><span class="cov0" title="0">{
+                        sortField = f.Sort[1:]
+                }</span> else<span class="cov0" title="0"> {
+                        sortField = f.Sort
+                        sortOrder = 1
+                }</span>
+        }
+
+        <span class="cov0" title="0">opts := options.Find().
+                SetSkip(skip).
+                SetLimit(int64(f.Limit)).
+                SetSort(bson.M{sortField: sortOrder})
+
+        cursor, err := r.coll.Find(ctx, filter, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, 0, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var docs []domain.Document
+        if err := cursor.All(ctx, &amp;docs); err != nil </span><span class="cov0" title="0">{
+                return nil, 0, err
+        }</span>
+
+        <span class="cov0" title="0">if docs == nil </span><span class="cov0" title="0">{
+                docs = []domain.Document{}
+        }</span>
+
+        <span class="cov0" title="0">return docs, total, nil</span>
+}
+
+// GetByID returns a single document by its ObjectID.
+func (r *DocumentRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.Document, error) <span class="cov0" title="0">{
+        var doc domain.Document
+        err := r.coll.FindOne(ctx, bson.M{"_id": id, "deleted_at": bson.M{"$eq": nil}}).Decode(&amp;doc)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;doc, nil</span>
+}
+
+// Create inserts a new document and returns it.
+func (r *DocumentRepo) Create(ctx context.Context, input domain.CreateDocumentInput) (*domain.Document, error) <span class="cov0" title="0">{
+        now := time.Now()
+        doc := domain.Document{
+                Name:            input.Name,
+                Type:            input.Type,
+                MimeType:        input.MimeType,
+                Status:          domain.StatusPending,
+                Confidence:      0,
+                FilePath:        input.FilePath,
+                FileSize:        input.FileSize,
+                ExtractedFields: []domain.ExtractedField{},
+                CreatedAt:       now,
+                UpdatedAt:       now,
+        }
+
+        result, err := r.coll.InsertOne(ctx, doc)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">doc.ID = result.InsertedID.(bson.ObjectID)
+        return &amp;doc, nil</span>
+}
+
+// Update patches a document with the given fields.
+func (r *DocumentRepo) Update(ctx context.Context, id bson.ObjectID, input domain.UpdateDocumentInput) (*domain.Document, error) <span class="cov0" title="0">{
+        set := bson.M{"updated_at": time.Now()}
+        if input.Status != nil </span><span class="cov0" title="0">{
+                set["status"] = *input.Status
+        }</span>
+        <span class="cov0" title="0">if input.ProcessingStep != nil </span><span class="cov0" title="0">{
+                set["processing_step"] = *input.ProcessingStep
+        }</span>
+        <span class="cov0" title="0">if input.Confidence != nil </span><span class="cov0" title="0">{
+                set["confidence"] = *input.Confidence
+        }</span>
+        <span class="cov0" title="0">if input.RawText != nil </span><span class="cov0" title="0">{
+                set["raw_text"] = *input.RawText
+        }</span>
+        <span class="cov0" title="0">if input.ExtractedFields != nil </span><span class="cov0" title="0">{
+                set["extracted_fields"] = input.ExtractedFields
+        }</span>
+        <span class="cov0" title="0">if input.AppliedSchema != nil </span><span class="cov0" title="0">{
+                set["applied_schema"] = input.AppliedSchema
+        }</span>
+
+        // Build the update document
+        <span class="cov0" title="0">update := bson.M{"$set": set}
+
+        // If AppendFields is provided, use $push + $each to atomically append fields
+        if len(input.AppendFields) &gt; 0 </span><span class="cov0" title="0">{
+                update["$push"] = bson.M{
+                        "extracted_fields": bson.M{
+                                "$each": input.AppendFields,
+                        },
+                }
+        }</span>
+
+        <span class="cov0" title="0">opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+        var doc domain.Document
+        err := r.coll.FindOneAndUpdate(ctx, bson.M{"_id": id}, update, opts).Decode(&amp;doc)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;doc, nil</span>
+}
+
+// SoftDelete sets the deleted_at timestamp on a document.
+func (r *DocumentRepo) SoftDelete(ctx context.Context, id bson.ObjectID) error <span class="cov0" title="0">{
+        _, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"deleted_at": time.Now()}})
+        return err
+}</span>
+
+// Count returns the total number of non-deleted documents.
+func (r *DocumentRepo) Count(ctx context.Context) (int64, error) <span class="cov0" title="0">{
+        return r.coll.CountDocuments(ctx, bson.M{"deleted_at": bson.M{"$eq": nil}})
+}</span>
+
+// CountByStatus returns the count of documents with the given status.
+func (r *DocumentRepo) CountByStatus(ctx context.Context, status domain.DocumentStatus) (int64, error) <span class="cov0" title="0">{
+        return r.coll.CountDocuments(ctx, bson.M{"status": status, "deleted_at": bson.M{"$eq": nil}})
+}</span>
+
+// AverageConfidence returns the average confidence of processed documents.
+func (r *DocumentRepo) AverageConfidence(ctx context.Context) (float64, error) <span class="cov0" title="0">{
+        pipeline := bson.A{
+                bson.M{"$match": bson.M{"status": "processed", "deleted_at": bson.M{"$eq": nil}}},
+                bson.M{"$group": bson.M{"_id": nil, "avg": bson.M{"$avg": "$confidence"}}},
+        }
+        cursor, err := r.coll.Aggregate(ctx, pipeline)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var results []struct {
+                Avg float64 `bson:"avg"`
+        }
+        if err := cursor.All(ctx, &amp;results); err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov0" title="0">if len(results) == 0 </span><span class="cov0" title="0">{
+                return 0, nil
+        }</span>
+        <span class="cov0" title="0">return results[0].Avg, nil</span>
+}
+
+// Recent returns the N most recently created documents.
+func (r *DocumentRepo) Recent(ctx context.Context, limit int) ([]domain.Document, error) <span class="cov0" title="0">{
+        opts := options.Find().
+                SetSort(bson.M{"created_at": -1}).
+                SetLimit(int64(limit))
+
+        cursor, err := r.coll.Find(ctx, bson.M{"deleted_at": bson.M{"$eq": nil}}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var docs []domain.Document
+        if err := cursor.All(ctx, &amp;docs); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if docs == nil </span><span class="cov0" title="0">{
+                docs = []domain.Document{}
+        }</span>
+        <span class="cov0" title="0">return docs, nil</span>
+}
+
+// InsertMany bulk-inserts documents (used by seeder).
+func (r *DocumentRepo) InsertMany(ctx context.Context, docs []domain.Document) error <span class="cov0" title="0">{
+        ifaces := make([]interface{}, len(docs))
+        for i, d := range docs </span><span class="cov0" title="0">{
+                ifaces[i] = d
+        }</span>
+        <span class="cov0" title="0">_, err := r.coll.InsertMany(ctx, ifaces)
+        return err</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package repository
+
+import (
+        "context"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const formTemplateCollection = "form_templates"
+
+// FormTemplateRepo handles MongoDB operations for form templates.
+type FormTemplateRepo struct {
+        coll *mongo.Collection
+}
+
+// NewFormTemplateRepo creates a new FormTemplateRepo.
+func NewFormTemplateRepo(db *mongo.Database) *FormTemplateRepo <span class="cov0" title="0">{
+        return &amp;FormTemplateRepo{coll: db.Collection(formTemplateCollection)}
+}</span>
+
+// List returns all form templates sorted by creation date.
+func (r *FormTemplateRepo) List(ctx context.Context) ([]domain.FormTemplate, error) <span class="cov0" title="0">{
+        opts := options.Find().SetSort(bson.M{"created_at": -1})
+        cursor, err := r.coll.Find(ctx, bson.M{}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var templates []domain.FormTemplate
+        if err := cursor.All(ctx, &amp;templates); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if templates == nil </span><span class="cov0" title="0">{
+                templates = []domain.FormTemplate{}
+        }</span>
+        <span class="cov0" title="0">return templates, nil</span>
+}
+
+// GetByID returns a single form template by its ObjectID.
+func (r *FormTemplateRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.FormTemplate, error) <span class="cov0" title="0">{
+        var t domain.FormTemplate
+        err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&amp;t)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;t, nil</span>
+}
+
+// Create inserts a new form template.
+func (r *FormTemplateRepo) Create(ctx context.Context, t *domain.FormTemplate) (*domain.FormTemplate, error) <span class="cov0" title="0">{
+        now := time.Now()
+        t.CreatedAt = now
+        t.UpdatedAt = now
+        result, err := r.coll.InsertOne(ctx, t)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">t.ID = result.InsertedID.(bson.ObjectID)
+        return t, nil</span>
+}
+
+// Delete removes a form template by its ObjectID.
+func (r *FormTemplateRepo) Delete(ctx context.Context, id bson.ObjectID) error <span class="cov0" title="0">{
+        _, err := r.coll.DeleteOne(ctx, bson.M{"_id": id})
+        return err
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package repository
+
+import (
+        "context"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const pipelineCollection = "pipelines"
+
+// PipelineRepo handles MongoDB operations for pipelines.
+type PipelineRepo struct {
+        coll *mongo.Collection
+}
+
+// NewPipelineRepo creates a new PipelineRepo.
+func NewPipelineRepo(db *mongo.Database) *PipelineRepo <span class="cov0" title="0">{
+        return &amp;PipelineRepo{coll: db.Collection(pipelineCollection)}
+}</span>
+
+// List returns all pipelines sorted by creation date.
+func (r *PipelineRepo) List(ctx context.Context) ([]domain.Pipeline, error) <span class="cov0" title="0">{
+        opts := options.Find().SetSort(bson.M{"created_at": -1})
+        cursor, err := r.coll.Find(ctx, bson.M{}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var pipelines []domain.Pipeline
+        if err := cursor.All(ctx, &amp;pipelines); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if pipelines == nil </span><span class="cov0" title="0">{
+                pipelines = []domain.Pipeline{}
+        }</span>
+        <span class="cov0" title="0">return pipelines, nil</span>
+}
+
+// GetByID returns a single pipeline by its ObjectID.
+func (r *PipelineRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.Pipeline, error) <span class="cov0" title="0">{
+        var p domain.Pipeline
+        err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&amp;p)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;p, nil</span>
+}
+
+// Create inserts a new pipeline and returns it.
+func (r *PipelineRepo) Create(ctx context.Context, input domain.CreatePipelineInput) (*domain.Pipeline, error) <span class="cov0" title="0">{
+        now := time.Now()
+        nodes := input.Nodes
+        if nodes == nil </span><span class="cov0" title="0">{
+                nodes = []domain.PipelineNode{}
+        }</span>
+        <span class="cov0" title="0">edges := input.Edges
+        if edges == nil </span><span class="cov0" title="0">{
+                edges = []domain.PipelineEdge{}
+        }</span>
+        <span class="cov0" title="0">p := domain.Pipeline{
+                Name:        input.Name,
+                Description: input.Description,
+                Status:      "operational",
+                Latency:     "0ms",
+                Workspace:   input.Workspace,
+                Version:     "1.0.0",
+                Nodes:       nodes,
+                Edges:       edges,
+                CreatedAt:   now,
+                UpdatedAt:   now,
+        }
+
+        result, err := r.coll.InsertOne(ctx, p)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">p.ID = result.InsertedID.(bson.ObjectID)
+        return &amp;p, nil</span>
+}
+
+// Update patches a pipeline with the given fields.
+func (r *PipelineRepo) Update(ctx context.Context, id bson.ObjectID, input domain.UpdatePipelineInput) (*domain.Pipeline, error) <span class="cov0" title="0">{
+        set := bson.M{"updated_at": time.Now()}
+        if input.Name != nil </span><span class="cov0" title="0">{
+                set["name"] = *input.Name
+        }</span>
+        <span class="cov0" title="0">if input.Description != nil </span><span class="cov0" title="0">{
+                set["description"] = *input.Description
+        }</span>
+        <span class="cov0" title="0">if input.Status != nil </span><span class="cov0" title="0">{
+                set["status"] = *input.Status
+        }</span>
+        <span class="cov0" title="0">if input.Latency != nil </span><span class="cov0" title="0">{
+                set["latency"] = *input.Latency
+        }</span>
+        <span class="cov0" title="0">if input.Version != nil </span><span class="cov0" title="0">{
+                set["version"] = *input.Version
+        }</span>
+        <span class="cov0" title="0">if input.Nodes != nil </span><span class="cov0" title="0">{
+                set["nodes"] = input.Nodes
+        }</span>
+        <span class="cov0" title="0">if input.Edges != nil </span><span class="cov0" title="0">{
+                set["edges"] = input.Edges
+        }</span>
+
+        <span class="cov0" title="0">opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+        var p domain.Pipeline
+        err := r.coll.FindOneAndUpdate(ctx, bson.M{"_id": id}, bson.M{"$set": set}, opts).Decode(&amp;p)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;p, nil</span>
+}
+
+// Delete removes a pipeline by its ObjectID.
+func (r *PipelineRepo) Delete(ctx context.Context, id bson.ObjectID) error <span class="cov0" title="0">{
+        _, err := r.coll.DeleteOne(ctx, bson.M{"_id": id})
+        return err
+}</span>
+
+// Count returns the total number of pipelines.
+func (r *PipelineRepo) Count(ctx context.Context) (int64, error) <span class="cov0" title="0">{
+        return r.coll.CountDocuments(ctx, bson.M{})
+}</span>
+
+// CountByStatus returns the count of pipelines with the given status.
+func (r *PipelineRepo) CountByStatus(ctx context.Context, status string) (int64, error) <span class="cov0" title="0">{
+        return r.coll.CountDocuments(ctx, bson.M{"status": status})
+}</span>
+
+// InsertMany bulk-inserts pipelines (used by seeder).
+func (r *PipelineRepo) InsertMany(ctx context.Context, pipelines []domain.Pipeline) error <span class="cov0" title="0">{
+        ifaces := make([]interface{}, len(pipelines))
+        for i, p := range pipelines </span><span class="cov0" title="0">{
+                ifaces[i] = p
+        }</span>
+        <span class="cov0" title="0">_, err := r.coll.InsertMany(ctx, ifaces)
+        return err</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package repository
+
+import (
+        "context"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const pipelineRunCollection = "pipeline_runs"
+
+// PipelineRunRepo handles MongoDB operations for pipeline execution runs.
+type PipelineRunRepo struct {
+        coll *mongo.Collection
+}
+
+// NewPipelineRunRepo creates a new PipelineRunRepo.
+func NewPipelineRunRepo(db *mongo.Database) *PipelineRunRepo <span class="cov0" title="0">{
+        return &amp;PipelineRunRepo{coll: db.Collection(pipelineRunCollection)}
+}</span>
+
+// Create inserts a new pipeline run.
+func (r *PipelineRunRepo) Create(ctx context.Context, run *domain.PipelineRun) (*domain.PipelineRun, error) <span class="cov0" title="0">{
+        run.CreatedAt = time.Now()
+        result, err := r.coll.InsertOne(ctx, run)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">run.ID = result.InsertedID.(bson.ObjectID)
+        return run, nil</span>
+}
+
+// GetByID returns a single pipeline run.
+func (r *PipelineRunRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.PipelineRun, error) <span class="cov0" title="0">{
+        var run domain.PipelineRun
+        err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&amp;run)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;run, nil</span>
+}
+
+// ListByPipeline returns all runs for a given pipeline, sorted by creation date descending.
+func (r *PipelineRunRepo) ListByPipeline(ctx context.Context, pipelineID bson.ObjectID) ([]domain.PipelineRun, error) <span class="cov0" title="0">{
+        opts := options.Find().SetSort(bson.M{"created_at": -1})
+        cursor, err := r.coll.Find(ctx, bson.M{"pipeline_id": pipelineID}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var runs []domain.PipelineRun
+        if err := cursor.All(ctx, &amp;runs); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if runs == nil </span><span class="cov0" title="0">{
+                runs = []domain.PipelineRun{}
+        }</span>
+        <span class="cov0" title="0">return runs, nil</span>
+}
+
+// UpdateStatus updates the run status and optionally sets the end time.
+func (r *PipelineRunRepo) UpdateStatus(ctx context.Context, id bson.ObjectID, status domain.PipelineRunStatus, output map[string]any) error <span class="cov0" title="0">{
+        set := bson.M{"status": status}
+        if status == domain.RunStatusCompleted || status == domain.RunStatusFailed || status == domain.RunStatusCancelled </span><span class="cov0" title="0">{
+                now := time.Now()
+                set["ended_at"] = now
+        }</span>
+        <span class="cov0" title="0">if output != nil </span><span class="cov0" title="0">{
+                set["output"] = output
+        }</span>
+        <span class="cov0" title="0">_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": set})
+        return err</span>
+}
+
+// UpdateNodeRun updates a specific node run result within a pipeline run.
+func (r *PipelineRunRepo) UpdateNodeRun(ctx context.Context, runID bson.ObjectID, nodeRun domain.NodeRunResult) error <span class="cov0" title="0">{
+        // Try to update existing node run first
+        filter := bson.M{"_id": runID, "node_runs.node_id": nodeRun.NodeID}
+        update := bson.M{"$set": bson.M{"node_runs.$": nodeRun}}
+
+        result, err := r.coll.UpdateOne(ctx, filter, update)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // If no match, push a new node run entry
+        <span class="cov0" title="0">if result.ModifiedCount == 0 </span><span class="cov0" title="0">{
+                _, err = r.coll.UpdateOne(ctx,
+                        bson.M{"_id": runID},
+                        bson.M{"$push": bson.M{"node_runs": nodeRun}},
+                )
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+// UpdateNodeRunStatus updates the status of a specific node run within a pipeline run.
+func (r *PipelineRunRepo) UpdateNodeRunStatus(ctx context.Context, runID bson.ObjectID, nodeID string, status domain.NodeRunStatus) error <span class="cov0" title="0">{
+        now := time.Now()
+        filter := bson.M{"_id": runID, "node_runs.node_id": nodeID}
+        update := bson.M{"$set": bson.M{
+                "node_runs.$.status":   string(status),
+                "node_runs.$.ended_at": now,
+        }}
+        _, err := r.coll.UpdateOne(ctx, filter, update)
+        return err
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package repository
+
+import (
+        "context"
+        "time"
+
+        "go.mongodb.org/mongo-driver/v2/bson"
+        "go.mongodb.org/mongo-driver/v2/mongo"
+        "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+        "github.com/aura-ai/backend/internal/domain"
+)
+
+const schemaCollection = "extraction_schemas"
+
+// SchemaRepo handles MongoDB operations for extraction schemas.
+type SchemaRepo struct {
+        coll *mongo.Collection
+}
+
+// NewSchemaRepo creates a new SchemaRepo.
+func NewSchemaRepo(db *mongo.Database) *SchemaRepo <span class="cov0" title="0">{
+        return &amp;SchemaRepo{coll: db.Collection(schemaCollection)}
+}</span>
+
+// List returns all extraction schemas sorted by updated_at descending.
+func (r *SchemaRepo) List(ctx context.Context) ([]domain.ExtractionSchema, error) <span class="cov0" title="0">{
+        opts := options.Find().SetSort(bson.M{"updated_at": -1})
+        cursor, err := r.coll.Find(ctx, bson.M{}, opts)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer cursor.Close(ctx)
+
+        var schemas []domain.ExtractionSchema
+        if err := cursor.All(ctx, &amp;schemas); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if schemas == nil </span><span class="cov0" title="0">{
+                schemas = []domain.ExtractionSchema{}
+        }</span>
+        <span class="cov0" title="0">return schemas, nil</span>
+}
+
+// GetByID returns a single extraction schema by its ObjectID.
+func (r *SchemaRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.ExtractionSchema, error) <span class="cov0" title="0">{
+        var s domain.ExtractionSchema
+        err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&amp;s)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == mongo.ErrNoDocuments </span><span class="cov0" title="0">{
+                        return nil, nil
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+        <span class="cov0" title="0">return &amp;s, nil</span>
+}
+
+// Create inserts a new extraction schema.
+func (r *SchemaRepo) Create(ctx context.Context, s *domain.ExtractionSchema) (*domain.ExtractionSchema, error) <span class="cov0" title="0">{
+        now := time.Now()
+        s.CreatedAt = now
+        s.UpdatedAt = now
+        if s.Fields == nil </span><span class="cov0" title="0">{
+                s.Fields = []domain.SchemaField{}
+        }</span>
+        <span class="cov0" title="0">result, err := r.coll.InsertOne(ctx, s)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">s.ID = result.InsertedID.(bson.ObjectID)
+        return s, nil</span>
+}
+
+// Update patches an existing extraction schema's name and/or fields.
+func (r *SchemaRepo) Update(ctx context.Context, id bson.ObjectID, input *domain.UpdateSchemaInput) (*domain.ExtractionSchema, error) <span class="cov0" title="0">{
+        set := bson.M{"updated_at": time.Now()}
+        if input.Name != nil </span><span class="cov0" title="0">{
+                set["name"] = *input.Name
+        }</span>
+        <span class="cov0" title="0">if input.Fields != nil </span><span class="cov0" title="0">{
+                set["fields"] = input.Fields
+        }</span>
+
+        <span class="cov0" title="0">_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": set})
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return r.GetByID(ctx, id)</span>
+}
+
+// Delete removes an extraction schema by its ObjectID.
+func (r *SchemaRepo) Delete(ctx context.Context, id bson.ObjectID) error <span class="cov0" title="0">{
+        _, err := r.coll.DeleteOne(ctx, bson.M{"_id": id})
+        return err
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

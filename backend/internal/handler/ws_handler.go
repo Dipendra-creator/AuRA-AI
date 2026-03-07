@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/aura-ai/backend/internal/domain"
-	"github.com/aura-ai/backend/internal/service"
 )
 
 const (
@@ -48,13 +47,19 @@ type wsInbound struct {
 	Schema     []domain.SchemaField `json:"schema,omitempty"` // optional custom extraction schema
 }
 
-// WSHandler handles WebSocket connections for real-time streaming.
+// DocumentServiceInterface defines the service methods used by the WSHandler.
+type DocumentServiceInterface interface {
+	AnalyzeWithProgress(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent)
+	AnalyzeWithProgressAndSchema(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent)
+}
+
+// WSHandler manages WebSocket connections for document analysis progress.
 type WSHandler struct {
-	svc *service.DocumentService
+	svc DocumentServiceInterface
 }
 
 // NewWSHandler creates a new WSHandler.
-func NewWSHandler(svc *service.DocumentService) *WSHandler {
+func NewWSHandler(svc DocumentServiceInterface) *WSHandler {
 	return &WSHandler{svc: svc}
 }
 
