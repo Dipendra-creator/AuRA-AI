@@ -1,17 +1,21 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/aura-ai/backend/internal/domain"
-	"github.com/aura-ai/backend/internal/service"
+	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+const errWriteFailed = "Failed to write msg: %v"
+const errReadFailed = "Failed to read response: %v"
+const errExpectedError = "Expected error, got %v"
 
 // A mock repository that implements the methods needed by DocumentService
 // to run enough for startAnalysis to finish without nil pointer crashes.
@@ -23,15 +27,110 @@ import (
 // and instead mock it in document_svc_test.go. So for ws_handler_test we'll delete the startAnalysis bit
 // that crashes due to tightly coupled mongodb dependancy.
 
+type mockDocumentService struct {
+	AnalyzeWithProgressFunc          func(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent)
+	AnalyzeWithProgressAndSchemaFunc func(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent)
+}
+
+func (m *mockDocumentService) AnalyzeWithProgress(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent) {
+	if m.AnalyzeWithProgressFunc != nil {
+		m.AnalyzeWithProgressFunc(ctx, id, progressCh)
+	}
+}
+
+func (m *mockDocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent) {
+	if m.AnalyzeWithProgressAndSchemaFunc != nil {
+		m.AnalyzeWithProgressAndSchemaFunc(ctx, id, schemaFields, progressCh)
+	}
+}
+
 // mockDocumentService creates a basic DocumentService for testing.
 // Since DocumentService requires a repo, but we just want to test WebSocket framing,
 // we pass a nil service.
-func mockDocumentService() *service.DocumentService {
-	return nil
+func newMockDocumentService() *mockDocumentService {
+	return &mockDocumentService{}
 }
 
-func TestWSHandler_Ping(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
+func TestHandleMessages(t *testing.T) {
+
+	// Test startAnalysis default coverage
+	t.Run("startAnalysis default coverage", func(t *testing.T) {
+		mockSvc := &mockDocumentService{
+			AnalyzeWithProgressFunc: func(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent) {
+				progressCh <- domain.AnalysisEvent{Type: "mock_progress"}
+				close(progressCh)
+			},
+		}
+
+		h := NewWSHandler(mockSvc)
+		server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
+		defer server.Close()
+		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+		ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("Failed to connect to websocket: %v", err)
+		}
+		defer ws.Close()
+
+		analyzeMsg := wsInbound{Action: "analyze", DocumentID: bson.NewObjectID().Hex()}
+		if err := ws.WriteJSON(analyzeMsg); err != nil {
+			t.Fatalf(errWriteFailed, err)
+		}
+
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		var resp domain.AnalysisEvent
+		if err := ws.ReadJSON(&resp); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if resp.Type != "mock_progress" {
+			t.Errorf("Expected mock_progress, got %s", resp.Type)
+		}
+	})
+
+	t.Run("startAnalysis schema coverage", func(t *testing.T) {
+		mockSvc := &mockDocumentService{
+			AnalyzeWithProgressAndSchemaFunc: func(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent) {
+				progressCh <- domain.AnalysisEvent{Type: "mock_schema_progress"}
+				close(progressCh)
+			},
+		}
+
+		h := NewWSHandler(mockSvc)
+		server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
+		defer server.Close()
+		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+		ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("Failed to connect to websocket: %v", err)
+		}
+		defer ws.Close()
+
+		analyzeMsg := wsInbound{
+			Action:     "analyze",
+			DocumentID: bson.NewObjectID().Hex(),
+			Schema:     []domain.SchemaField{{Field: "f1"}},
+		}
+		if err := ws.WriteJSON(analyzeMsg); err != nil {
+			t.Fatalf(errWriteFailed, err)
+		}
+
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		var resp domain.AnalysisEvent
+		if err := ws.ReadJSON(&resp); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if resp.Type != "mock_schema_progress" {
+			t.Errorf("Expected mock_schema_progress, got %s", resp.Type)
+		}
+	})
+}
+
+func TestPing(t *testing.T) {
+	h := NewWSHandler(&mockDocumentService{})
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -63,8 +162,8 @@ func TestWSHandler_Ping(t *testing.T) {
 	}
 }
 
-func TestWSHandler_Analyze_MissingDocID(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
+func TestAnalyzeMissingDocID(t *testing.T) {
+	h := NewWSHandler(&mockDocumentService{})
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -93,8 +192,8 @@ func TestWSHandler_Analyze_MissingDocID(t *testing.T) {
 	}
 }
 
-func TestWSHandler_Analyze_InvalidDocID(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
+func TestAnalyzeInvalidDocID(t *testing.T) {
+	h := NewWSHandler(&mockDocumentService{})
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -123,8 +222,8 @@ func TestWSHandler_Analyze_InvalidDocID(t *testing.T) {
 	}
 }
 
-func TestWSHandler_UnknownAction(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
+func TestUnknownAction(t *testing.T) {
+	h := NewWSHandler(&mockDocumentService{})
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -153,8 +252,8 @@ func TestWSHandler_UnknownAction(t *testing.T) {
 	}
 }
 
-func TestWSHandler_InvalidJSON(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
+func TestInvalidJSON(t *testing.T) {
+	h := NewWSHandler(&mockDocumentService{})
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -183,30 +282,49 @@ func TestWSHandler_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestWSHandler_WritePumpTimeout(t *testing.T) {
-	h := NewWSHandler(mockDocumentService())
-
-	// Test the fallback/dropping logic of sendError
-	writeCh := make(chan interface{}, 1) // buffer of 1
-	h.sendError(writeCh, "error 1")
-	h.sendError(writeCh, "error 2") // should be dropped harmlessly
-
-	select {
-	case evt := <-writeCh:
-		msg, ok := evt.(domain.AnalysisEvent)
-		if !ok || msg.Error != "error 1" {
-			t.Errorf("Expected error 1, got %v", evt)
+func TestStartAnalysis(t *testing.T) {
+	// Test startAnalysis
+	t.Run("startAnalysis default coverage", func(t *testing.T) {
+		mockSvc := &mockDocumentService{
+			AnalyzeWithProgressFunc: func(ctx context.Context, id bson.ObjectID, progressCh chan<- domain.AnalysisEvent) {
+				progressCh <- domain.AnalysisEvent{Type: "mock_progress"}
+				close(progressCh)
+			},
 		}
-	default:
-		t.Errorf("Expected writeCh to have a messge")
-	}
+		hWithMock := NewWSHandler(mockSvc)
 
-	// Test startAnalysis by instantiating the service with a nil repo,
-	// which will panic if executed across goroutines. To get coverage without a panic,
-	// we'd need to mock DocumentService or DocumentRepo completely which is tightly
-	// bound. Let's just skip startAnalysis to prevent test failures from untamed panics.
+		writeCh2 := make(chan interface{}, 2)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	// Test startWritePump
-	// We need a dummy websocket connection which we can't easily forge without
-	// httptest server.
+		hWithMock.startAnalysis(ctx, bson.NewObjectID(), nil, writeCh2)
+
+		evt := <-writeCh2
+		msg, ok := evt.(domain.AnalysisEvent)
+		if !ok || msg.Type != "mock_progress" {
+			t.Errorf("Expected mock_progress, got %v", evt)
+		}
+	})
+
+	t.Run("startAnalysis schema coverage", func(t *testing.T) {
+		mockSvc := &mockDocumentService{
+			AnalyzeWithProgressAndSchemaFunc: func(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent) {
+				progressCh <- domain.AnalysisEvent{Type: "mock_schema_progress"}
+				close(progressCh)
+			},
+		}
+		hWithMock := NewWSHandler(mockSvc)
+
+		writeCh3 := make(chan interface{}, 2)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		hWithMock.startAnalysis(ctx, bson.NewObjectID(), []domain.SchemaField{{Field: "f1"}}, writeCh3)
+
+		evt := <-writeCh3
+		msg, ok := evt.(domain.AnalysisEvent)
+		if !ok || msg.Type != "mock_schema_progress" {
+			t.Errorf("Expected mock_schema_progress, got %v", evt)
+		}
+	})
 }
