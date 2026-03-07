@@ -8,19 +8,23 @@ import (
 
 	"github.com/aura-ai/backend/internal/domain"
 	"github.com/aura-ai/backend/internal/engine"
-	"github.com/aura-ai/backend/internal/repository"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+// DocumentProvider defines the interface for fetching documents
+type DocumentProvider interface {
+	GetByID(ctx context.Context, id bson.ObjectID) (*domain.Document, error)
+}
+
 // DocSelectExecutor handles the doc_select node — fetches already-processed
 // documents from the database by their IDs and feeds their data into the pipeline.
 type DocSelectExecutor struct {
-	docRepo *repository.DocumentRepo
+	docRepo DocumentProvider
 }
 
 // NewDocSelectExecutor creates a new DocSelectExecutor.
-func NewDocSelectExecutor(docRepo *repository.DocumentRepo) *DocSelectExecutor {
+func NewDocSelectExecutor(docRepo DocumentProvider) *DocSelectExecutor {
 	return &DocSelectExecutor{docRepo: docRepo}
 }
 

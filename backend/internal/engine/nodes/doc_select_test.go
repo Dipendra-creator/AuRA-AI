@@ -2,10 +2,12 @@ package nodes
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/aura-ai/backend/internal/domain"
 	"github.com/aura-ai/backend/internal/engine"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 const errExpectedNoError = "expected no error, got %v"
@@ -142,11 +144,94 @@ func TestNewDocSelectExecutor(t *testing.T) {
 	}
 }
 
+const testPdfName = "Test.pdf"
+
+// mockDocumentRepo is a simplistic mock for repository methods used in fetchDocument
+type mockDocumentRepo struct {
+	GetByIDFunc func(ctx context.Context, id bson.ObjectID) (*domain.Document, error)
+}
+
+func (m *mockDocumentRepo) GetByID(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
+	return m.GetByIDFunc(ctx, id)
+}
+
+func TestFetchDocument(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Valid fetch
+	t.Run("Valid Fetch", func(t *testing.T) {
+		docID := bson.NewObjectID()
+		mRepo := &mockDocumentRepo{
+			GetByIDFunc: func(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
+				return &domain.Document{ID: id, Name: "Test.pdf"}, nil
+			},
+		}
+
+		e := &DocSelectExecutor{docRepo: mRepo}
+		out := &engine.DataPacket{}
+
+		doc, err := e.fetchDocument(ctx, docID.Hex(), "node1", out)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if doc == nil || doc.Name != "Test.pdf" {
+			t.Errorf("expected doc to match mock return value")
+		}
+	})
+
+	// 2. Invalid hex string
+	t.Run("Invalid Hex", func(t *testing.T) {
+		e := &DocSelectExecutor{docRepo: nil}
+		out := &engine.DataPacket{}
+
+		_, err := e.fetchDocument(ctx, "bad-hex", "node2", out)
+		if err == nil {
+			t.Errorf("expected error for bad hex")
+		}
+	})
+
+	// 3. Document not found
+	t.Run("Not Found", func(t *testing.T) {
+		docID := bson.NewObjectID()
+		mRepo := &mockDocumentRepo{
+			GetByIDFunc: func(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
+				return nil, nil // Return nil, nil to represent not found
+			},
+		}
+
+		e := &DocSelectExecutor{docRepo: mRepo}
+		out := &engine.DataPacket{}
+
+		_, err := e.fetchDocument(ctx, docID.Hex(), "node3", out)
+		if err == nil || !strings.Contains(err.Error(), "document not found") {
+			t.Errorf("expected 'document not found' error, got %v", err)
+		}
+	})
+
+	// 4. DB error
+	t.Run("DB Error", func(t *testing.T) {
+		docID := bson.NewObjectID()
+		mRepo := &mockDocumentRepo{
+			GetByIDFunc: func(ctx context.Context, id bson.ObjectID) (*domain.Document, error) {
+				return nil, context.DeadlineExceeded // some arbitrary error
+			},
+		}
+
+		e := &DocSelectExecutor{docRepo: mRepo}
+		out := &engine.DataPacket{}
+
+		_, err := e.fetchDocument(ctx, docID.Hex(), "node4", out)
+		if err == nil {
+			t.Errorf("expected db error")
+		}
+	})
+}
+
 func TestDocSelectExecutorPopulateDocData(t *testing.T) {
 	e := &DocSelectExecutor{}
 
 	doc := &domain.Document{
-		Name:     "Test.pdf",
+		Name:     testPdfName,
 		FilePath: "/docs/test.pdf",
 		MimeType: "application/pdf",
 		FileSize: 1234,
