@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xuri/excelize/v2"
+
 	"github.com/aura-ai/backend/internal/domain"
 	"github.com/aura-ai/backend/internal/engine"
 )
@@ -53,6 +55,11 @@ func (e *ExportExecutor) Execute(ctx context.Context, node domain.PipelineNode, 
 		}
 		output.Fields["export_path"] = path
 		output.Fields["export_format"] = "csv"
+		output.Files = append(output.Files, engine.FileReference{
+			Path:     path,
+			Name:     filepath.Base(path),
+			MimeType: "text/csv",
+		})
 
 	case "json":
 		path, err := exportJSON(exportFields, filename)
@@ -61,9 +68,27 @@ func (e *ExportExecutor) Execute(ctx context.Context, node domain.PipelineNode, 
 		}
 		output.Fields["export_path"] = path
 		output.Fields["export_format"] = "json"
+		output.Files = append(output.Files, engine.FileReference{
+			Path:     path,
+			Name:     filepath.Base(path),
+			MimeType: "application/json",
+		})
+
+	case "xlsx":
+		path, err := exportXLSX(exportFields, filename)
+		if err != nil {
+			return output, fmt.Errorf("XLSX export failed: %w", err)
+		}
+		output.Fields["export_path"] = path
+		output.Fields["export_format"] = "xlsx"
+		output.Files = append(output.Files, engine.FileReference{
+			Path:     path,
+			Name:     filepath.Base(path),
+			MimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		})
 
 	default:
-		// Store data inline for other formats
+		// Store data inline for unknown formats
 		output.Fields["export_data"] = exportFields
 		output.Fields["export_format"] = format
 	}
@@ -203,6 +228,56 @@ func exportJSON(fields map[string]any, filename string) (string, error) {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(fields); err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
+// exportXLSX writes fields to an Excel file and returns the file path.
+func exportXLSX(fields map[string]any, filename string) (string, error) {
+	dir := filepath.Join("uploads", "exports")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+
+	path := filepath.Join(dir, filename)
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Sheet1"
+
+	// Sort keys for consistent column order
+	keys := make([]string, 0, len(fields))
+	for k := range fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// Write headers in row 1
+	for col, key := range keys {
+		cell, err := excelize.CoordinatesToCellName(col+1, 1)
+		if err != nil {
+			return "", err
+		}
+		if err := f.SetCellValue(sheet, cell, key); err != nil {
+			return "", err
+		}
+	}
+
+	// Write values in row 2
+	for col, key := range keys {
+		cell, err := excelize.CoordinatesToCellName(col+1, 2)
+		if err != nil {
+			return "", err
+		}
+		if err := f.SetCellValue(sheet, cell, fmt.Sprintf("%v", fields[key])); err != nil {
+			return "", err
+		}
+	}
+
+	if err := f.SaveAs(path); err != nil {
 		return "", err
 	}
 

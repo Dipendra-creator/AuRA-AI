@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -10,12 +11,12 @@ import (
 	"github.com/aura-ai/backend/internal/repository"
 )
 
-// ProgressEvent is sent through the progress channel during execution.
+// ProgressEvent wraps a domain.PipelineEvent (kept for backward compatibility).
 type ProgressEvent struct {
 	Event domain.PipelineEvent
 }
 
-// PipelineExecutor orchestrates the execution of a pipeline DAG.
+// PipelineExecutor runs a pipeline DAG node by node.
 type PipelineExecutor struct {
 	registry *NodeRegistry
 	runRepo  *repository.PipelineRunRepo
@@ -23,34 +24,24 @@ type PipelineExecutor struct {
 
 // NewPipelineExecutor creates a new PipelineExecutor.
 func NewPipelineExecutor(registry *NodeRegistry, runRepo *repository.PipelineRunRepo) *PipelineExecutor {
-	return &PipelineExecutor{
-		registry: registry,
-		runRepo:  runRepo,
-	}
+	return &PipelineExecutor{registry: registry, runRepo: runRepo}
 }
 
-// Execute runs a pipeline end-to-end: validates, creates a run record,
-// walks the DAG in topological order, and streams progress events.
-func (e *PipelineExecutor) Execute(
-	ctx context.Context,
-	pipeline *domain.Pipeline,
-	input DataPacket,
-	progressCh chan<- domain.PipelineEvent,
-) (*domain.PipelineRun, error) {
+// Execute validates the pipeline, creates a run record, and executes all nodes in
+// topological order. When a review node returns ErrWaitingReview the run is
+// paused and returned with nil error — the caller should resume via Resume().
+func (e *PipelineExecutor) Execute(ctx context.Context, pipeline *domain.Pipeline, input DataPacket, progressCh chan<- domain.PipelineEvent) (*domain.PipelineRun, error) {
 	defer close(progressCh)
 
-	// Validate all nodes before execution
 	if err := e.validatePipeline(pipeline); err != nil {
 		return nil, fmt.Errorf("pipeline validation failed: %w", err)
 	}
 
-	// Build the DAG and get topological order
 	order, err := e.topologicalSort(pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("DAG sort failed: %w", err)
 	}
 
-	// Create a run record
 	now := time.Now()
 	run := &domain.PipelineRun{
 		PipelineID: pipeline.ID,
@@ -67,33 +58,18 @@ func (e *PipelineExecutor) Execute(
 
 	runIDHex := run.ID.Hex()
 	pipelineIDHex := pipeline.ID.Hex()
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:start", PipelineID: pipelineIDHex, RunID: runIDHex})
 
-	// Stream: run started
-	e.sendEvent(progressCh, domain.PipelineEvent{
-		Type:       "pipeline:run:start",
-		PipelineID: pipelineIDHex,
-		RunID:      runIDHex,
-	})
-
-	// Build node lookup
-	nodeMap := make(map[string]domain.PipelineNode, len(pipeline.Nodes))
-	for _, n := range pipeline.Nodes {
-		nodeMap[n.NodeID] = n
-	}
-
-	// Execute nodes in topological order
+	nodeMap := buildNodeMap(pipeline)
 	nodeOutputs := make(map[string]DataPacket)
+	skippedNodes := make(map[string]bool)
 	var lastOutput DataPacket = input
 
-	for _, nodeID := range order {
+	for i, nodeID := range order {
 		select {
 		case <-ctx.Done():
 			_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCancelled, nil)
-			e.sendEvent(progressCh, domain.PipelineEvent{
-				Type:  "pipeline:run:cancelled",
-				RunID: runIDHex,
-				Error: "pipeline execution cancelled",
-			})
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:cancelled", RunID: runIDHex, Error: "pipeline execution cancelled"})
 			run.Status = domain.RunStatusCancelled
 			return run, ctx.Err()
 		default:
@@ -104,10 +80,24 @@ func (e *PipelineExecutor) Execute(
 			continue
 		}
 
-		// Determine input: merge outputs from all parent nodes, or use the last output
+		// Skip nodes on non-taken condition branches.
+		if skippedNodes[nodeID] {
+			skipNow := time.Now()
+			nodeResult := domain.NodeRunResult{
+				NodeID:     nodeID,
+				Status:     domain.NodeRunSkipped,
+				StartedAt:  skipNow,
+				EndedAt:    &skipNow,
+				DurationMs: 0,
+			}
+			_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+			run.NodeRuns = append(run.NodeRuns, nodeResult)
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:skipped", RunID: runIDHex, NodeID: nodeID})
+			continue
+		}
+
 		nodeInput := e.resolveNodeInput(node, pipeline.Edges, nodeOutputs, lastOutput)
 
-		// Get executor for this node type
 		executor, err := e.registry.Get(node.Type)
 		if err != nil {
 			e.handleNodeFailure(ctx, run, node, err, progressCh, runIDHex)
@@ -115,22 +105,10 @@ func (e *PipelineExecutor) Execute(
 			return run, err
 		}
 
-		// Stream: node started
-		e.sendEvent(progressCh, domain.PipelineEvent{
-			Type:     "pipeline:node:start",
-			RunID:    runIDHex,
-			NodeID:   node.NodeID,
-			NodeName: node.Name,
-		})
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:start", RunID: runIDHex, NodeID: node.NodeID, NodeName: node.Name})
 
-		// Execute the node
 		nodeStart := time.Now()
-		nodeResult := domain.NodeRunResult{
-			NodeID:    node.NodeID,
-			Status:    domain.NodeRunRunning,
-			StartedAt: nodeStart,
-		}
-
+		nodeResult := domain.NodeRunResult{NodeID: node.NodeID, Status: domain.NodeRunRunning, StartedAt: nodeStart}
 		output, execErr := executor.Execute(ctx, node, nodeInput)
 		nodeEnd := time.Now()
 		duration := nodeEnd.Sub(nodeStart).Milliseconds()
@@ -138,74 +116,235 @@ func (e *PipelineExecutor) Execute(
 		nodeResult.DurationMs = duration
 
 		if execErr != nil {
+			// Review node wants human approval — pause the run.
+			if errors.Is(execErr, ErrWaitingReview) {
+				nodeResult.Status = domain.NodeRunWaiting
+				_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+				run.NodeRuns = append(run.NodeRuns, nodeResult)
+
+				// Save remaining nodeIDs starting from the review node.
+				pendingNodeIDs := order[i:]
+				run.PendingNodeIDs = pendingNodeIDs
+				run.ReviewingNodeID = node.NodeID
+				_ = e.runRepo.UpdatePendingNodes(ctx, run.ID, pendingNodeIDs)
+				_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusPaused, nil)
+				e.sendEvent(progressCh, domain.PipelineEvent{
+					Type:     "pipeline:run:paused",
+					RunID:    runIDHex,
+					NodeID:   node.NodeID,
+					NodeName: node.Name,
+				})
+				run.Status = domain.RunStatusPaused
+				return run, nil
+			}
+
 			nodeResult.Status = domain.NodeRunFailed
 			nodeResult.Error = execErr.Error()
 			_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
 			run.NodeRuns = append(run.NodeRuns, nodeResult)
-
-			e.sendEvent(progressCh, domain.PipelineEvent{
-				Type:   "pipeline:node:error",
-				RunID:  runIDHex,
-				NodeID: node.NodeID,
-				Error:  execErr.Error(),
-			})
-
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:error", RunID: runIDHex, NodeID: node.NodeID, Error: execErr.Error()})
 			_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
-			e.sendEvent(progressCh, domain.PipelineEvent{
-				Type:  "pipeline:run:failed",
-				RunID: runIDHex,
-				Error: fmt.Sprintf("node %s failed: %s", node.Name, execErr.Error()),
-			})
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:failed", RunID: runIDHex, Error: fmt.Sprintf("node %s failed: %s", node.Name, execErr.Error())})
 			run.Status = domain.RunStatusFailed
 			return run, execErr
 		}
 
-		// Node succeeded
 		nodeResult.Status = domain.NodeRunCompleted
 		nodeResult.Output = output.Fields
 		_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
 		run.NodeRuns = append(run.NodeRuns, nodeResult)
-
 		nodeOutputs[node.NodeID] = output
 		lastOutput = output
 
-		slog.Info("node executed",
-			"node", node.Name,
-			"type", node.Type,
-			"durationMs", duration,
-		)
+		// Condition branching: compute nodes to skip on non-taken paths.
+		if node.Type == domain.NodeTypeCondition {
+			takenTarget, _ := output.Fields["condition_target_node"].(string)
+			for sk := range computeSkippedNodes(pipeline, node.NodeID, takenTarget) {
+				skippedNodes[sk] = true
+			}
+		}
 
-		e.sendEvent(progressCh, domain.PipelineEvent{
-			Type:       "pipeline:node:complete",
-			RunID:      runIDHex,
-			NodeID:     node.NodeID,
-			Output:     output.Fields,
-			DurationMs: duration,
-		})
+		slog.Info("node executed", "node", node.Name, "type", node.Type, "durationMs", duration)
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:complete", RunID: runIDHex, NodeID: node.NodeID, Output: output.Fields, DurationMs: duration})
 	}
 
-	// All nodes complete
 	totalDuration := time.Since(now).Milliseconds()
 	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCompleted, lastOutput.Fields)
-
-	e.sendEvent(progressCh, domain.PipelineEvent{
-		Type:       "pipeline:run:complete",
-		RunID:      runIDHex,
-		Output:     lastOutput.Fields,
-		DurationMs: totalDuration,
-	})
-
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:complete", RunID: runIDHex, Output: lastOutput.Fields, DurationMs: totalDuration})
 	run.Status = domain.RunStatusCompleted
 	run.Output = lastOutput.Fields
 	return run, nil
 }
 
-// validatePipeline checks that all nodes have valid types and registered executors.
+// Resume continues a paused pipeline run after a review node has been approved.
+// It reconstructs node outputs from the existing completed NodeRuns, marks the
+// review node as approved, then executes the remaining pending nodes.
+func (e *PipelineExecutor) Resume(ctx context.Context, pipeline *domain.Pipeline, run *domain.PipelineRun, progressCh chan<- domain.PipelineEvent) (*domain.PipelineRun, error) {
+	defer close(progressCh)
+
+	runIDHex := run.ID.Hex()
+
+	if len(run.PendingNodeIDs) == 0 {
+		return run, fmt.Errorf("no pending nodes to resume")
+	}
+
+	// Reconstruct nodeOutputs from previously completed node runs.
+	nodeOutputs := make(map[string]DataPacket)
+	for _, nr := range run.NodeRuns {
+		if nr.Status == domain.NodeRunCompleted && nr.Output != nil {
+			dp := NewDataPacket()
+			dp.Fields = nr.Output
+			nodeOutputs[nr.NodeID] = dp
+		}
+	}
+
+	// Determine the last completed output as fallback input for subsequent nodes.
+	var lastOutput DataPacket = NewDataPacket()
+	if run.Input != nil {
+		for k, v := range run.Input {
+			lastOutput.Fields[k] = v
+		}
+	}
+	for i := len(run.NodeRuns) - 1; i >= 0; i-- {
+		if run.NodeRuns[i].Status == domain.NodeRunCompleted && run.NodeRuns[i].Output != nil {
+			lastOutput = NewDataPacket()
+			for k, v := range run.NodeRuns[i].Output {
+				lastOutput.Fields[k] = v
+			}
+			break
+		}
+	}
+
+	nodeMap := buildNodeMap(pipeline)
+
+	// Mark run as running again.
+	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusRunning, nil)
+	run.Status = domain.RunStatusRunning
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:resumed", RunID: runIDHex})
+
+	pendingNodeIDs := run.PendingNodeIDs
+
+	// The first pending nodeID is the review node that was just approved.
+	// Mark it completed and carry through its input as its output.
+	startIdx := 0
+	if len(pendingNodeIDs) > 0 {
+		reviewNodeID := pendingNodeIDs[0]
+		if n, ok := nodeMap[reviewNodeID]; ok && n.Type == domain.NodeTypeReview {
+			approvedNow := time.Now()
+			approvedOutput := NewDataPacket()
+			for k, v := range lastOutput.Fields {
+				approvedOutput.Fields[k] = v
+			}
+			approvedOutput.Fields["review_status"] = "approved"
+			reviewResult := domain.NodeRunResult{
+				NodeID:     reviewNodeID,
+				Status:     domain.NodeRunCompleted,
+				StartedAt:  approvedNow,
+				EndedAt:    &approvedNow,
+				DurationMs: 0,
+				Output:     approvedOutput.Fields,
+			}
+			_ = e.runRepo.UpdateNodeRun(ctx, run.ID, reviewResult)
+			run.NodeRuns = append(run.NodeRuns, reviewResult)
+			nodeOutputs[reviewNodeID] = approvedOutput
+			lastOutput = approvedOutput
+			e.sendEvent(progressCh, domain.PipelineEvent{
+				Type:   "pipeline:node:complete",
+				RunID:  runIDHex,
+				NodeID: reviewNodeID,
+			})
+			startIdx = 1
+		}
+	}
+
+	for _, nodeID := range pendingNodeIDs[startIdx:] {
+		select {
+		case <-ctx.Done():
+			_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCancelled, nil)
+			run.Status = domain.RunStatusCancelled
+			return run, ctx.Err()
+		default:
+		}
+
+		node, ok := nodeMap[nodeID]
+		if !ok {
+			continue
+		}
+
+		nodeInput := e.resolveNodeInput(node, pipeline.Edges, nodeOutputs, lastOutput)
+
+		executor, err := e.registry.Get(node.Type)
+		if err != nil {
+			e.handleNodeFailure(ctx, run, node, err, progressCh, runIDHex)
+			run.Status = domain.RunStatusFailed
+			return run, err
+		}
+
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:start", RunID: runIDHex, NodeID: node.NodeID, NodeName: node.Name})
+
+		nodeStart := time.Now()
+		nodeResult := domain.NodeRunResult{NodeID: node.NodeID, Status: domain.NodeRunRunning, StartedAt: nodeStart}
+		output, execErr := executor.Execute(ctx, node, nodeInput)
+		nodeEnd := time.Now()
+		duration := nodeEnd.Sub(nodeStart).Milliseconds()
+		nodeResult.EndedAt = &nodeEnd
+		nodeResult.DurationMs = duration
+
+		if execErr != nil {
+			if errors.Is(execErr, ErrWaitingReview) {
+				nodeResult.Status = domain.NodeRunWaiting
+				_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+				run.NodeRuns = append(run.NodeRuns, nodeResult)
+
+				remaining := findRemainingFrom(pendingNodeIDs[startIdx:], nodeID)
+				run.PendingNodeIDs = remaining
+				run.ReviewingNodeID = node.NodeID
+				_ = e.runRepo.UpdatePendingNodes(ctx, run.ID, remaining)
+				_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusPaused, nil)
+				e.sendEvent(progressCh, domain.PipelineEvent{
+					Type:   "pipeline:run:paused",
+					RunID:  runIDHex,
+					NodeID: node.NodeID,
+				})
+				run.Status = domain.RunStatusPaused
+				return run, nil
+			}
+
+			nodeResult.Status = domain.NodeRunFailed
+			nodeResult.Error = execErr.Error()
+			_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+			run.NodeRuns = append(run.NodeRuns, nodeResult)
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:error", RunID: runIDHex, NodeID: node.NodeID, Error: execErr.Error()})
+			_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
+			e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:failed", RunID: runIDHex, Error: fmt.Sprintf("node %s failed: %s", node.Name, execErr.Error())})
+			run.Status = domain.RunStatusFailed
+			return run, execErr
+		}
+
+		nodeResult.Status = domain.NodeRunCompleted
+		nodeResult.Output = output.Fields
+		_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
+		run.NodeRuns = append(run.NodeRuns, nodeResult)
+		nodeOutputs[node.NodeID] = output
+		lastOutput = output
+		slog.Info("node executed (resumed)", "node", node.Name, "type", node.Type, "durationMs", duration)
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:complete", RunID: runIDHex, NodeID: node.NodeID, Output: output.Fields, DurationMs: duration})
+	}
+
+	totalDuration := time.Since(run.StartedAt).Milliseconds()
+	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCompleted, lastOutput.Fields)
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:complete", RunID: runIDHex, Output: lastOutput.Fields, DurationMs: totalDuration})
+	run.Status = domain.RunStatusCompleted
+	run.Output = lastOutput.Fields
+	return run, nil
+}
+
+// ─── Internal helpers ──────────────────────────────────────────────────────
+
 func (e *PipelineExecutor) validatePipeline(pipeline *domain.Pipeline) error {
 	if len(pipeline.Nodes) == 0 {
 		return fmt.Errorf("pipeline has no nodes")
 	}
-
 	for _, node := range pipeline.Nodes {
 		if !domain.ValidNodeTypes[node.Type] {
 			return fmt.Errorf("unknown node type %q on node %q", node.Type, node.Name)
@@ -221,13 +360,9 @@ func (e *PipelineExecutor) validatePipeline(pipeline *domain.Pipeline) error {
 	return nil
 }
 
-// topologicalSort produces a linear ordering of nodes respecting edge dependencies.
-// Uses Kahn's algorithm (BFS-based).
 func (e *PipelineExecutor) topologicalSort(pipeline *domain.Pipeline) ([]string, error) {
-	// Build adjacency list and in-degree map
 	inDegree := make(map[string]int)
 	adj := make(map[string][]string)
-
 	for _, node := range pipeline.Nodes {
 		inDegree[node.NodeID] = 0
 	}
@@ -235,21 +370,17 @@ func (e *PipelineExecutor) topologicalSort(pipeline *domain.Pipeline) ([]string,
 		adj[edge.SourceID] = append(adj[edge.SourceID], edge.TargetID)
 		inDegree[edge.TargetID]++
 	}
-
-	// Enqueue nodes with in-degree 0
 	var queue []string
 	for _, node := range pipeline.Nodes {
 		if inDegree[node.NodeID] == 0 {
 			queue = append(queue, node.NodeID)
 		}
 	}
-
 	var order []string
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
 		order = append(order, current)
-
 		for _, neighbor := range adj[current] {
 			inDegree[neighbor]--
 			if inDegree[neighbor] == 0 {
@@ -257,35 +388,22 @@ func (e *PipelineExecutor) topologicalSort(pipeline *domain.Pipeline) ([]string,
 			}
 		}
 	}
-
 	if len(order) != len(pipeline.Nodes) {
 		return nil, fmt.Errorf("pipeline contains a cycle — topological sort is not possible")
 	}
-
 	return order, nil
 }
 
-// resolveNodeInput determines the input DataPacket for a node by merging
-// outputs from all parent nodes (nodes with edges pointing to this node).
-func (e *PipelineExecutor) resolveNodeInput(
-	node domain.PipelineNode,
-	edges []domain.PipelineEdge,
-	nodeOutputs map[string]DataPacket,
-	fallback DataPacket,
-) DataPacket {
-	// Find all parent nodes
+func (e *PipelineExecutor) resolveNodeInput(node domain.PipelineNode, edges []domain.PipelineEdge, nodeOutputs map[string]DataPacket, fallback DataPacket) DataPacket {
 	var parentIDs []string
 	for _, edge := range edges {
 		if edge.TargetID == node.NodeID {
 			parentIDs = append(parentIDs, edge.SourceID)
 		}
 	}
-
 	if len(parentIDs) == 0 {
 		return fallback
 	}
-
-	// Merge outputs from all parents
 	merged := NewDataPacket()
 	for _, parentID := range parentIDs {
 		if output, ok := nodeOutputs[parentID]; ok {
@@ -299,45 +417,19 @@ func (e *PipelineExecutor) resolveNodeInput(
 			merged.Errors = append(merged.Errors, output.Errors...)
 		}
 	}
-
 	return merged
 }
 
-// handleNodeFailure records a failed node and updates the run status.
-func (e *PipelineExecutor) handleNodeFailure(
-	ctx context.Context,
-	run *domain.PipelineRun,
-	node domain.PipelineNode,
-	err error,
-	progressCh chan<- domain.PipelineEvent,
-	runIDHex string,
-) {
+func (e *PipelineExecutor) handleNodeFailure(ctx context.Context, run *domain.PipelineRun, node domain.PipelineNode, err error, progressCh chan<- domain.PipelineEvent, runIDHex string) {
 	now := time.Now()
-	nodeResult := domain.NodeRunResult{
-		NodeID:    node.NodeID,
-		Status:    domain.NodeRunFailed,
-		StartedAt: now,
-		EndedAt:   &now,
-		Error:     err.Error(),
-	}
+	nodeResult := domain.NodeRunResult{NodeID: node.NodeID, Status: domain.NodeRunFailed, StartedAt: now, EndedAt: &now, Error: err.Error()}
 	_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
 	run.NodeRuns = append(run.NodeRuns, nodeResult)
 	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
-
-	e.sendEvent(progressCh, domain.PipelineEvent{
-		Type:   "pipeline:node:error",
-		RunID:  runIDHex,
-		NodeID: node.NodeID,
-		Error:  err.Error(),
-	})
-	e.sendEvent(progressCh, domain.PipelineEvent{
-		Type:  "pipeline:run:failed",
-		RunID: runIDHex,
-		Error: fmt.Sprintf("node %s: %s", node.Name, err.Error()),
-	})
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:error", RunID: runIDHex, NodeID: node.NodeID, Error: err.Error()})
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:failed", RunID: runIDHex, Error: fmt.Sprintf("node %s: %s", node.Name, err.Error())})
 }
 
-// sendEvent sends a progress event non-blocking.
 func (e *PipelineExecutor) sendEvent(ch chan<- domain.PipelineEvent, event domain.PipelineEvent) {
 	select {
 	case ch <- event:
@@ -346,7 +438,78 @@ func (e *PipelineExecutor) sendEvent(ch chan<- domain.PipelineEvent, event domai
 	}
 }
 
-// ValidatePipeline is a public method for pre-execution validation.
+// ValidatePipeline is the public wrapper for validatePipeline.
 func (e *PipelineExecutor) ValidatePipeline(pipeline *domain.Pipeline) error {
 	return e.validatePipeline(pipeline)
+}
+
+// ─── DAG helpers ───────────────────────────────────────────────────────────
+
+func buildNodeMap(pipeline *domain.Pipeline) map[string]domain.PipelineNode {
+	m := make(map[string]domain.PipelineNode, len(pipeline.Nodes))
+	for _, n := range pipeline.Nodes {
+		m[n.NodeID] = n
+	}
+	return m
+}
+
+func buildAdj(edges []domain.PipelineEdge) map[string][]string {
+	adj := make(map[string][]string)
+	for _, edge := range edges {
+		adj[edge.SourceID] = append(adj[edge.SourceID], edge.TargetID)
+	}
+	return adj
+}
+
+// bfsReachable returns all node IDs reachable from start (excluding start itself).
+func bfsReachable(adj map[string][]string, start string) map[string]bool {
+	visited := make(map[string]bool)
+	queue := []string{start}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, nb := range adj[cur] {
+			if !visited[nb] {
+				visited[nb] = true
+				queue = append(queue, nb)
+			}
+		}
+	}
+	return visited
+}
+
+// computeSkippedNodes determines which nodes should be skipped because they
+// are only reachable via non-taken edges out of a condition node.
+func computeSkippedNodes(pipeline *domain.Pipeline, condNodeID, takenTargetID string) map[string]bool {
+	adj := buildAdj(pipeline.Edges)
+
+	// Compute all nodes reachable from the taken target.
+	takenReachable := bfsReachable(adj, takenTargetID)
+	takenReachable[takenTargetID] = true
+
+	skipped := make(map[string]bool)
+	for _, edge := range pipeline.Edges {
+		if edge.SourceID != condNodeID || edge.TargetID == takenTargetID {
+			continue
+		}
+		// Non-taken edge: BFS from this target.
+		reachable := bfsReachable(adj, edge.TargetID)
+		reachable[edge.TargetID] = true
+		for nodeID := range reachable {
+			if !takenReachable[nodeID] {
+				skipped[nodeID] = true
+			}
+		}
+	}
+	return skipped
+}
+
+// findRemainingFrom returns the slice of nodeIDs starting from (and including) targetID.
+func findRemainingFrom(nodeIDs []string, targetID string) []string {
+	for i, id := range nodeIDs {
+		if id == targetID {
+			return nodeIDs[i:]
+		}
+	}
+	return nil
 }

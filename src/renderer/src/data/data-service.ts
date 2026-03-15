@@ -26,10 +26,12 @@ import type {
 import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
 import type { AnalysisEvent } from './api-client'
 import { wsClient } from './ws-client'
+import type { PipelineEvent } from './ws-client'
 
 // Re-export for consumers
 export type { AnalysisEvent } from './api-client'
 export type { SchemaField, ExtractionSchema } from '../../../shared/types/document.types'
+export type { PipelineEvent } from './ws-client'
 
 import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
@@ -360,6 +362,29 @@ export async function approveNode(runId: string, nodeId: string): Promise<void> 
 /** Reject a review node */
 export async function rejectNode(runId: string, nodeId: string): Promise<void> {
   await apiPost(`/runs/${runId}/nodes/${nodeId}/reject`, {})
+}
+
+/** Approve a review gate (alias for approveNode with clearer naming) */
+export async function approveReview(runId: string, nodeId: string): Promise<void> {
+  await apiPost(`/runs/${runId}/nodes/${nodeId}/approve`, {})
+}
+
+/** Reject a review gate (alias for rejectNode with clearer naming) */
+export async function rejectReview(runId: string, nodeId: string): Promise<void> {
+  await apiPost(`/runs/${runId}/nodes/${nodeId}/reject`, {})
+}
+
+/**
+ * Subscribes to real-time WebSocket events for a pipeline run.
+ * Returns a cleanup function to cancel the subscription.
+ */
+export function subscribePipelineRun(
+  runId: string,
+  onEvent: (event: PipelineEvent) => void,
+  onDone?: () => void,
+  onError?: (err: Error) => void
+): () => void {
+  return wsClient.subscribePipelineRun(runId, onEvent, onDone, onError)
 }
 
 // ─── Form Template APIs ──────────────────────────────────────────

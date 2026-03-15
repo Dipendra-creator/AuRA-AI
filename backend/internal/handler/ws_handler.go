@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/aura-ai/backend/internal/domain"
+	"github.com/aura-ai/backend/internal/engine"
 )
 
 const (
@@ -42,8 +43,9 @@ var upgrader = websocket.Upgrader{
 
 // wsInbound is the message format sent from the client to the server.
 type wsInbound struct {
-	Action     string               `json:"action"`           // "analyze" | "ping"
+	Action     string               `json:"action"`           // "analyze" | "ping" | "subscribe_pipeline_run"
 	DocumentID string               `json:"documentId"`       // required for "analyze"
+	RunID      string               `json:"runId"`            // required for "subscribe_pipeline_run"
 	Schema     []domain.SchemaField `json:"schema,omitempty"` // optional custom extraction schema
 }
 
@@ -53,14 +55,15 @@ type DocumentServiceInterface interface {
 	AnalyzeWithProgressAndSchema(ctx context.Context, id bson.ObjectID, schemaFields []domain.SchemaField, progressCh chan<- domain.AnalysisEvent)
 }
 
-// WSHandler manages WebSocket connections for document analysis progress.
+// WSHandler manages WebSocket connections for document analysis and pipeline events.
 type WSHandler struct {
-	svc DocumentServiceInterface
+	svc    DocumentServiceInterface
+	broker *engine.PipelineEventBroker
 }
 
 // NewWSHandler creates a new WSHandler.
-func NewWSHandler(svc DocumentServiceInterface) *WSHandler {
-	return &WSHandler{svc: svc}
+func NewWSHandler(svc DocumentServiceInterface, broker *engine.PipelineEventBroker) *WSHandler {
+	return &WSHandler{svc: svc, broker: broker}
 }
 
 // HandleWS upgrades the HTTP connection to a WebSocket and manages the
@@ -191,6 +194,17 @@ func (h *WSHandler) processMessage(ctx context.Context, msg wsInbound, writeCh c
 
 		h.startAnalysis(analysisCtx, oid, msg.Schema, writeCh)
 
+	case "subscribe_pipeline_run":
+		if msg.RunID == "" {
+			h.sendError(writeCh, "runId is required for subscribe_pipeline_run action")
+			return
+		}
+		if h.broker == nil {
+			h.sendError(writeCh, "pipeline broker not configured")
+			return
+		}
+		h.startPipelineSubscription(ctx, msg.RunID, writeCh)
+
 	default:
 		h.sendError(writeCh, "unknown action: "+msg.Action)
 	}
@@ -208,6 +222,42 @@ func (h *WSHandler) startAnalysis(ctx context.Context, id bson.ObjectID, schema 
 		for evt := range progressCh {
 			select {
 			case writeCh <- evt:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// startPipelineSubscription subscribes to broker events for the given runID
+// and forwards them to the write channel until the run is done or ctx is cancelled.
+func (h *WSHandler) startPipelineSubscription(ctx context.Context, runID string, writeCh chan<- interface{}) {
+	go func() {
+		eventCh, unsub := h.broker.Subscribe(runID)
+		defer unsub()
+
+		slog.Info("websocket subscribed to pipeline run", "runId", runID)
+
+		for {
+			select {
+			case evt, ok := <-eventCh:
+				if !ok {
+					// Broker closed the channel — run is done.
+					slog.Info("pipeline run subscription closed", "runId", runID)
+					return
+				}
+				select {
+				case writeCh <- evt:
+				case <-ctx.Done():
+					return
+				}
+
+				// Stop forwarding once run reaches a terminal state.
+				switch evt.Type {
+				case "pipeline:run:complete", "pipeline:run:failed", "pipeline:run:cancelled":
+					return
+				}
+
 			case <-ctx.Done():
 				return
 			}

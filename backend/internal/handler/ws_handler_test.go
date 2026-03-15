@@ -62,7 +62,7 @@ func TestHandleMessages(t *testing.T) {
 			},
 		}
 
-		h := NewWSHandler(mockSvc)
+		h := NewWSHandler(mockSvc, nil)
 		server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 		defer server.Close()
 		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
@@ -97,7 +97,7 @@ func TestHandleMessages(t *testing.T) {
 			},
 		}
 
-		h := NewWSHandler(mockSvc)
+		h := NewWSHandler(mockSvc, nil)
 		server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 		defer server.Close()
 		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
@@ -130,7 +130,7 @@ func TestHandleMessages(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-	h := NewWSHandler(&mockDocumentService{})
+	h := NewWSHandler(&mockDocumentService{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -163,7 +163,7 @@ func TestPing(t *testing.T) {
 }
 
 func TestAnalyzeMissingDocID(t *testing.T) {
-	h := NewWSHandler(&mockDocumentService{})
+	h := NewWSHandler(&mockDocumentService{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -193,7 +193,7 @@ func TestAnalyzeMissingDocID(t *testing.T) {
 }
 
 func TestAnalyzeInvalidDocID(t *testing.T) {
-	h := NewWSHandler(&mockDocumentService{})
+	h := NewWSHandler(&mockDocumentService{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -223,7 +223,7 @@ func TestAnalyzeInvalidDocID(t *testing.T) {
 }
 
 func TestUnknownAction(t *testing.T) {
-	h := NewWSHandler(&mockDocumentService{})
+	h := NewWSHandler(&mockDocumentService{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -253,7 +253,7 @@ func TestUnknownAction(t *testing.T) {
 }
 
 func TestInvalidJSON(t *testing.T) {
-	h := NewWSHandler(&mockDocumentService{})
+	h := NewWSHandler(&mockDocumentService{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(h.HandleWS))
 	defer server.Close()
@@ -291,7 +291,7 @@ func TestStartAnalysis(t *testing.T) {
 				close(progressCh)
 			},
 		}
-		hWithMock := NewWSHandler(mockSvc)
+		hWithMock := NewWSHandler(mockSvc, nil)
 
 		writeCh2 := make(chan interface{}, 2)
 		ctx, cancel := context.WithCancel(context.Background())
@@ -313,7 +313,7 @@ func TestStartAnalysis(t *testing.T) {
 				close(progressCh)
 			},
 		}
-		hWithMock := NewWSHandler(mockSvc)
+		hWithMock := NewWSHandler(mockSvc, nil)
 
 		writeCh3 := make(chan interface{}, 2)
 		ctx, cancel := context.WithCancel(context.Background())

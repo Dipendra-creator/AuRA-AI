@@ -113,3 +113,9 @@ func (r *PipelineRunRepo) UpdateNodeRunStatus(ctx context.Context, runID bson.Ob
 	_, err := r.coll.UpdateOne(ctx, filter, update)
 	return err
 }
+
+// UpdatePendingNodes stores the list of node IDs that remain to be executed after a pause.
+func (r *PipelineRunRepo) UpdatePendingNodes(ctx context.Context, id bson.ObjectID, nodeIDs []string) error {
+	_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"pending_node_ids": nodeIDs}})
+	return err
+}

@@ -44,16 +44,18 @@ type NodeRunResult struct {
 
 // PipelineRun is a single execution instance of a pipeline.
 type PipelineRun struct {
-	ID         bson.ObjectID     `json:"_id"        bson:"_id,omitempty"`
-	PipelineID bson.ObjectID     `json:"pipelineId" bson:"pipeline_id"`
-	Status     PipelineRunStatus `json:"status"     bson:"status"`
-	TriggerBy  string            `json:"triggerBy"   bson:"trigger_by"`
-	NodeRuns   []NodeRunResult   `json:"nodeRuns"   bson:"node_runs"`
-	Input      map[string]any    `json:"input"      bson:"input,omitempty"`
-	Output     map[string]any    `json:"output"     bson:"output,omitempty"`
-	StartedAt  time.Time         `json:"startedAt"  bson:"started_at"`
-	EndedAt    *time.Time        `json:"endedAt"    bson:"ended_at,omitempty"`
-	CreatedAt  time.Time         `json:"createdAt"  bson:"created_at"`
+	ID              bson.ObjectID     `json:"_id"             bson:"_id,omitempty"`
+	PipelineID      bson.ObjectID     `json:"pipelineId"      bson:"pipeline_id"`
+	Status          PipelineRunStatus `json:"status"          bson:"status"`
+	TriggerBy       string            `json:"triggerBy"       bson:"trigger_by"`
+	NodeRuns        []NodeRunResult   `json:"nodeRuns"        bson:"node_runs"`
+	Input           map[string]any    `json:"input"           bson:"input,omitempty"`
+	Output          map[string]any    `json:"output"          bson:"output,omitempty"`
+	StartedAt       time.Time         `json:"startedAt"       bson:"started_at"`
+	EndedAt         *time.Time        `json:"endedAt"         bson:"ended_at,omitempty"`
+	CreatedAt       time.Time         `json:"createdAt"       bson:"created_at"`
+	PendingNodeIDs  []string          `json:"pendingNodeIds"  bson:"pending_node_ids,omitempty"`
+	ReviewingNodeID string            `json:"reviewingNodeId" bson:"reviewing_node_id,omitempty"`
 }
 
 // FormTemplate defines a target form structure for the form-fill node.
