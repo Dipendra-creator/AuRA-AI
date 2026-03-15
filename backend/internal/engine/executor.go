@@ -60,10 +60,58 @@ func (e *PipelineExecutor) Execute(ctx context.Context, pipeline *domain.Pipelin
 	pipelineIDHex := pipeline.ID.Hex()
 	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:start", PipelineID: pipelineIDHex, RunID: runIDHex})
 
+	return e.runNodes(ctx, pipeline, run, order, input, progressCh)
+}
+
+// ExecuteFromRun is like Execute but uses a pre-created run record instead of
+// creating a new one. All events will carry the pre-created run's ID.
+// Use this from ExecuteAsync so there is exactly one run record per execution.
+func (e *PipelineExecutor) ExecuteFromRun(ctx context.Context, pipeline *domain.Pipeline, run *domain.PipelineRun, input DataPacket, progressCh chan<- domain.PipelineEvent) (*domain.PipelineRun, error) {
+	defer close(progressCh)
+
+	runIDHex := run.ID.Hex()
+	pipelineIDHex := pipeline.ID.Hex()
+
+	if err := e.validatePipeline(pipeline); err != nil {
+		errMsg := fmt.Sprintf("pipeline validation failed: %s", err.Error())
+		slog.Error("pipeline validation failed in ExecuteFromRun", "runId", runIDHex, "error", err)
+		_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:failed", PipelineID: pipelineIDHex, RunID: runIDHex, Error: errMsg})
+		run.Status = domain.RunStatusFailed
+		return run, fmt.Errorf("%s", errMsg)
+	}
+
+	order, err := e.topologicalSort(pipeline)
+	if err != nil {
+		errMsg := fmt.Sprintf("DAG sort failed: %s", err.Error())
+		slog.Error("topological sort failed in ExecuteFromRun", "runId", runIDHex, "error", err)
+		_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusFailed, nil)
+		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:failed", PipelineID: pipelineIDHex, RunID: runIDHex, Error: errMsg})
+		run.Status = domain.RunStatusFailed
+		return run, fmt.Errorf("%s", errMsg)
+	}
+
+	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:start", PipelineID: pipelineIDHex, RunID: runIDHex})
+
+	return e.runNodes(ctx, pipeline, run, order, input, progressCh)
+}
+
+// runNodes executes the given ordered node IDs against the pipeline and streams
+// progress events. It is the shared core used by Execute, ExecuteFromRun, and Resume.
+func (e *PipelineExecutor) runNodes(
+	ctx context.Context,
+	pipeline *domain.Pipeline,
+	run *domain.PipelineRun,
+	order []string,
+	input DataPacket,
+	progressCh chan<- domain.PipelineEvent,
+) (*domain.PipelineRun, error) {
+	runIDHex := run.ID.Hex()
 	nodeMap := buildNodeMap(pipeline)
 	nodeOutputs := make(map[string]DataPacket)
 	skippedNodes := make(map[string]bool)
 	var lastOutput DataPacket = input
+	startTime := run.StartedAt
 
 	for i, nodeID := range order {
 		select {
@@ -122,7 +170,6 @@ func (e *PipelineExecutor) Execute(ctx context.Context, pipeline *domain.Pipelin
 				_ = e.runRepo.UpdateNodeRun(ctx, run.ID, nodeResult)
 				run.NodeRuns = append(run.NodeRuns, nodeResult)
 
-				// Save remaining nodeIDs starting from the review node.
 				pendingNodeIDs := order[i:]
 				run.PendingNodeIDs = pendingNodeIDs
 				run.ReviewingNodeID = node.NodeID
@@ -168,7 +215,7 @@ func (e *PipelineExecutor) Execute(ctx context.Context, pipeline *domain.Pipelin
 		e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:node:complete", RunID: runIDHex, NodeID: node.NodeID, Output: output.Fields, DurationMs: duration})
 	}
 
-	totalDuration := time.Since(now).Milliseconds()
+	totalDuration := time.Since(startTime).Milliseconds()
 	_ = e.runRepo.UpdateStatus(ctx, run.ID, domain.RunStatusCompleted, lastOutput.Fields)
 	e.sendEvent(progressCh, domain.PipelineEvent{Type: "pipeline:run:complete", RunID: runIDHex, Output: lastOutput.Fields, DurationMs: totalDuration})
 	run.Status = domain.RunStatusCompleted
@@ -363,10 +410,21 @@ func (e *PipelineExecutor) validatePipeline(pipeline *domain.Pipeline) error {
 func (e *PipelineExecutor) topologicalSort(pipeline *domain.Pipeline) ([]string, error) {
 	inDegree := make(map[string]int)
 	adj := make(map[string][]string)
+	nodeIDs := make(map[string]bool)
 	for _, node := range pipeline.Nodes {
 		inDegree[node.NodeID] = 0
+		nodeIDs[node.NodeID] = true
 	}
 	for _, edge := range pipeline.Edges {
+		// Skip edges that reference non-existent nodes (stale/orphaned edges).
+		if !nodeIDs[edge.SourceID] {
+			slog.Warn("skipping edge with unknown source node", "edgeId", edge.ID, "sourceId", edge.SourceID)
+			continue
+		}
+		if !nodeIDs[edge.TargetID] {
+			slog.Warn("skipping edge with unknown target node", "edgeId", edge.ID, "targetId", edge.TargetID)
+			continue
+		}
 		adj[edge.SourceID] = append(adj[edge.SourceID], edge.TargetID)
 		inDegree[edge.TargetID]++
 	}
@@ -389,7 +447,22 @@ func (e *PipelineExecutor) topologicalSort(pipeline *domain.Pipeline) ([]string,
 		}
 	}
 	if len(order) != len(pipeline.Nodes) {
-		return nil, fmt.Errorf("pipeline contains a cycle — topological sort is not possible")
+		// A genuine cycle exists among the known nodes.
+		var stuck []string
+		for _, node := range pipeline.Nodes {
+			found := false
+			for _, id := range order {
+				if id == node.NodeID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				stuck = append(stuck, node.NodeID)
+			}
+		}
+		slog.Error("pipeline has a cycle", "nodeCount", len(pipeline.Nodes), "orderedCount", len(order), "stuckNodes", stuck)
+		return nil, fmt.Errorf("pipeline contains a cycle — nodes %v could not be ordered", stuck)
 	}
 	return order, nil
 }
@@ -405,6 +478,7 @@ func (e *PipelineExecutor) resolveNodeInput(node domain.PipelineNode, edges []do
 		return fallback
 	}
 	merged := NewDataPacket()
+	anyFound := false
 	for _, parentID := range parentIDs {
 		if output, ok := nodeOutputs[parentID]; ok {
 			for k, v := range output.Fields {
@@ -415,7 +489,13 @@ func (e *PipelineExecutor) resolveNodeInput(node domain.PipelineNode, edges []do
 			}
 			merged.Files = append(merged.Files, output.Files...)
 			merged.Errors = append(merged.Errors, output.Errors...)
+			anyFound = true
 		}
+	}
+	if !anyFound {
+		slog.Warn("resolveNodeInput: all parent node lookups failed (stale edges?), falling back to last known output",
+			"nodeId", node.NodeID, "parentCount", len(parentIDs), "parentIDs", parentIDs)
+		return fallback
 	}
 	return merged
 }

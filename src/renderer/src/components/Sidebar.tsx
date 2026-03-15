@@ -5,7 +5,7 @@
  */
 
 import { type ReactElement, type ReactNode } from 'react'
-import { LayoutDashboard, FileText, GitBranch, Diamond, Link, Sparkles, Settings } from './Icons'
+import { LayoutDashboard, FileText, GitBranch, Diamond, Link, Sparkles, Settings, Download } from './Icons'
 
 interface SidebarProps {
   readonly activePage: string
@@ -22,6 +22,7 @@ const mainNavItems: readonly NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'documents', label: 'Documents', icon: <FileText size={18} /> },
   { id: 'workflows', label: 'Pipelines', icon: <GitBranch size={18} /> },
+  { id: 'downloads', label: 'Downloads', icon: <Download size={18} /> },
   { id: 'ai-models', label: 'Templates', icon: <Diamond size={18} /> },
   { id: 'analytics', label: 'API', icon: <Link size={18} /> }
 ]

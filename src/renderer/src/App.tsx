@@ -13,11 +13,12 @@ import { Dashboard } from './pages/Dashboard'
 import { Documents } from './pages/Documents'
 import { Workflows } from './pages/Workflows'
 import { Settings } from './pages/Settings'
+import { Downloads } from './pages/Downloads'
 import { ToastContainer, type ToastType } from './components/Toast'
 import { useToast } from './components/useToast'
 import { Brain, TrendingUp } from './components/Icons'
 
-type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings'
+type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings' | 'downloads'
 
 function renderPage(page: PageId, addToast: (type: ToastType, text: string) => void): ReactElement {
   switch (page) {
@@ -27,6 +28,8 @@ function renderPage(page: PageId, addToast: (type: ToastType, text: string) => v
       return <Documents addToast={addToast} />
     case 'workflows':
       return <Workflows addToast={addToast} />
+    case 'downloads':
+      return <Downloads addToast={addToast} />
     case 'settings':
       return <Settings />
     case 'ai-models':

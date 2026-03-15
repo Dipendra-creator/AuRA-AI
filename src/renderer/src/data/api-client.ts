@@ -91,6 +91,15 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
   return envelope.data!
 }
 
+/** Makes a GET request and returns the response as a Blob (for file downloads) */
+export async function apiGetBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${path}`)
+  if (!res.ok) {
+    throw new Error(`API ${res.status}: ${res.statusText}`)
+  }
+  return res.blob()
+}
+
 /** Makes a POST request and returns the response as a Blob (for file downloads) */
 export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
   const res = await fetch(`${API_BASE}${path}`, {

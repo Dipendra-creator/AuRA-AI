@@ -23,7 +23,7 @@ import type {
   ExtractionSchema
 } from '../../../shared/types/document.types'
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob } from './api-client'
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostFormData, apiPostBlob, apiGetBlob } from './api-client'
 import type { AnalysisEvent } from './api-client'
 import { wsClient } from './ws-client'
 import type { PipelineEvent } from './ws-client'
@@ -466,6 +466,35 @@ export async function updateSchema(
 /** Delete an extraction schema by ID */
 export async function deleteSchema(id: string): Promise<void> {
   return apiDelete(`/schemas/${id}`)
+}
+
+// ─── Export File Management ──────────────────────────────────────
+
+/** A file produced by a pipeline export node */
+export interface ExportFile {
+  readonly name: string
+  readonly size: number
+  readonly modifiedAt: string
+  readonly mimeType: string
+  readonly downloadUrl: string
+}
+
+/** Lists all files in the backend exports directory */
+export async function listExportFiles(): Promise<ExportFile[]> {
+  return apiGet<ExportFile[]>('/exports')
+}
+
+/** Deletes a single export file by filename */
+export async function deleteExportFile(filename: string): Promise<void> {
+  return apiDelete(`/exports/${encodeURIComponent(filename)}`)
+}
+
+/** Downloads an export file as a Blob using its server-relative downloadUrl */
+export async function downloadExportFile(downloadUrl: string): Promise<Blob> {
+  // downloadUrl is like /api/v1/files/exports/export_2026-03-15.csv
+  // Strip /api/v1 prefix since apiGetBlob prepends API_BASE
+  const path = downloadUrl.replace(/^\/api\/v1/, '')
+  return apiGetBlob(path)
 }
 
 // ─── Health Check ────────────────────────────────────────────────

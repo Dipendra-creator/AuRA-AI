@@ -3,17 +3,21 @@
   "configurations": [
     {
       "name": "Debug Main Process",
-      "type": "node",
+      "type": "go",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
+      "mode": "debug",
+      "program": "${workspaceFolder}/backend/cmd/server",
+      "cwd": "${workspaceRoot}/backend",
+      "env": {
+        "REMOTE_DEBUGGING_PORT": "9222"
+      },
       "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite",
       "windows": {
         "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite.cmd"
       },
-      "runtimeArgs": ["--sourcemap"],
-      "env": {
-        "REMOTE_DEBUGGING_PORT": "9222"
-      }
+      "runtimeArgs": [
+        "--sourcemap"
+      ]
     },
     {
       "name": "Debug Renderer Process",
@@ -30,7 +34,10 @@
   "compounds": [
     {
       "name": "Debug All",
-      "configurations": ["Debug Main Process", "Debug Renderer Process"],
+      "configurations": [
+        "Debug Main Process",
+        "Debug Renderer Process"
+      ],
       "presentation": {
         "order": 1
       }
