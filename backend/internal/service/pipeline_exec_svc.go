@@ -83,38 +83,24 @@ func (s *PipelineExecService) ExecuteAsync(parentCtx context.Context, pipelineID
 	}
 	runIDHex := run.ID.Hex()
 
-	// Create a broker-backed progress channel.
+	// Create a broker-backed progress channel keyed on the pre-created run ID.
+	// ExecuteFromRun uses this run record directly (no second run record created),
+	// so all events carry runIDHex and WS subscribers receive them correctly.
 	brokerCh := s.broker.NewProgressChannel(runIDHex)
 
 	go func() {
-		bgCtx := context.Background()
-		slog.Info("async pipeline execution starting", "pipelineId", pipelineID.Hex(), "runId", runIDHex)
-
-		// The executor creates its own run record via Execute().
-		// For async we bypass that by using a separate inner channel and discarding
-		// the executor-created run — all DB updates target the pre-created run ID
-		// through UpdateNodeRun / UpdateStatus calls inside the executor.
-		//
-		// Because executor.Execute always calls runRepo.Create, we accept the extra
-		// record for now; downstream polling on the pre-created run ID will work
-		// because Execute also calls UpdateStatus on ITS run.  The broker channel
-		// is keyed on runIDHex so WS subscribers get events correctly.
-		innerCh := make(chan domain.PipelineEvent, 128)
-		go func() {
-			for evt := range innerCh {
-				select {
-				case brokerCh <- evt:
-				default:
-				}
-			}
-			close(brokerCh)
-		}()
-
-		_, execErr := s.executor.Execute(bgCtx, pipeline, input, innerCh)
+		bgCtx, bgCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer bgCancel()
+		slog.Info("async pipeline execution starting", "pipelineId", pipelineID.Hex(), "runId", runIDHex, "nodeCount", len(pipeline.Nodes))
+		result, execErr := s.executor.ExecuteFromRun(bgCtx, pipeline, run, input, brokerCh)
 		if execErr != nil {
 			slog.Error("async pipeline execution failed", "runId", runIDHex, "error", execErr)
+			// Ensure run is marked failed in DB if ExecuteFromRun didn't already do so
+			if result == nil || result.Status == domain.RunStatusRunning {
+				_ = s.runRepo.UpdateStatus(bgCtx, run.ID, domain.RunStatusFailed, nil)
+			}
 		} else {
-			slog.Info("async pipeline execution completed", "runId", runIDHex)
+			slog.Info("async pipeline execution completed", "runId", runIDHex, "status", result.Status)
 		}
 	}()
 

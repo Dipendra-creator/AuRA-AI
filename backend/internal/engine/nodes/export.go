@@ -44,6 +44,11 @@ func (e *ExportExecutor) Execute(ctx context.Context, node domain.PipelineNode, 
 	// Filter fields based on include/exclude lists
 	exportFields := filterExportFields(input.Fields, node.Config)
 
+	if len(exportFields) == 0 {
+		slog.Warn("export node received empty fields — CSV/JSON will be empty; check that upstream nodes produced output and edges are connected",
+			"node", node.Name, "nodeId", node.NodeID, "inputFieldCount", len(input.Fields))
+	}
+
 	// Generate filename
 	filename := generateExportFilename(node.Config, format)
 

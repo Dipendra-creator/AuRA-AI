@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	"github.com/aura-ai/backend/internal/domain"
@@ -181,21 +182,29 @@ func (e *DocSelectExecutor) populateDocData(doc *domain.Document, idStr string, 
 }
 
 // extractStringSlice converts an interface{} to []string.
+// Handles []string, []any, and bson.A (type A []interface{} — a named type returned
+// by the MongoDB driver when decoding arrays from map[string]any, which does NOT
+// satisfy a case []any: type switch).
 func extractStringSlice(v any) []string {
-	switch arr := v.(type) {
-	case []string:
-		return arr
-	case []any:
-		result := make([]string, 0, len(arr))
-		for _, item := range arr {
-			if s, ok := item.(string); ok {
-				result = append(result, s)
-			}
-		}
-		return result
-	default:
+	if v == nil {
 		return nil
 	}
+	// Fast paths for common types
+	if arr, ok := v.([]string); ok {
+		return arr
+	}
+	// Use reflection to handle bson.A ([]interface{} named type) and []any uniformly
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Slice {
+		return nil
+	}
+	result := make([]string, 0, rv.Len())
+	for i := range rv.Len() {
+		if s, ok := rv.Index(i).Interface().(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // getBoolConfig reads a boolean config value with a default fallback.

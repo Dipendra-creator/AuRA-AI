@@ -10,6 +10,7 @@ import {
   getAllPipelines,
   updatePipeline,
   executePipeline,
+  getPipelineRun,
   createPipeline,
   deletePipeline,
   listPipelineRuns,
@@ -190,6 +191,8 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   const [selectedLogNodeId, setSelectedLogNodeId] = useState<string | null>(null)
   // WS subscription cleanup ref
   const wsUnsubRef = useRef<(() => void) | null>(null)
+  // Fallback timer ref
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Creating pipeline
   const [showCreate, setShowCreate] = useState(false)
@@ -226,10 +229,11 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     loadPipelines()
   }, [loadPipelines])
 
-  // Cleanup WS subscription on unmount
+  // Cleanup WS subscription and fallback timer on unmount
   useEffect(() => {
     return (): void => {
       wsUnsubRef.current?.()
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
     }
   }, [])
 
@@ -307,7 +311,7 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   /* ── WS subscription for pipeline run events ───────────────── */
 
   const startRunSubscription = useCallback(
-    (runId: string) => {
+    (pipelineId: string, runId: string) => {
       // Cancel any previous subscription.
       wsUnsubRef.current?.()
 
@@ -372,6 +376,17 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
                 [evt.nodeId!]: { status: 'waiting_review' }
               }))
             }
+            // Fetch full run to populate logs even if node events were missed
+            getPipelineRun(pipelineId, runId)
+              .then((latest) => {
+                const statuses: Record<string, NodeRunInfo> = {}
+                for (const nr of latest.nodeRuns ?? []) {
+                  statuses[nr.nodeId] = { status: nr.status, error: nr.error, durationMs: nr.durationMs, output: nr.output }
+                }
+                setNodeStatuses(statuses)
+                setExecutionLogs([...(latest.nodeRuns ?? [])])
+              })
+              .catch(() => {})
             addToast('info', 'Pipeline paused — waiting for review approval')
           }
 
@@ -379,6 +394,17 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
             setRunStatus('completed')
             setIsExecuting(false)
             setActiveRunId(null)
+            // Always fetch the full run so execution logs show nodeRuns from DB
+            getPipelineRun(pipelineId, runId)
+              .then((latest) => {
+                const statuses: Record<string, NodeRunInfo> = {}
+                for (const nr of latest.nodeRuns ?? []) {
+                  statuses[nr.nodeId] = { status: nr.status, error: nr.error, durationMs: nr.durationMs, output: nr.output }
+                }
+                setNodeStatuses(statuses)
+                setExecutionLogs([...(latest.nodeRuns ?? [])])
+              })
+              .catch(() => {})
             addToast('success', 'Pipeline execution completed')
           }
 
@@ -386,6 +412,17 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
             setRunStatus('failed')
             setIsExecuting(false)
             setActiveRunId(null)
+            // Fetch full run to populate error details in logs
+            getPipelineRun(pipelineId, runId)
+              .then((latest) => {
+                const statuses: Record<string, NodeRunInfo> = {}
+                for (const nr of latest.nodeRuns ?? []) {
+                  statuses[nr.nodeId] = { status: nr.status, error: nr.error, durationMs: nr.durationMs, output: nr.output }
+                }
+                setNodeStatuses(statuses)
+                setExecutionLogs([...(latest.nodeRuns ?? [])])
+              })
+              .catch(() => {})
             addToast('error', evt.error ? `Pipeline failed: ${evt.error}` : 'Pipeline failed')
           }
 
@@ -426,13 +463,53 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     setShowLogPanel(true)
     setActiveRunId(null)
 
+    // Clear any previous fallback timer
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current)
+      fallbackTimerRef.current = null
+    }
+
     try {
       // POST /execute returns immediately with status "running" (async execution).
       const run = await executePipeline(editingPipeline._id)
-      setActiveRunId(run._id)
-      addToast('success', `Run started (${run._id.slice(-6)})`)
+      const pipelineId = editingPipeline._id
+      const runId = run._id
+      setActiveRunId(runId)
+      addToast('info', `Run started (${runId.slice(-6)})`)
       // Subscribe to real-time events via WebSocket.
-      startRunSubscription(run._id)
+      startRunSubscription(pipelineId, runId)
+
+      // Fallback: if WS events don't arrive within 5s, poll the API for final status.
+      fallbackTimerRef.current = setTimeout(() => {
+        fallbackTimerRef.current = null
+        // Check current executing state without using a state updater for side effects
+        setIsExecuting((stillRunning) => {
+          if (!stillRunning) return stillRunning // already resolved via WS
+          // Schedule the async fetch outside the state updater
+          Promise.resolve().then(() => {
+            getPipelineRun(pipelineId, runId)
+              .then((latest) => {
+                if (['completed', 'failed', 'cancelled', 'paused'].includes(latest.status)) {
+                  const statuses: Record<string, NodeRunInfo> = {}
+                  for (const nr of latest.nodeRuns ?? []) {
+                    statuses[nr.nodeId] = { status: nr.status, error: nr.error, durationMs: nr.durationMs, output: nr.output }
+                  }
+                  setNodeStatuses(statuses)
+                  setExecutionLogs([...(latest.nodeRuns ?? [])])
+                  setRunStatus(latest.status)
+                  setIsExecuting(false)
+                  if (latest.status === 'completed') addToast('success', 'Pipeline execution completed')
+                  else if (latest.status === 'failed') {
+                    const fn = (latest.nodeRuns ?? []).find((n) => n.status === 'failed')
+                    addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
+                  }
+                }
+              })
+              .catch(() => {})
+          })
+          return stillRunning // don't change state here; let the fetch callback do it
+        })
+      }, 5000)
     } catch (err) {
       setIsExecuting(false)
       setRunStatus('')
@@ -459,11 +536,11 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
         [reviewNode.nodeId]: { status: 'completed' }
       }))
       // Re-subscribe to the same run to catch resumed events.
-      startRunSubscription(activeRunId)
+      if (editingPipeline) startRunSubscription(editingPipeline._id, activeRunId)
     } catch (err) {
       addToast('error', `Approve failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
-  }, [activeRunId, executionLogs, addToast, startRunSubscription])
+  }, [activeRunId, executionLogs, addToast, startRunSubscription, editingPipeline])
 
   const handleRejectReview = useCallback(async () => {
     if (!activeRunId) return
@@ -524,6 +601,9 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
               selectedNodeId={selectedLogNodeId}
               onNodeClick={handleLogNodeClick}
               onClose={() => setShowLogPanel(false)}
+              nodeNames={Object.fromEntries(
+                (editingPipeline.nodes ?? []).map((n) => [n.id, n.name || n.label || n.id])
+              )}
             />
           )}
         </div>

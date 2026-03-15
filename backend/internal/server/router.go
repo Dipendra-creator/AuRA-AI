@@ -66,6 +66,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	reviewH := handler.NewReviewHandler(runRepo, pipeExecSvc)
 	formH := handler.NewFormTemplateHandler(formTemplateRepo)
 	schemaH := handler.NewSchemaHandler(schemaRepo)
+	fileH := handler.NewFileManagerHandler()
 
 	// --- Routes ---
 	mux := http.NewServeMux()
@@ -127,6 +128,10 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	mux.HandleFunc("GET /api/v1/schemas/{id}", schemaH.GetSchema)
 	mux.HandleFunc("PATCH /api/v1/schemas/{id}", schemaH.UpdateSchema)
 	mux.HandleFunc("DELETE /api/v1/schemas/{id}", schemaH.DeleteSchema)
+
+	// Export File Management
+	mux.HandleFunc("GET /api/v1/exports", fileH.ListExports)
+	mux.HandleFunc("DELETE /api/v1/exports/{filename}", fileH.DeleteExport)
 
 	// Activity
 	mux.HandleFunc("GET /api/v1/activity", actH.List)

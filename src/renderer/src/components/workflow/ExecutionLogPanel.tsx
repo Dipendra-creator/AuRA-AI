@@ -14,8 +14,10 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react'
+import { downloadExportFile } from '../../data/data-service'
 
 interface ExecutionLogPanelProps {
   logs: readonly NodeRunResult[]
@@ -23,6 +25,7 @@ interface ExecutionLogPanelProps {
   selectedNodeId: string | null
   onNodeClick: (nodeId: string) => void
   onClose: () => void
+  nodeNames?: Record<string, string>
 }
 
 const STATUS_CONFIG: Record<
@@ -61,7 +64,8 @@ export default function ExecutionLogPanel({
   isRunning,
   selectedNodeId,
   onNodeClick,
-  onClose
+  onClose,
+  nodeNames = {}
 }: Readonly<ExecutionLogPanelProps>): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -220,7 +224,7 @@ export default function ExecutionLogPanel({
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {log.nodeId}
+                  {nodeNames[log.nodeId] ?? log.nodeId}
                 </span>
 
                 {/* Status badge */}
@@ -284,6 +288,49 @@ export default function ExecutionLogPanel({
                     )}
                     {log.durationMs > 0 && <span>Duration: {formatDuration(log.durationMs)}</span>}
                   </div>
+
+                  {/* Export download button */}
+                  {log.output?.export_path && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        onClick={async () => {
+                          const downloadUrl = log.output!.download_url as string | undefined
+                          const exportPath = log.output!.export_path as string
+                          const filename = exportPath.split('/').pop() ?? 'export'
+                          const url = downloadUrl ?? `/api/v1/files/${exportPath}`
+                          try {
+                            const blob = await downloadExportFile(url)
+                            const objectUrl = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = objectUrl
+                            a.download = filename
+                            document.body.appendChild(a)
+                            a.click()
+                            a.remove()
+                            URL.revokeObjectURL(objectUrl)
+                          } catch {
+                            // silent — user can use the Downloads page as fallback
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: '1px solid rgba(16,185,129,0.35)',
+                          background: 'rgba(16,185,129,0.1)',
+                          color: '#34d399',
+                          fontSize: 10,
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Download size={11} />
+                        Download {(log.output.export_format as string | undefined)?.toUpperCase() ?? 'File'}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Output data */}
                   {log.output && Object.keys(log.output).length > 0 && (
