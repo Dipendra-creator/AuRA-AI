@@ -23,6 +23,7 @@ func NewExecutionHandler(svc *service.PipelineExecService) *ExecutionHandler {
 }
 
 // Execute handles POST /api/v1/pipelines/{id}/execute
+// The execution starts asynchronously; the run record is returned immediately.
 func (h *ExecutionHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseObjectID(w, r)
 	if !ok {
@@ -43,31 +44,14 @@ func (h *ExecutionHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		input.Fields = inputData
 	}
 
-	// Execute pipeline synchronously (small pipelines)
-	// For long pipelines, the WebSocket handler should be used instead
-	progressCh := make(chan domain.PipelineEvent, 64)
-
-	// Drain progress events in a goroutine
-	go func() {
-		for range progressCh {
-			// Events are consumed silently in the REST path.
-			// Use WebSocket for real-time streaming.
-		}
-	}()
-
-	run, err := h.svc.Execute(r.Context(), id, input, progressCh)
+	// Start asynchronously — returns the run record immediately with status "running".
+	run, err := h.svc.ExecuteAsync(r.Context(), id, input)
 	if err != nil {
-		// If we have a run record (partial results), return it with 200
-		// so the frontend can show exactly which node failed.
-		if run != nil {
-			domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(run))
-			return
-		}
 		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse(err.Error()))
 		return
 	}
 
-	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(run))
+	domain.WriteJSON(w, http.StatusAccepted, domain.SuccessResponse(run))
 }
 
 // ListRuns handles GET /api/v1/pipelines/{id}/runs

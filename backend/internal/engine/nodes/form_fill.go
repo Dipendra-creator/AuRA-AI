@@ -2,8 +2,11 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/aura-ai/backend/internal/domain"
 	"github.com/aura-ai/backend/internal/engine"
@@ -22,7 +25,8 @@ func (e *FormFillExecutor) Validate(node domain.PipelineNode) error {
 	return nil
 }
 
-// Execute maps extracted fields to a form template using the configured field mapping.
+// Execute maps extracted fields to a form template using the configured field mapping
+// and writes a JSON artifact to uploads/form_results_{nodeID}.json.
 func (e *FormFillExecutor) Execute(ctx context.Context, node domain.PipelineNode, input engine.DataPacket) (engine.DataPacket, error) {
 	output := input.Clone()
 	output.Metadata.SourceNode = node.NodeID
@@ -99,6 +103,20 @@ func (e *FormFillExecutor) Execute(ctx context.Context, node domain.PipelineNode
 		}
 	}
 
+	// Write JSON artifact file.
+	artifactPath, err := writeFormResultArtifact(node.NodeID, filledFields)
+	if err != nil {
+		// Non-fatal: log but don't fail the node.
+		slog.Warn("form_fill: failed to write artifact", "node", node.Name, "error", err)
+	} else {
+		output.Fields["form_result_artifact"] = artifactPath
+		output.Files = append(output.Files, engine.FileReference{
+			Path:     artifactPath,
+			Name:     filepath.Base(artifactPath),
+			MimeType: "application/json",
+		})
+	}
+
 	// Merge filled fields into output
 	for k, v := range filledFields {
 		output.Fields[k] = v
@@ -112,4 +130,29 @@ func (e *FormFillExecutor) Execute(ctx context.Context, node domain.PipelineNode
 	)
 
 	return output, nil
+}
+
+// writeFormResultArtifact writes the filled fields as a JSON file and returns its path.
+func writeFormResultArtifact(nodeID string, fields map[string]any) (string, error) {
+	dir := "uploads"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+
+	filename := fmt.Sprintf("form_results_%s.json", nodeID)
+	path := filepath.Join(dir, filename)
+
+	file, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(fields); err != nil {
+		return "", err
+	}
+
+	return path, nil
 }

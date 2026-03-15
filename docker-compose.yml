@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: antigravity-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: antigravity
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: antigravity-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: antigravity-backend
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    environment:
+      MONGO_URI: 'mongodb://mongodb:27017'
+      MONGO_DB: 'antigravity'
+      PORT: '8080'
+      CORS_ORIGINS: '*'
+      KILO_API_KEY: '${KILO_API_KEY:-}'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  mongo_data:
+  redis_data:
+  uploads_data:

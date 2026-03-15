@@ -15,6 +15,19 @@
 import type { AnalysisEvent } from './api-client'
 import type { SchemaField } from '../../../shared/types/document.types'
 
+/** A pipeline execution event received from the backend */
+export interface PipelineEvent {
+  readonly type: string
+  readonly pipelineId?: string
+  readonly runId?: string
+  readonly nodeId?: string
+  readonly nodeName?: string
+  readonly output?: Record<string, unknown>
+  readonly fields?: string[]
+  readonly error?: string
+  readonly durationMs?: number
+}
+
 const WS_URL = 'ws://localhost:8080/api/v1/ws'
 
 type ConnectionState = 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED'
@@ -45,6 +58,14 @@ interface AnalysisSubscription {
   readonly onError?: (err: Error) => void
 }
 
+/** Active pipeline run subscription */
+interface PipelineRunSubscription {
+  readonly runId: string
+  readonly onEvent: (event: PipelineEvent) => void
+  readonly onDone?: () => void
+  readonly onError?: (err: Error) => void
+}
+
 class WebSocketClient {
   private ws: WebSocket | null = null
   private state: ConnectionState = 'DISCONNECTED'
@@ -54,6 +75,7 @@ class WebSocketClient {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
   private pongTimer: ReturnType<typeof setTimeout> | null = null
   private activeSubscription: AnalysisSubscription | null = null
+  private pipelineSubscriptions: Map<string, PipelineRunSubscription> = new Map()
   private connectPromise: Promise<void> | null = null
 
   /** Establishes connection if not already connected. */
@@ -101,6 +123,12 @@ class WebSocketClient {
           this.activeSubscription = null
         }
 
+        // Notify pipeline subscriptions of disconnect
+        for (const sub of this.pipelineSubscriptions.values()) {
+          sub.onError?.(new Error('WebSocket connection closed'))
+        }
+        this.pipelineSubscriptions.clear()
+
         // Auto-reconnect if it wasn't a clean close
         if (event.code !== 1000) {
           this.scheduleReconnect()
@@ -127,6 +155,7 @@ class WebSocketClient {
     this.stopHeartbeat()
     this.clearReconnectTimer()
     this.activeSubscription = null
+    this.pipelineSubscriptions.clear()
     this.connectPromise = null
 
     if (this.ws) {
@@ -179,12 +208,40 @@ class WebSocketClient {
     }
   }
 
+  /**
+   * Subscribes to real-time events for a pipeline run over the WebSocket.
+   * Returns a cleanup function to cancel the subscription.
+   */
+  subscribePipelineRun(
+    runId: string,
+    onEvent: (event: PipelineEvent) => void,
+    onDone?: () => void,
+    onError?: (err: Error) => void
+  ): () => void {
+    const sub: PipelineRunSubscription = { runId, onEvent, onDone, onError }
+    this.pipelineSubscriptions.set(runId, sub)
+
+    this.connect()
+      .then(() => {
+        this.send({ action: 'subscribe_pipeline_run', runId })
+      })
+      .catch((err) => {
+        onError?.(err instanceof Error ? err : new Error(String(err)))
+        this.pipelineSubscriptions.delete(runId)
+      })
+
+    // Return cleanup function
+    return () => {
+      this.pipelineSubscriptions.delete(runId)
+    }
+  }
+
   // ── Private Methods ──────────────────────────────────────────────
 
   private handleMessage(raw: string): void {
-    let data: WSInbound
+    let data: WSInbound & { runId?: string }
     try {
-      data = JSON.parse(raw) as WSInbound
+      data = JSON.parse(raw) as WSInbound & { runId?: string }
     } catch {
       console.warn('[WS] Failed to parse message:', raw)
       return
@@ -196,7 +253,26 @@ class WebSocketClient {
       return
     }
 
-    // Route to active subscription
+    // Route pipeline events to matching pipeline subscription.
+    // Pipeline events have a runId and types prefixed with "pipeline:".
+    if (data.runId && data.type?.startsWith('pipeline:')) {
+      const sub = this.pipelineSubscriptions.get(data.runId)
+      if (sub) {
+        sub.onEvent(data as PipelineEvent)
+        // Terminal pipeline events
+        if (
+          data.type === 'pipeline:run:complete' ||
+          data.type === 'pipeline:run:failed' ||
+          data.type === 'pipeline:run:cancelled'
+        ) {
+          this.pipelineSubscriptions.delete(data.runId)
+          sub.onDone?.()
+        }
+        return
+      }
+    }
+
+    // Route to active analysis subscription
     if (!this.activeSubscription) {
       return
     }

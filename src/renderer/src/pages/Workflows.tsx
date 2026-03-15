@@ -10,11 +10,14 @@ import {
   getAllPipelines,
   updatePipeline,
   executePipeline,
-  getPipelineRun,
   createPipeline,
   deletePipeline,
   listPipelineRuns,
-  type PipelineListItem
+  subscribePipelineRun,
+  approveReview,
+  rejectReview,
+  type PipelineListItem,
+  type PipelineEvent
 } from '../data/data-service'
 import type {
   PipelineNode,
@@ -36,7 +39,10 @@ import {
   Loader2,
   Workflow,
   Layers,
-  GitBranch
+  GitBranch,
+  ThumbsUp,
+  ThumbsDown,
+  PauseCircle
 } from 'lucide-react'
 
 type ViewMode = 'dashboard' | 'editor'
@@ -59,7 +65,9 @@ function StatusBadge({
     failed: { bg: 'rgba(239,68,68,0.12)', text: '#f87171', border: 'rgba(239,68,68,0.25)' },
     running: { bg: 'rgba(99,102,241,0.12)', text: '#a5b4fc', border: 'rgba(99,102,241,0.25)' },
     pending: { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
+    paused: { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
     cancelled: { bg: 'rgba(156,163,175,0.12)', text: '#9ca3af', border: 'rgba(156,163,175,0.25)' },
+    waiting_review: { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
     operational: {
       bg: 'rgba(16,185,129,0.12)',
       text: '#34d399',
@@ -100,6 +108,8 @@ function RunStatusIcon({ status }: Readonly<{ status: string }>): ReactElement {
       return (
         <Loader2 size={14} style={{ color: '#a5b4fc', animation: 'spin 1s linear infinite' }} />
       )
+    case 'paused':
+      return <PauseCircle size={14} style={{ color: '#fbbf24' }} />
     default:
       return <Clock size={14} style={{ color: '#9ca3af' }} />
   }
@@ -172,11 +182,14 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   // Editor state
   const [editingPipeline, setEditingPipeline] = useState<PipelineListItem | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [runStatus, setRunStatus] = useState<string>('')
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [nodeStatuses, setNodeStatuses] = useState<Record<string, NodeRunInfo>>({})
   const [executionLogs, setExecutionLogs] = useState<NodeRunResult[]>([])
   const [showLogPanel, setShowLogPanel] = useState(false)
   const [selectedLogNodeId, setSelectedLogNodeId] = useState<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // WS subscription cleanup ref
+  const wsUnsubRef = useRef<(() => void) | null>(null)
 
   // Creating pipeline
   const [showCreate, setShowCreate] = useState(false)
@@ -213,10 +226,10 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     loadPipelines()
   }, [loadPipelines])
 
-  // Cleanup polling
+  // Cleanup WS subscription on unmount
   useEffect(() => {
     return (): void => {
-      if (pollRef.current) clearInterval(pollRef.current)
+      wsUnsubRef.current?.()
     }
   }, [])
 
@@ -268,7 +281,8 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   /* ── Back to Dashboard ──────────────────────────────────────── */
 
   const backToDashboard = useCallback(async () => {
-    if (pollRef.current) clearInterval(pollRef.current)
+    wsUnsubRef.current?.()
+    wsUnsubRef.current = null
     setEditingPipeline(null)
     setView('dashboard')
     setLoading(true)
@@ -290,40 +304,113 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     [editingPipeline, addToast]
   )
 
-  /* ── Polling ────────────────────────────────────────────────── */
+  /* ── WS subscription for pipeline run events ───────────────── */
 
-  const startPolling = useCallback(
-    (pipelineId: string, runId: string) => {
-      if (pollRef.current) clearInterval(pollRef.current)
-      pollRef.current = setInterval(async () => {
-        try {
-          const run: PipelineRun = await getPipelineRun(pipelineId, runId)
-          const statuses: Record<string, NodeRunInfo> = {}
-          for (const nr of run.nodeRuns ?? []) {
-            statuses[nr.nodeId] = {
-              status: nr.status,
-              error: nr.error,
-              durationMs: nr.durationMs,
-              output: nr.output
-            }
+  const startRunSubscription = useCallback(
+    (runId: string) => {
+      // Cancel any previous subscription.
+      wsUnsubRef.current?.()
+
+      const unsub = subscribePipelineRun(
+        runId,
+        (evt: PipelineEvent) => {
+          if (evt.nodeId && evt.type === 'pipeline:node:complete') {
+            setNodeStatuses((prev) => ({
+              ...prev,
+              [evt.nodeId!]: {
+                status: 'completed',
+                durationMs: evt.durationMs,
+                output: evt.output
+              }
+            }))
+            setExecutionLogs((prev) => {
+              const existing = prev.findIndex((n) => n.nodeId === evt.nodeId)
+              const updated: NodeRunResult = {
+                nodeId: evt.nodeId!,
+                status: 'completed',
+                startedAt: new Date().toISOString(),
+                durationMs: evt.durationMs ?? 0,
+                output: evt.output
+              }
+              if (existing >= 0) {
+                const copy = [...prev]
+                copy[existing] = updated
+                return copy
+              }
+              return [...prev, updated]
+            })
           }
-          setNodeStatuses(statuses)
-          setExecutionLogs([...(run.nodeRuns ?? [])])
 
-          if (['completed', 'failed', 'cancelled'].includes(run.status)) {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
+          if (evt.nodeId && evt.type === 'pipeline:node:start') {
+            setNodeStatuses((prev) => ({
+              ...prev,
+              [evt.nodeId!]: { status: 'running' }
+            }))
+          }
+
+          if (evt.nodeId && evt.type === 'pipeline:node:error') {
+            setNodeStatuses((prev) => ({
+              ...prev,
+              [evt.nodeId!]: { status: 'failed', error: evt.error }
+            }))
+          }
+
+          if (evt.nodeId && evt.type === 'pipeline:node:skipped') {
+            setNodeStatuses((prev) => ({
+              ...prev,
+              [evt.nodeId!]: { status: 'skipped' }
+            }))
+          }
+
+          if (evt.type === 'pipeline:run:paused') {
+            setRunStatus('paused')
             setIsExecuting(false)
-            if (run.status === 'completed') addToast('success', 'Pipeline execution completed')
-            else if (run.status === 'failed') {
-              const fn = (run.nodeRuns ?? []).find((n) => n.status === 'failed')
-              addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
+            if (evt.nodeId) {
+              setActiveRunId(runId)
+              setNodeStatuses((prev) => ({
+                ...prev,
+                [evt.nodeId!]: { status: 'waiting_review' }
+              }))
             }
+            addToast('info', 'Pipeline paused — waiting for review approval')
           }
-        } catch {
-          /* keep trying */
+
+          if (evt.type === 'pipeline:run:complete') {
+            setRunStatus('completed')
+            setIsExecuting(false)
+            setActiveRunId(null)
+            addToast('success', 'Pipeline execution completed')
+          }
+
+          if (evt.type === 'pipeline:run:failed') {
+            setRunStatus('failed')
+            setIsExecuting(false)
+            setActiveRunId(null)
+            addToast('error', evt.error ? `Pipeline failed: ${evt.error}` : 'Pipeline failed')
+          }
+
+          if (evt.type === 'pipeline:run:cancelled') {
+            setRunStatus('cancelled')
+            setIsExecuting(false)
+            setActiveRunId(null)
+          }
+
+          if (evt.type === 'pipeline:run:resumed') {
+            setRunStatus('running')
+            setIsExecuting(true)
+          }
+        },
+        () => {
+          // onDone — subscription closed
+          wsUnsubRef.current = null
+        },
+        (err) => {
+          console.warn('[WS] Pipeline subscription error:', err)
+          wsUnsubRef.current = null
         }
-      }, 1000)
+      )
+
+      wsUnsubRef.current = unsub
     },
     [addToast]
   )
@@ -333,40 +420,72 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   const handleExecute = useCallback(async () => {
     if (!editingPipeline) return
     setIsExecuting(true)
+    setRunStatus('running')
     setNodeStatuses({})
     setExecutionLogs([])
     setShowLogPanel(true)
+    setActiveRunId(null)
 
     try {
+      // POST /execute returns immediately with status "running" (async execution).
       const run = await executePipeline(editingPipeline._id)
-      const statuses: Record<string, NodeRunInfo> = {}
-      for (const nr of run.nodeRuns ?? []) {
-        statuses[nr.nodeId] = {
-          status: nr.status,
-          error: nr.error,
-          durationMs: nr.durationMs,
-          output: nr.output
-        }
-      }
-      setNodeStatuses(statuses)
-      setExecutionLogs([...(run.nodeRuns ?? [])])
-
-      if (['completed', 'failed', 'cancelled'].includes(run.status)) {
-        setIsExecuting(false)
-        if (run.status === 'completed') addToast('success', 'Pipeline execution completed')
-        else if (run.status === 'failed') {
-          const fn = (run.nodeRuns ?? []).find((n) => n.status === 'failed')
-          addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
-        }
-      } else {
-        addToast('success', `Run started (${run._id})`)
-        startPolling(editingPipeline._id, run._id)
-      }
+      setActiveRunId(run._id)
+      addToast('success', `Run started (${run._id.slice(-6)})`)
+      // Subscribe to real-time events via WebSocket.
+      startRunSubscription(run._id)
     } catch (err) {
       setIsExecuting(false)
+      setRunStatus('')
       addToast('error', `Execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
-  }, [editingPipeline, addToast, startPolling])
+  }, [editingPipeline, addToast, startRunSubscription])
+
+  /* ── Approve / Reject review node ──────────────────────────── */
+
+  const handleApproveReview = useCallback(async () => {
+    if (!activeRunId) return
+    const reviewNode = executionLogs.find((n) => n.status === 'waiting_review')
+    if (!reviewNode) {
+      addToast('error', 'No review node found to approve')
+      return
+    }
+    try {
+      await approveReview(activeRunId, reviewNode.nodeId)
+      addToast('success', 'Review approved — pipeline resuming')
+      setRunStatus('running')
+      setIsExecuting(true)
+      setNodeStatuses((prev) => ({
+        ...prev,
+        [reviewNode.nodeId]: { status: 'completed' }
+      }))
+      // Re-subscribe to the same run to catch resumed events.
+      startRunSubscription(activeRunId)
+    } catch (err) {
+      addToast('error', `Approve failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }, [activeRunId, executionLogs, addToast, startRunSubscription])
+
+  const handleRejectReview = useCallback(async () => {
+    if (!activeRunId) return
+    const reviewNode = executionLogs.find((n) => n.status === 'waiting_review')
+    if (!reviewNode) {
+      addToast('error', 'No review node found to reject')
+      return
+    }
+    try {
+      await rejectReview(activeRunId, reviewNode.nodeId)
+      addToast('error', 'Review rejected — pipeline failed')
+      setRunStatus('failed')
+      setIsExecuting(false)
+      setActiveRunId(null)
+      setNodeStatuses((prev) => ({
+        ...prev,
+        [reviewNode.nodeId]: { status: 'failed', error: 'Rejected by user' }
+      }))
+    } catch (err) {
+      addToast('error', `Reject failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }, [activeRunId, executionLogs, addToast])
 
   const handleLogNodeClick = useCallback((nodeId: string) => {
     setSelectedLogNodeId((prev) => (prev === nodeId ? null : nodeId))
@@ -409,12 +528,77 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
           )}
         </div>
 
+        {/* Review gate banner — shown when pipeline is paused waiting for human approval */}
+        {runStatus === 'paused' && executionLogs.some((n) => n.status === 'waiting_review') && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 18px',
+              background: 'rgba(251,191,36,0.08)',
+              borderTop: '1px solid rgba(251,191,36,0.2)',
+              gap: 12
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <PauseCircle size={16} style={{ color: '#fbbf24', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+                <strong style={{ color: '#fbbf24' }}>Waiting for Review</strong> — A review node
+                requires your approval before the pipeline can continue.
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={handleRejectReview}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '6px 14px',
+                  borderRadius: 7,
+                  border: '1px solid rgba(239,68,68,0.35)',
+                  background: 'rgba(239,68,68,0.1)',
+                  color: '#f87171',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                <ThumbsDown size={13} /> Reject
+              </button>
+              <button
+                onClick={handleApproveReview}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '6px 14px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <ThumbsUp size={13} /> Approve
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Bottom status bar */}
         <div className="workflow-status-bar">
           <div className="status-bar-left">
             <span className="status-bar-label">
               STATUS:{' '}
-              {isExecuting ? 'EXECUTING' : (editingPipeline.status?.toUpperCase() ?? 'IDLE')}
+              {runStatus
+                ? runStatus.toUpperCase()
+                : isExecuting
+                  ? 'EXECUTING'
+                  : (editingPipeline.status?.toUpperCase() ?? 'IDLE')}
             </span>
           </div>
           <div className="status-bar-right">

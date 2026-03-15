@@ -32,6 +32,9 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 		aiClient = aiservice.NewKiloClient(kiloAPIKey)
 	}
 
+	// --- Pipeline Event Broker ---
+	broker := engine.NewPipelineEventBroker()
+
 	// --- Engine: Node Registry ---
 	registry := engine.NewNodeRegistry()
 	registry.Register(domain.NodeTypeDocSelect, nodes.NewDocSelectExecutor(docRepo))
@@ -50,7 +53,7 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	docSvc := service.NewDocumentService(docRepo, kiloAPIKey)
 	dashSvc := service.NewDashboardService(docRepo, pipelineRepo)
 	pipeSvc := service.NewPipelineService(pipelineRepo)
-	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor)
+	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor, broker)
 
 	// --- Handlers ---
 	docH := handler.NewDocumentHandler(docSvc)
@@ -58,9 +61,9 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	pipeH := handler.NewPipelineHandler(pipeSvc)
 	actH := handler.NewActivityHandler(activityRepo)
 	exportH := handler.NewExportHandler(docSvc)
-	wsH := handler.NewWSHandler(docSvc)
+	wsH := handler.NewWSHandler(docSvc, broker)
 	execH := handler.NewExecutionHandler(pipeExecSvc)
-	reviewH := handler.NewReviewHandler(runRepo)
+	reviewH := handler.NewReviewHandler(runRepo, pipeExecSvc)
 	formH := handler.NewFormTemplateHandler(formTemplateRepo)
 	schemaH := handler.NewSchemaHandler(schemaRepo)
 
