@@ -191,8 +191,8 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
   const [selectedLogNodeId, setSelectedLogNodeId] = useState<string | null>(null)
   // WS subscription cleanup ref
   const wsUnsubRef = useRef<(() => void) | null>(null)
-  // Fallback timer ref
-  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Fallback poll interval ref (used when WS closes before run finishes)
+  const fallbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Creating pipeline
   const [showCreate, setShowCreate] = useState(false)
@@ -229,11 +229,11 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     loadPipelines()
   }, [loadPipelines])
 
-  // Cleanup WS subscription and fallback timer on unmount
+  // Cleanup WS subscription and fallback poll on unmount
   useEffect(() => {
     return (): void => {
       wsUnsubRef.current?.()
-      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
+      if (fallbackIntervalRef.current) clearInterval(fallbackIntervalRef.current)
     }
   }, [])
 
@@ -350,6 +350,19 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
               ...prev,
               [evt.nodeId!]: { status: 'running' }
             }))
+            // Add a 'running' placeholder to the log panel immediately
+            setExecutionLogs((prev) => {
+              if (prev.some((n) => n.nodeId === evt.nodeId)) return prev
+              return [
+                ...prev,
+                {
+                  nodeId: evt.nodeId!,
+                  status: 'running' as NodeRunResult['status'],
+                  startedAt: new Date().toISOString(),
+                  durationMs: 0
+                }
+              ]
+            })
           }
 
           if (evt.nodeId && evt.type === 'pipeline:node:error') {
@@ -391,6 +404,11 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
           }
 
           if (evt.type === 'pipeline:run:complete') {
+            // Stop polling — WS got here first
+            if (fallbackIntervalRef.current) {
+              clearInterval(fallbackIntervalRef.current)
+              fallbackIntervalRef.current = null
+            }
             setRunStatus('completed')
             setIsExecuting(false)
             setActiveRunId(null)
@@ -409,6 +427,11 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
           }
 
           if (evt.type === 'pipeline:run:failed') {
+            // Stop polling — WS got here first
+            if (fallbackIntervalRef.current) {
+              clearInterval(fallbackIntervalRef.current)
+              fallbackIntervalRef.current = null
+            }
             setRunStatus('failed')
             setIsExecuting(false)
             setActiveRunId(null)
@@ -463,10 +486,10 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
     setShowLogPanel(true)
     setActiveRunId(null)
 
-    // Clear any previous fallback timer
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current)
-      fallbackTimerRef.current = null
+    // Clear any previous fallback poll
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current)
+      fallbackIntervalRef.current = null
     }
 
     try {
@@ -479,36 +502,53 @@ export function Workflows({ addToast }: Readonly<WorkflowsProps>): ReactElement 
       // Subscribe to real-time events via WebSocket.
       startRunSubscription(pipelineId, runId)
 
-      // Fallback: if WS events don't arrive within 5s, poll the API for final status.
-      fallbackTimerRef.current = setTimeout(() => {
-        fallbackTimerRef.current = null
-        // Check current executing state without using a state updater for side effects
-        setIsExecuting((stillRunning) => {
-          if (!stillRunning) return stillRunning // already resolved via WS
-          // Schedule the async fetch outside the state updater
-          Promise.resolve().then(() => {
-            getPipelineRun(pipelineId, runId)
-              .then((latest) => {
-                if (['completed', 'failed', 'cancelled', 'paused'].includes(latest.status)) {
-                  const statuses: Record<string, NodeRunInfo> = {}
-                  for (const nr of latest.nodeRuns ?? []) {
-                    statuses[nr.nodeId] = { status: nr.status, error: nr.error, durationMs: nr.durationMs, output: nr.output }
-                  }
-                  setNodeStatuses(statuses)
-                  setExecutionLogs([...(latest.nodeRuns ?? [])])
-                  setRunStatus(latest.status)
-                  setIsExecuting(false)
-                  if (latest.status === 'completed') addToast('success', 'Pipeline execution completed')
-                  else if (latest.status === 'failed') {
-                    const fn = (latest.nodeRuns ?? []).find((n) => n.status === 'failed')
-                    addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
+      // Fallback: poll every 5s so long-running nodes (e.g. AI extract ~60s)
+      // are reflected in the UI even when the WS connection closes early.
+      fallbackIntervalRef.current = setInterval(() => {
+        getPipelineRun(pipelineId, runId)
+          .then((latest) => {
+            // Always sync the per-node log entries from the DB on each poll
+            const statuses: Record<string, NodeRunInfo> = {}
+            for (const nr of latest.nodeRuns ?? []) {
+              statuses[nr.nodeId] = {
+                status: nr.status,
+                error: nr.error,
+                durationMs: nr.durationMs,
+                output: nr.output
+              }
+            }
+            setNodeStatuses((prev) => ({ ...prev, ...statuses }))
+            // Merge DB node runs into executionLogs (completed/failed/skipped entries)
+            if ((latest.nodeRuns ?? []).length > 0) {
+              setExecutionLogs((prev) => {
+                const merged = [...prev]
+                for (const nr of latest.nodeRuns ?? []) {
+                  const idx = merged.findIndex((n) => n.nodeId === nr.nodeId)
+                  if (idx >= 0) {
+                    merged[idx] = nr
+                  } else {
+                    merged.push(nr)
                   }
                 }
+                return merged
               })
-              .catch(() => {})
+            }
+            // Stop polling when run reaches a terminal state
+            if (['completed', 'failed', 'cancelled', 'paused'].includes(latest.status)) {
+              if (fallbackIntervalRef.current) {
+                clearInterval(fallbackIntervalRef.current)
+                fallbackIntervalRef.current = null
+              }
+              setRunStatus(latest.status)
+              setIsExecuting(false)
+              if (latest.status === 'completed') addToast('success', 'Pipeline execution completed')
+              else if (latest.status === 'failed') {
+                const fn = (latest.nodeRuns ?? []).find((n) => n.status === 'failed')
+                addToast('error', fn ? `Failed: ${fn.error}` : 'Pipeline failed')
+              }
+            }
           })
-          return stillRunning // don't change state here; let the fetch callback do it
-        })
+          .catch(() => {})
       }, 5000)
     } catch (err) {
       setIsExecuting(false)

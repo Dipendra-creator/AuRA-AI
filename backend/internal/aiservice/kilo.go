@@ -75,13 +75,13 @@ type extractedFieldJSON struct {
 	Confidence float64 `json:"confidence"`
 }
 
-// ExtractFields sends document text to the AI and returns structured fields.
-func (c *KiloClient) ExtractFields(ctx context.Context, documentText string, documentType domain.DocumentType) ([]domain.ExtractedField, error) {
-	if strings.TrimSpace(documentText) == "" {
-		return nil, fmt.Errorf("document text is empty")
+// Chat sends a pre-built prompt string to the AI and returns the raw text response.
+// Use this when the caller has already constructed the full prompt and wants to
+// avoid the internal prompt-wrapping done by ExtractFields.
+func (c *KiloClient) Chat(ctx context.Context, prompt string) (string, error) {
+	if strings.TrimSpace(prompt) == "" {
+		return "", fmt.Errorf("prompt is empty")
 	}
-
-	prompt := buildExtractionPrompt(documentText, documentType)
 
 	reqBody := chatRequest{
 		Model: c.model,
@@ -99,47 +99,62 @@ func (c *KiloClient) ExtractFields(ctx context.Context, documentText string, doc
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf(errMsgMarshalReq, err)
+		return "", fmt.Errorf(errMsgMarshalReq, err)
 	}
 
 	url := kiloBaseURL + chatCompletionsPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf(errMsgCreateReq, err)
+		return "", fmt.Errorf(errMsgCreateReq, err)
 	}
 	req.Header.Set(headerContentType, contentTypeJSON)
 	req.Header.Set("Authorization", authBearerPrefix+c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("AI API request failed: %w", err)
+		return "", fmt.Errorf("AI API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read AI response: %w", err)
+		return "", fmt.Errorf("failed to read AI response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AI API returned status %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("AI API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var chatResp chatResponse
 	if err := json.Unmarshal(respBody, &chatResp); err != nil {
-		return nil, fmt.Errorf("failed to parse AI response: %w", err)
+		return "", fmt.Errorf("failed to parse AI response: %w", err)
 	}
 
 	if chatResp.Error != nil {
-		return nil, fmt.Errorf("AI API error: %s", chatResp.Error.Message)
+		return "", fmt.Errorf("AI API error: %s", chatResp.Error.Message)
 	}
 
 	if len(chatResp.Choices) == 0 {
-		return nil, fmt.Errorf("AI returned no choices")
+		return "", fmt.Errorf("AI returned no choices")
 	}
 
-	content := chatResp.Choices[0].Message.Content
-	return parseExtractedFields(content)
+	return chatResp.Choices[0].Message.Content, nil
+}
+
+// ExtractFields sends document text to the AI and returns structured fields.
+func (c *KiloClient) ExtractFields(ctx context.Context, documentText string, documentType domain.DocumentType) ([]domain.ExtractedField, error) {
+	if strings.TrimSpace(documentText) == "" {
+		return nil, fmt.Errorf("document text is empty")
+	}
+
+	prompt := buildExtractionPrompt(documentText, documentType)
+
+	content, err := c.Chat(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseExtractedFields(content)
 }
 
 // ExtractFieldsFromPage sends a single page's text to the AI and returns structured fields.
@@ -206,7 +221,7 @@ func (c *KiloClient) ExtractFieldsFromPage(ctx context.Context, pageText string,
 	}
 
 	content := chatResp.Choices[0].Message.Content
-	return parseExtractedFields(content)
+	return ParseExtractedFields(content)
 }
 
 // documentTypeFieldGuide returns a comprehensive list of fields to extract for each document type.
@@ -397,8 +412,8 @@ Page %d text:
 ---`, pageNum, totalPages, typeHint, fieldGuide, pageNum, text)
 }
 
-// parseExtractedFields parses the AI's JSON response into domain fields.
-func parseExtractedFields(content string) ([]domain.ExtractedField, error) {
+// ParseExtractedFields parses the AI's JSON response into domain fields.
+func ParseExtractedFields(content string) ([]domain.ExtractedField, error) {
 	// Clean up common issues: strip markdown fences, trim whitespace
 	content = strings.TrimSpace(content)
 	content = strings.TrimPrefix(content, "```json")
@@ -533,7 +548,7 @@ func (c *KiloClient) ExtractFieldsFromPageWithSchema(ctx context.Context, pageTe
 	}
 
 	content := chatResp.Choices[0].Message.Content
-	return parseExtractedFields(content)
+	return ParseExtractedFields(content)
 }
 
 // buildSchemaFieldGuide converts user-defined schema fields into an AI extraction guide.
