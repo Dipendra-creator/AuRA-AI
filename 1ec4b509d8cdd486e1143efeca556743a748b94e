@@ -1,0 +1,37 @@
+src/renderer/src/components/templates/MiniPipelinePreview.tsx
+  5b391139087859f4 1-116
+src/renderer/src/components/templates/TemplateCard.tsx
+  5b391139087859f4 1-167
+src/renderer/src/data/pipeline-templates.ts
+  5b391139087859f4 1-1034
+src/renderer/src/components/templates/QuickConfigForm.tsx
+  5b391139087859f4 1-107
+src/renderer/src/components/templates/TemplateGrid.tsx
+  5b391139087859f4 1-152
+src/renderer/src/components/templates/TemplatePreviewDrawer.tsx
+  5b391139087859f4 1-327
+src/renderer/src/App.tsx
+  5b391139087859f4 20,26-27,41,72
+src/renderer/src/pages/Templates.tsx
+  5b391139087859f4 1-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "1ec4b509d8cdd486e1143efeca556743a748b94e",
+  "prompts": {
+    "5b391139087859f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61eae633-21ba-4a4e-95cf-4223cd4b582d",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Dipendra Bhardwaj <dipu.sharma.1122@gmail.com>",
+      "messages": [],
+      "total_additions": 2346,
+      "total_deletions": 313,
+      "accepted_lines": 2049,
+      "overriden_lines": 0
+    }
+  }
+}
