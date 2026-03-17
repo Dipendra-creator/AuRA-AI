@@ -4,6 +4,7 @@
  * Manages page routing via state (not react-router for simplicity in Electron).
  * Renders sidebar + content pane layout matching macOS patterns.
  * Provides toast notification context for all pages.
+ * Wraps the app in AuthProvider; shows AuthPage when not authenticated.
  */
 
 import { useState, type ReactElement } from 'react'
@@ -18,6 +19,8 @@ import { ToastContainer, type ToastType } from './components/Toast'
 import { useToast } from './components/useToast'
 import { TrendingUp } from './components/Icons'
 import { Templates } from './pages/Templates'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AuthPage } from './pages/AuthPage'
 
 type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings' | 'downloads'
 
@@ -62,15 +65,53 @@ function renderPage(
   }
 }
 
-export default function App(): ReactElement {
+function AppShell(): ReactElement {
+  const { user, isLoading, logout } = useAuth()
   const [activePage, setActivePage] = useState<PageId>('dashboard')
   const { toasts, addToast, dismissToast } = useToast()
 
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: 'var(--color-bg-dark, #0f172a)',
+          color: '#64748b',
+          fontSize: '14px'
+        }}
+      >
+        Loading...
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthPage />
+  }
+
   return (
     <div className="app-layout">
-      <Sidebar activePage={activePage} onNavigate={(page) => setActivePage(page as PageId)} />
-      <main className="main-content">{renderPage(activePage, addToast, (page) => setActivePage(page as PageId))}</main>
+      <Sidebar
+        activePage={activePage}
+        onNavigate={(page) => setActivePage(page as PageId)}
+        onLogout={logout}
+        user={user}
+      />
+      <main className="main-content">
+        {renderPage(activePage, addToast, (page) => setActivePage(page as PageId))}
+      </main>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
+  )
+}
+
+export default function App(): ReactElement {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   )
 }

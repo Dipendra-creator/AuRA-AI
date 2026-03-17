@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/aura-ai/backend/internal/aiservice"
+	"github.com/aura-ai/backend/internal/config"
 	"github.com/aura-ai/backend/internal/engine"
 	"github.com/aura-ai/backend/internal/engine/nodes"
 	"github.com/aura-ai/backend/internal/handler"
@@ -17,7 +18,7 @@ import (
 )
 
 // NewRouter creates and configures the HTTP router with all routes and middleware.
-func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.Handler {
+func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	// --- Repositories ---
 	docRepo := repository.NewDocumentRepo(db)
 	pipelineRepo := repository.NewPipelineRepo(db)
@@ -25,11 +26,12 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	runRepo := repository.NewPipelineRunRepo(db)
 	formTemplateRepo := repository.NewFormTemplateRepo(db)
 	schemaRepo := repository.NewSchemaRepo(db)
+	userRepo := repository.NewUserRepo(db)
 
 	// --- AI Client ---
 	var aiClient *aiservice.KiloClient
-	if kiloAPIKey != "" {
-		aiClient = aiservice.NewKiloClient(kiloAPIKey)
+	if cfg.KiloAPIKey != "" {
+		aiClient = aiservice.NewKiloClient(cfg.KiloAPIKey)
 	}
 
 	// --- Pipeline Event Broker ---
@@ -50,12 +52,13 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	executor := engine.NewPipelineExecutor(registry, runRepo)
 
 	// --- Services ---
-	docSvc := service.NewDocumentService(docRepo, kiloAPIKey)
+	docSvc := service.NewDocumentService(docRepo, cfg.KiloAPIKey)
 	dashSvc := service.NewDashboardService(docRepo, pipelineRepo)
 	pipeSvc := service.NewPipelineService(pipelineRepo)
 	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor, broker)
 
 	// --- Handlers ---
+	authH := handler.NewAuthHandler(userRepo, cfg)
 	docH := handler.NewDocumentHandler(docSvc)
 	dashH := handler.NewDashboardHandler(dashSvc)
 	pipeH := handler.NewPipelineHandler(pipeSvc)
@@ -68,78 +71,91 @@ func NewRouter(db *mongo.Database, corsOrigins string, kiloAPIKey string) http.H
 	schemaH := handler.NewSchemaHandler(schemaRepo)
 	fileH := handler.NewFileManagerHandler()
 
+	// --- Auth middleware (protects all /api/v1/* routes below) ---
+	requireAuth := middleware.RequireAuth(cfg.JWTSecret, userRepo)
+
 	// --- Routes ---
 	mux := http.NewServeMux()
 
-	// Health
+	// Health (public)
 	mux.HandleFunc("GET /api/v1/health", handler.HealthCheck)
 
-	// WebSocket
-	mux.HandleFunc("GET /api/v1/ws", wsH.HandleWS)
+	// ── Auth routes (public) ──────────────────────────────────────────────────
+	mux.HandleFunc("POST /api/v1/auth/register", authH.Register)
+	mux.HandleFunc("POST /api/v1/auth/login", authH.Login)
+	mux.HandleFunc("GET /api/v1/auth/github", authH.GitHubLogin)
+	mux.HandleFunc("GET /api/v1/auth/github/callback", authH.GitHubCallback)
+	mux.HandleFunc("GET /api/v1/auth/github/status", authH.GitHubStatus)
 
-	// Documents
-	mux.HandleFunc("GET /api/v1/documents", docH.List)
-	mux.HandleFunc("GET /api/v1/documents/{id}", docH.GetByID)
-	mux.HandleFunc("POST /api/v1/documents", docH.Create)
-	mux.HandleFunc("POST /api/v1/documents/upload", docH.Upload)
-	mux.HandleFunc("PATCH /api/v1/documents/{id}", docH.Update)
-	mux.HandleFunc("DELETE /api/v1/documents/{id}", docH.Delete)
-	mux.HandleFunc("POST /api/v1/documents/{id}/analyze", docH.Analyze)
-	mux.HandleFunc("POST /api/v1/documents/{id}/export", exportH.Export)
+	// ── Auth routes (protected) ───────────────────────────────────────────────
+	mux.Handle("GET /api/v1/auth/me", requireAuth(http.HandlerFunc(authH.Me)))
 
-	// Uploaded file serving (for PDF preview)
+	// ── WebSocket (protected) ─────────────────────────────────────────────────
+	mux.Handle("GET /api/v1/ws", requireAuth(http.HandlerFunc(wsH.HandleWS)))
+
+	// ── Documents (protected) ─────────────────────────────────────────────────
+	mux.Handle("GET /api/v1/documents", requireAuth(http.HandlerFunc(docH.List)))
+	mux.Handle("GET /api/v1/documents/{id}", requireAuth(http.HandlerFunc(docH.GetByID)))
+	mux.Handle("POST /api/v1/documents", requireAuth(http.HandlerFunc(docH.Create)))
+	mux.Handle("POST /api/v1/documents/upload", requireAuth(http.HandlerFunc(docH.Upload)))
+	mux.Handle("PATCH /api/v1/documents/{id}", requireAuth(http.HandlerFunc(docH.Update)))
+	mux.Handle("DELETE /api/v1/documents/{id}", requireAuth(http.HandlerFunc(docH.Delete)))
+	mux.Handle("POST /api/v1/documents/{id}/analyze", requireAuth(http.HandlerFunc(docH.Analyze)))
+	mux.Handle("POST /api/v1/documents/{id}/export", requireAuth(http.HandlerFunc(exportH.Export)))
+
+	// Uploaded file serving (protected)
 	fileServer := http.StripPrefix("/api/v1/files/", http.FileServer(http.Dir("uploads")))
-	mux.Handle("GET /api/v1/files/", fileServer)
+	mux.Handle("GET /api/v1/files/", requireAuth(fileServer))
 
-	// Dashboard
-	mux.HandleFunc("GET /api/v1/dashboard/stats", dashH.GetStats)
-	mux.HandleFunc("GET /api/v1/dashboard/chart", dashH.GetChart)
-	mux.HandleFunc("GET /api/v1/dashboard/recent", dashH.GetRecent)
+	// ── Dashboard (protected) ─────────────────────────────────────────────────
+	mux.Handle("GET /api/v1/dashboard/stats", requireAuth(http.HandlerFunc(dashH.GetStats)))
+	mux.Handle("GET /api/v1/dashboard/chart", requireAuth(http.HandlerFunc(dashH.GetChart)))
+	mux.Handle("GET /api/v1/dashboard/recent", requireAuth(http.HandlerFunc(dashH.GetRecent)))
 
-	// Pipelines — CRUD
-	mux.HandleFunc("GET /api/v1/pipelines", pipeH.List)
-	mux.HandleFunc("GET /api/v1/pipelines/{id}", pipeH.GetByID)
-	mux.HandleFunc("POST /api/v1/pipelines", pipeH.Create)
-	mux.HandleFunc("PATCH /api/v1/pipelines/{id}", pipeH.Update)
-	mux.HandleFunc("DELETE /api/v1/pipelines/{id}", pipeH.Delete)
+	// ── Pipelines — CRUD (protected) ──────────────────────────────────────────
+	mux.Handle("GET /api/v1/pipelines", requireAuth(http.HandlerFunc(pipeH.List)))
+	mux.Handle("GET /api/v1/pipelines/{id}", requireAuth(http.HandlerFunc(pipeH.GetByID)))
+	mux.Handle("POST /api/v1/pipelines", requireAuth(http.HandlerFunc(pipeH.Create)))
+	mux.Handle("PATCH /api/v1/pipelines/{id}", requireAuth(http.HandlerFunc(pipeH.Update)))
+	mux.Handle("DELETE /api/v1/pipelines/{id}", requireAuth(http.HandlerFunc(pipeH.Delete)))
 
-	// Pipelines — Execution
-	mux.HandleFunc("POST /api/v1/pipelines/{id}/execute", execH.Execute)
-	mux.HandleFunc("GET /api/v1/pipelines/{id}/runs", execH.ListRuns)
-	mux.HandleFunc("GET /api/v1/pipelines/{id}/runs/{runId}", execH.GetRun)
-	mux.HandleFunc("POST /api/v1/pipelines/{id}/runs/{runId}/cancel", execH.CancelRun)
+	// ── Pipelines — Execution (protected) ─────────────────────────────────────
+	mux.Handle("POST /api/v1/pipelines/{id}/execute", requireAuth(http.HandlerFunc(execH.Execute)))
+	mux.Handle("GET /api/v1/pipelines/{id}/runs", requireAuth(http.HandlerFunc(execH.ListRuns)))
+	mux.Handle("GET /api/v1/pipelines/{id}/runs/{runId}", requireAuth(http.HandlerFunc(execH.GetRun)))
+	mux.Handle("POST /api/v1/pipelines/{id}/runs/{runId}/cancel", requireAuth(http.HandlerFunc(execH.CancelRun)))
 
-	// Pipelines — Validation
-	mux.HandleFunc("POST /api/v1/pipelines/{id}/validate", execH.Validate)
+	// ── Pipelines — Validation (protected) ────────────────────────────────────
+	mux.Handle("POST /api/v1/pipelines/{id}/validate", requireAuth(http.HandlerFunc(execH.Validate)))
 
-	// Review Gate
-	mux.HandleFunc("POST /api/v1/runs/{runId}/nodes/{nodeId}/approve", reviewH.Approve)
-	mux.HandleFunc("POST /api/v1/runs/{runId}/nodes/{nodeId}/reject", reviewH.Reject)
+	// ── Review Gate (protected) ───────────────────────────────────────────────
+	mux.Handle("POST /api/v1/runs/{runId}/nodes/{nodeId}/approve", requireAuth(http.HandlerFunc(reviewH.Approve)))
+	mux.Handle("POST /api/v1/runs/{runId}/nodes/{nodeId}/reject", requireAuth(http.HandlerFunc(reviewH.Reject)))
 
-	// Form Templates
-	mux.HandleFunc("GET /api/v1/form-templates", formH.ListTemplates)
-	mux.HandleFunc("POST /api/v1/form-templates", formH.CreateTemplate)
-	mux.HandleFunc("GET /api/v1/form-templates/{id}", formH.GetTemplate)
-	mux.HandleFunc("DELETE /api/v1/form-templates/{id}", formH.DeleteTemplate)
+	// ── Form Templates (protected) ────────────────────────────────────────────
+	mux.Handle("GET /api/v1/form-templates", requireAuth(http.HandlerFunc(formH.ListTemplates)))
+	mux.Handle("POST /api/v1/form-templates", requireAuth(http.HandlerFunc(formH.CreateTemplate)))
+	mux.Handle("GET /api/v1/form-templates/{id}", requireAuth(http.HandlerFunc(formH.GetTemplate)))
+	mux.Handle("DELETE /api/v1/form-templates/{id}", requireAuth(http.HandlerFunc(formH.DeleteTemplate)))
 
-	// Extraction Schemas
-	mux.HandleFunc("GET /api/v1/schemas", schemaH.ListSchemas)
-	mux.HandleFunc("POST /api/v1/schemas", schemaH.CreateSchema)
-	mux.HandleFunc("GET /api/v1/schemas/{id}", schemaH.GetSchema)
-	mux.HandleFunc("PATCH /api/v1/schemas/{id}", schemaH.UpdateSchema)
-	mux.HandleFunc("DELETE /api/v1/schemas/{id}", schemaH.DeleteSchema)
+	// ── Extraction Schemas (protected) ────────────────────────────────────────
+	mux.Handle("GET /api/v1/schemas", requireAuth(http.HandlerFunc(schemaH.ListSchemas)))
+	mux.Handle("POST /api/v1/schemas", requireAuth(http.HandlerFunc(schemaH.CreateSchema)))
+	mux.Handle("GET /api/v1/schemas/{id}", requireAuth(http.HandlerFunc(schemaH.GetSchema)))
+	mux.Handle("PATCH /api/v1/schemas/{id}", requireAuth(http.HandlerFunc(schemaH.UpdateSchema)))
+	mux.Handle("DELETE /api/v1/schemas/{id}", requireAuth(http.HandlerFunc(schemaH.DeleteSchema)))
 
-	// Export File Management
-	mux.HandleFunc("GET /api/v1/exports", fileH.ListExports)
-	mux.HandleFunc("DELETE /api/v1/exports/{filename}", fileH.DeleteExport)
+	// ── Export File Management (protected) ────────────────────────────────────
+	mux.Handle("GET /api/v1/exports", requireAuth(http.HandlerFunc(fileH.ListExports)))
+	mux.Handle("DELETE /api/v1/exports/{filename}", requireAuth(http.HandlerFunc(fileH.DeleteExport)))
 
-	// Activity
-	mux.HandleFunc("GET /api/v1/activity", actH.List)
-	mux.HandleFunc("POST /api/v1/activity", actH.Create)
+	// ── Activity (protected) ──────────────────────────────────────────────────
+	mux.Handle("GET /api/v1/activity", requireAuth(http.HandlerFunc(actH.List)))
+	mux.Handle("POST /api/v1/activity", requireAuth(http.HandlerFunc(actH.Create)))
 
 	// --- Middleware Chain ---
 	var h http.Handler = mux
-	h = middleware.CORS(corsOrigins)(h)
+	h = middleware.CORS(cfg.CORSOrigins)(h)
 	h = middleware.Logger()(h)
 	h = middleware.RequestID()(h)
 	h = middleware.Recovery()(h)

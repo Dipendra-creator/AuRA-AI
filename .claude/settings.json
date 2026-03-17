@@ -7,7 +7,11 @@
       "Bash(xargs ls:*)",
       "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity -maxdepth 2 -type f -name *.json -o -name README* -o -name Dockerfile* -o -name .env*)",
       "Bash(xargs -I {} basename {})",
-      "Bash(cat /Users/dipendrabhardwaj/Desktop/projects/antigravity/backend/internal/ocr/*.go)"
+      "Bash(cat /Users/dipendrabhardwaj/Desktop/projects/antigravity/backend/internal/ocr/*.go)",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "Bash(go get:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
