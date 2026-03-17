@@ -84,7 +84,7 @@ func TestTruncate(t *testing.T) {
 func TestParseExtractedFields(t *testing.T) {
 	// Case 1: valid response stripped by parseExtractedFields' trim logic
 	resp := "```json\n[{\"fieldName\":\"Test\",\"value\":\"Val\",\"confidence\":0.9}]\n```"
-	fields, err := parseExtractedFields(resp)
+	fields, err := ParseExtractedFields(resp)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -94,7 +94,7 @@ func TestParseExtractedFields(t *testing.T) {
 
 	// Case 2: Empty resulting fields
 	respEmpty := "```json\n[]\n```"
-	_, err = parseExtractedFields(respEmpty)
+	_, err = ParseExtractedFields(respEmpty)
 	if err == nil {
 		t.Errorf("expected error for empty valid fields")
 	}

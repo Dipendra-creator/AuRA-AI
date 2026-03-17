@@ -5,7 +5,7 @@
  *   - Completed nodes show green with duration
  *   - Failed nodes show red with expandable error details
  */
-import { useEffect, useRef, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { NodeRunResult } from '@shared/types/document.types'
 import {
   X,
@@ -57,6 +57,19 @@ const STATUS_CONFIG: Record<
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(2)}s`
+}
+
+/** Shows a live elapsed clock for a running node (ticks every second). */
+function RunningClock({ startedAt }: Readonly<{ startedAt: string }>): ReactElement {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const base = new Date(startedAt).getTime()
+    const tick = (): void => setElapsed(Math.floor((Date.now() - base) / 1000))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [startedAt])
+  return <span style={{ fontSize: 10, color: '#f59e0b', flexShrink: 0 }}>{elapsed}s…</span>
 }
 
 export default function ExecutionLogPanel({
@@ -244,11 +257,15 @@ export default function ExecutionLogPanel({
                   {cfg.label}
                 </span>
 
-                {/* Duration */}
-                {log.durationMs > 0 && (
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
-                    {formatDuration(log.durationMs)}
-                  </span>
+                {/* Duration / running clock */}
+                {log.status === 'running' ? (
+                  <RunningClock startedAt={log.startedAt} />
+                ) : (
+                  log.durationMs > 0 && (
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+                      {formatDuration(log.durationMs)}
+                    </span>
+                  )
                 )}
               </button>
 
