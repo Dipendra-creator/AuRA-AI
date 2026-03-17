@@ -1,0 +1,49 @@
+backend/internal/middleware/auth.go
+  cbc0f0d4fbd087ff 1-55
+src/renderer/src/contexts/AuthContext.tsx
+  cbc0f0d4fbd087ff 1-209
+backend/internal/domain/user.go
+  cbc0f0d4fbd087ff 1-57
+backend/internal/config/config.go
+  cbc0f0d4fbd087ff 19-23,37-41
+backend/.env.example
+  cbc0f0d4fbd087ff 10-22
+src/renderer/src/pages/AuthPage.tsx
+  cbc0f0d4fbd087ff 1-344
+backend/internal/auth/jwt.go
+  cbc0f0d4fbd087ff 1-70
+backend/internal/repository/user_repo.go
+  cbc0f0d4fbd087ff 1-92
+src/renderer/src/App.tsx
+  cbc0f0d4fbd087ff 7,22-23,68-69,73-93,100-101,110-115
+backend/cmd/server/main.go
+  cbc0f0d4fbd087ff 52
+src/renderer/src/data/api-client.ts
+  cbc0f0d4fbd087ff 23-43,46-48,63,80,96-97,108,123-125,136
+src/renderer/src/components/Sidebar.tsx
+  cbc0f0d4fbd087ff 9,14-15,38,100-137
+backend/internal/handler/auth_handler.go
+  cbc0f0d4fbd087ff 1-422
+backend/internal/server/router.go
+  cbc0f0d4fbd087ff 8,21,29,33-34,55,61,74-76,80,83-104,106,108,110-129,131-154,158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.12",
+  "base_commit_sha": "0ed0f5998bf53e22d2229a3c92e3c6485bd00d6c",
+  "prompts": {
+    "cbc0f0d4fbd087ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4ce1db60-5b81-461f-91c9-f0561511a0e4",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Dipendra Bhardwaj <dipu.sharma.1122@gmail.com>",
+      "messages": [],
+      "total_additions": 1504,
+      "total_deletions": 105,
+      "accepted_lines": 1465,
+      "overriden_lines": 0
+    }
+  }
+}
