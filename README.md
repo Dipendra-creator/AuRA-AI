@@ -1,4 +1,4 @@
-# Antigravity (Aura AI)
+# Aura AI
 
 Production-style monorepo for **AI-assisted document processing** with:
 
@@ -11,7 +11,7 @@ Production-style monorepo for **AI-assisted document processing** with:
 
 ## 1) What this project does
 
-Antigravity provides an end-to-end workflow to:
+Aura AI provides an end-to-end workflow to:
 
 1. Upload documents (PDF/image/text)
 2. Extract fields using OCR + AI
@@ -107,7 +107,7 @@ Create `backend/.env` with:
 ```env
 PORT=8080
 MONGO_URI=mongodb://localhost:27017
-MONGO_DB=antigravity
+MONGO_DB=Aura AI
 LOG_LEVEL=info
 CORS_ORIGINS=http://localhost:5173
 REQUEST_TIMEOUT=30s
