@@ -303,3 +303,130 @@ cd backend && go vet ./...
 - `designs/workflow_builder/code.html` — HTML mockup for node styling
 
 All changes must comply with `/.antigravity/rules.md`.
+
+---
+
+## 12. Next Upcoming Task — Templates Marketplace ("Tamplets")
+
+> **Date**: 2026-03-17  
+> **Status**: Planned  
+> **Owner**: Aura AI Team  
+> **Objective**: Build a **Templates Marketplace** page that shows default workflow templates for every team in an organization. Clicking a template should import it into Pipelines so users can run/edit immediately.
+
+---
+
+## 13. Product Scope
+
+### In Scope (v1)
+- New **Templates** page (sidebar item currently labeled `Templates` / page id `ai-models`)
+- Curated default templates by team/domain (Finance, Legal, HR, Healthcare, Government, E-Commerce, General)
+- Search + category filters
+- Template card preview with mini workflow DAG
+- "Use Template" action that creates a real pipeline via existing API
+- Redirect user to Workflows page after successful import
+
+### Out of Scope (v1)
+- User-created custom template publishing
+- Template version upgrades/migrations
+- Rating/review marketplace mechanics
+- Org-private RBAC-based template catalogs
+
+---
+
+## 14. Functional Requirements
+
+1. User opens **Templates** page.
+2. User sees default template catalog grouped by team categories.
+3. User can search templates by name/description.
+4. User clicks a template card to open details drawer.
+5. User can optionally set quick config (e.g., workflow name, export format, webhook URL).
+6. User clicks **Use This Template**.
+7. App generates a pipeline payload from template definition.
+8. App calls existing `POST /api/v1/pipelines`.
+9. New pipeline appears in Workflows and is ready to execute.
+
+---
+
+## 15. Technical Design
+
+### 15.1 Data Strategy
+- Use **frontend static seeded template registry** for v1.
+- Keep backend unchanged for browsing.
+- Use current pipeline create endpoint for import.
+
+### 15.2 Core Interfaces
+- `PipelineTemplate`
+- `TemplateCategory`
+- `QuickConfigField`
+- `buildPipelineFromTemplate(template, quickConfig)`
+
+### 15.3 Import Behavior
+- Deep clone `defaultPipeline` from selected template.
+- Apply quick-config values to mapped node config keys.
+- Generate unique workflow name if collision occurs (`(2)`, `(3)`, ...).
+- Submit to create pipeline API.
+
+---
+
+## 16. Implementation Phases
+
+### Phase A — Foundations (High)
+- Add template type definitions and registry data file
+- Seed initial catalog (minimum 12 high-value templates)
+- Implement template-to-pipeline transformer utility
+
+### Phase B — Templates Page UI (High)
+- Build `Templates.tsx` page with:
+    - Header + search
+    - Category tabs
+    - Responsive template grid
+- Implement template cards with metadata and mini DAG strip
+
+### Phase C — Preview + Quick Config (High)
+- Add right-side preview drawer
+- Render quick-config dynamic form based on `QuickConfigField[]`
+- Add loading and error states for "Use Template"
+
+### Phase D — Import + Navigation (High)
+- Wire create pipeline call to existing data service
+- On success: show toast + navigate to Workflows page
+- Ensure imported pipeline opens with correct nodes/edges/config
+
+### Phase E — UX Polish (Medium)
+- Empty state for no search results
+- Offline/disabled create state
+- Duplicate naming safeguards
+- Subtle visual polish aligned with Aura dark-glass style
+
+---
+
+## 17. File Change Plan
+
+### New Files
+- `src/renderer/src/pages/Templates.tsx`
+- `src/renderer/src/data/pipeline-templates.ts`
+- `src/renderer/src/components/templates/TemplateGrid.tsx`
+- `src/renderer/src/components/templates/TemplateCard.tsx`
+- `src/renderer/src/components/templates/TemplatePreviewDrawer.tsx`
+- `src/renderer/src/components/templates/MiniPipelinePreview.tsx`
+- `src/renderer/src/components/templates/QuickConfigForm.tsx`
+
+### Modified Files
+- `src/renderer/src/App.tsx` (route `ai-models` to templates page)
+- `src/renderer/src/data/data-service.ts` (reuse/create pipeline API call path if needed)
+
+### Backend Changes
+- **No backend changes required for v1**
+
+---
+
+## 18. Acceptance Criteria
+
+- [ ] Templates page loads and displays default catalog
+- [ ] Category filter + search work correctly
+- [ ] Template detail drawer opens with workflow preview
+- [ ] Quick-config values are applied to imported pipeline
+- [ ] Clicking "Use This Template" creates pipeline successfully
+- [ ] User is redirected to Workflows and can run imported pipeline
+- [ ] API failure shows recoverable error state (retry without data loss)
+- [ ] Duplicate workflow names are handled gracefully

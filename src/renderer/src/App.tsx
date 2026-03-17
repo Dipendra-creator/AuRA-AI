@@ -16,11 +16,16 @@ import { Settings } from './pages/Settings'
 import { Downloads } from './pages/Downloads'
 import { ToastContainer, type ToastType } from './components/Toast'
 import { useToast } from './components/useToast'
-import { Brain, TrendingUp } from './components/Icons'
+import { TrendingUp } from './components/Icons'
+import { Templates } from './pages/Templates'
 
 type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings' | 'downloads'
 
-function renderPage(page: PageId, addToast: (type: ToastType, text: string) => void): ReactElement {
+function renderPage(
+  page: PageId,
+  addToast: (type: ToastType, text: string) => void,
+  onNavigate: (page: string) => void
+): ReactElement {
   switch (page) {
     case 'dashboard':
       return <Dashboard addToast={addToast} />
@@ -33,23 +38,7 @@ function renderPage(page: PageId, addToast: (type: ToastType, text: string) => v
     case 'settings':
       return <Settings />
     case 'ai-models':
-      return (
-        <div>
-          <header className="page-header">
-            <div>
-              <h2>AI Models</h2>
-              <p>Manage your document extraction models and training data.</p>
-            </div>
-          </header>
-          <div className="empty-state glass-panel" style={{ padding: '64px' }}>
-            <span className="empty-state-icon">
-              <Brain size={32} />
-            </span>
-            <h3>Coming Soon</h3>
-            <p>AI model management and training will be available in a future release.</p>
-          </div>
-        </div>
-      )
+      return <Templates addToast={addToast} onNavigate={onNavigate} />
     case 'analytics':
       return (
         <div>
@@ -80,7 +69,7 @@ export default function App(): ReactElement {
   return (
     <div className="app-layout">
       <Sidebar activePage={activePage} onNavigate={(page) => setActivePage(page as PageId)} />
-      <main className="main-content">{renderPage(activePage, addToast)}</main>
+      <main className="main-content">{renderPage(activePage, addToast, (page) => setActivePage(page as PageId))}</main>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
