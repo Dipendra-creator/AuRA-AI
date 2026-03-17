@@ -20,9 +20,32 @@ interface APIEnvelope<T> {
   }
 }
 
+/** Returns the stored JWT token from localStorage */
+export function getAuthToken(): string | null {
+  return localStorage.getItem('aura_auth_token')
+}
+
+/** Stores the JWT token in localStorage */
+export function setAuthToken(token: string): void {
+  localStorage.setItem('aura_auth_token', token)
+}
+
+/** Removes the JWT token from localStorage */
+export function clearAuthToken(): void {
+  localStorage.removeItem('aura_auth_token')
+}
+
+/** Builds Authorization header if a token is stored */
+function authHeaders(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 /** Makes a GET request and returns the unwrapped data */
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`)
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { ...authHeaders() }
+  })
   if (!res.ok) {
     throw new Error(`API ${res.status}: ${res.statusText}`)
   }
@@ -37,7 +60,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   })
   if (!res.ok) {
@@ -54,7 +77,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   })
   if (!res.ok) {
@@ -69,7 +92,10 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 
 /** Makes a DELETE request */
 export async function apiDelete(path: string): Promise<void> {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' })
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  })
   if (!res.ok) {
     throw new Error(`API ${res.status}: ${res.statusText}`)
   }
@@ -79,6 +105,7 @@ export async function apiDelete(path: string): Promise<void> {
 export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
+    headers: { ...authHeaders() },
     body: formData
   })
   if (!res.ok) {
@@ -93,7 +120,9 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
 
 /** Makes a GET request and returns the response as a Blob (for file downloads) */
 export async function apiGetBlob(path: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}${path}`)
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { ...authHeaders() }
+  })
   if (!res.ok) {
     throw new Error(`API ${res.status}: ${res.statusText}`)
   }
@@ -104,7 +133,7 @@ export async function apiGetBlob(path: string): Promise<Blob> {
 export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   })
   if (!res.ok) {
