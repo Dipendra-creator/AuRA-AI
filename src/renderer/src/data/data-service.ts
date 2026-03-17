@@ -37,6 +37,29 @@ import dashboardMock from './dashboard.mock.json'
 import documentsMock from './documents.mock.json'
 import workflowsMock from './workflows.mock.json'
 
+/**
+ * Whether mock fallback is allowed.
+ * Enabled in development (Vite DEV mode) or when VITE_ALLOW_MOCK_FALLBACK=true.
+ * In production builds without the flag, reads fail loudly so the app never
+ * silently shows fake data as real.
+ */
+const MOCK_FALLBACK_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ALLOW_MOCK_FALLBACK === 'true'
+
+/**
+ * Emits a console warning and records that mock data is currently active.
+ * The UI reads `isMockActive` to show a degraded-mode banner.
+ */
+let _mockActive = false
+export function isMockActive(): boolean {
+  return _mockActive
+}
+
+function useMockFallback(context: string): void {
+  _mockActive = true
+  console.warn(`[DataService] API unavailable — showing mock data for ${context}. This should not happen in production.`)
+}
+
 // ─── Bundle Types ────────────────────────────────────────────────
 
 /** Dashboard data bundle */
@@ -102,8 +125,9 @@ export async function getDashboardData(): Promise<DashboardDataBundle> {
       apiGet<AuraDocument[]>('/dashboard/recent')
     ])
     return { stats, chartData, activityTimeline, recentDocuments }
-  } catch {
-    console.warn('[DataService] API unavailable, using mock data for dashboard')
+  } catch (err) {
+    if (!MOCK_FALLBACK_ENABLED) throw err
+    useMockFallback('dashboard')
     return {
       stats: dashboardMock.stats as DashboardStats,
       chartData: dashboardMock.chartData as ChartDataPoint[],
@@ -139,8 +163,9 @@ export async function getDocumentsData(params?: {
       documents,
       analysisView: documentsMock.analysisView as AnalysisViewMeta
     }
-  } catch {
-    console.warn('[DataService] API unavailable, using mock data for documents')
+  } catch (err) {
+    if (!MOCK_FALLBACK_ENABLED) throw err
+    useMockFallback('documents')
     return {
       documents: documentsMock.documents as unknown as AuraDocument[],
       analysisView: documentsMock.analysisView as AnalysisViewMeta
@@ -206,8 +231,9 @@ export async function getWorkflowsData(): Promise<WorkflowsDataBundle> {
       nodes: first.nodes ?? [],
       edges: first.edges ?? []
     }
-  } catch {
-    console.warn('[DataService] API unavailable, using mock data for workflows')
+  } catch (err) {
+    if (!MOCK_FALLBACK_ENABLED) throw err
+    useMockFallback('workflows')
     return {
       pipeline: workflowsMock.pipeline as PipelineMetadata,
       nodes: workflowsMock.nodes as unknown as PipelineNode[],
@@ -495,6 +521,27 @@ export async function downloadExportFile(downloadUrl: string): Promise<Blob> {
   // Strip /api/v1 prefix since apiGetBlob prepends API_BASE
   const path = downloadUrl.replace(/^\/api\/v1/, '')
   return apiGetBlob(path)
+}
+
+// ─── Usage Quota ─────────────────────────────────────────────────
+
+/** Usage and quota for the current user/workspace */
+export interface UsageQuota {
+  readonly used: number
+  readonly limit: number
+  readonly percent: number
+}
+
+/**
+ * Fetches the current user's document usage and quota from the backend.
+ * Returns null if the backend is unreachable.
+ */
+export async function getUserUsage(): Promise<UsageQuota | null> {
+  try {
+    return await apiGet<UsageQuota>('/auth/me/usage')
+  } catch {
+    return null
+  }
 }
 
 // ─── Health Check ────────────────────────────────────────────────

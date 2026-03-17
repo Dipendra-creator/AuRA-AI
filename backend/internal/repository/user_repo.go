@@ -77,6 +77,34 @@ func (r *UserRepo) FindByProvider(ctx context.Context, provider domain.AuthProvi
 	return &user, nil
 }
 
+// UpdateProfile updates the mutable fields of a user (name, avatar_url).
+// Only non-empty values in the updates map are applied.
+func (r *UserRepo) UpdateProfile(ctx context.Context, id string, updates map[string]interface{}) (*domain.User, error) {
+	oid, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, domain.ErrNotFound
+	}
+	updates["updated_at"] = time.Now()
+	_, err = r.col.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": updates})
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, id)
+}
+
+// UpdatePasswordHash replaces the password hash for a local user.
+func (r *UserRepo) UpdatePasswordHash(ctx context.Context, id string, hash string) error {
+	oid, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return domain.ErrNotFound
+	}
+	_, err = r.col.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{
+		"password_hash": hash,
+		"updated_at":    time.Now(),
+	}})
+	return err
+}
+
 // Create inserts a new user and returns it with the generated ID.
 func (r *UserRepo) Create(ctx context.Context, user *domain.User) (*domain.User, error) {
 	user.ID = bson.NewObjectID()

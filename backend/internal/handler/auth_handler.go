@@ -30,6 +30,7 @@ type pendingGitHubSession struct {
 // AuthHandler handles authentication-related HTTP endpoints.
 type AuthHandler struct {
 	userRepo    *repository.UserRepo
+	docRepo     *repository.DocumentRepo
 	cfg         *config.Config
 	oauthConfig *oauth2.Config
 
@@ -40,7 +41,7 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates an AuthHandler wired to the given config and user repo.
-func NewAuthHandler(userRepo *repository.UserRepo, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepo, docRepo *repository.DocumentRepo, cfg *config.Config) *AuthHandler {
 	oauthCfg := &oauth2.Config{
 		ClientID:     cfg.GitHubClientID,
 		ClientSecret: cfg.GitHubClientSecret,
@@ -50,6 +51,7 @@ func NewAuthHandler(userRepo *repository.UserRepo, cfg *config.Config) *AuthHand
 	}
 	h := &AuthHandler{
 		userRepo:    userRepo,
+		docRepo:     docRepo,
 		cfg:         cfg,
 		oauthConfig: oauthCfg,
 		sessions:    make(map[string]*pendingGitHubSession),
@@ -317,6 +319,137 @@ func (h *AuthHandler) GitHubStatus(w http.ResponseWriter, r *http.Request) {
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(map[string]interface{}{
 		"ready": true,
 		"token": session.token,
+	}))
+}
+
+// ── UpdateProfile ─────────────────────────────────────────────────────────────
+
+type updateProfileRequest struct {
+	Name string `json:"name"`
+}
+
+// UpdateProfile handles PATCH /api/v1/auth/me — updates display name.
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value(domain.ContextKeyUser).(*domain.User)
+	if !ok || user == nil {
+		domain.WriteJSON(w, http.StatusUnauthorized, domain.ErrorResponse("unauthorized"))
+		return
+	}
+
+	var req updateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("invalid request body"))
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("name is required"))
+		return
+	}
+
+	updates := map[string]interface{}{"name": req.Name}
+	updated, err := h.userRepo.UpdateProfile(r.Context(), user.ID.Hex(), updates)
+	if err != nil {
+		slog.Error("update profile", "error", err)
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("internal error"))
+		return
+	}
+
+	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(updated.ToPublic()))
+}
+
+// ── ChangePassword ────────────────────────────────────────────────────────────
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// ChangePassword handles POST /api/v1/auth/me/password — changes password for local accounts.
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value(domain.ContextKeyUser).(*domain.User)
+	if !ok || user == nil {
+		domain.WriteJSON(w, http.StatusUnauthorized, domain.ErrorResponse("unauthorized"))
+		return
+	}
+
+	if user.Provider != domain.AuthProviderLocal {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("password change is only available for local accounts"))
+		return
+	}
+
+	var req changePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("invalid request body"))
+		return
+	}
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("current_password and new_password are required"))
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("new password must be at least 8 characters"))
+		return
+	}
+
+	// Fetch fresh user to get latest password hash
+	fresh, err := h.userRepo.FindByID(r.Context(), user.ID.Hex())
+	if err != nil || fresh == nil {
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("internal error"))
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(fresh.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		domain.WriteJSON(w, http.StatusUnauthorized, domain.ErrorResponse("current password is incorrect"))
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("internal error"))
+		return
+	}
+
+	if err := h.userRepo.UpdatePasswordHash(r.Context(), user.ID.Hex(), string(hash)); err != nil {
+		slog.Error("change password", "error", err)
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("internal error"))
+		return
+	}
+
+	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(map[string]string{"message": "password updated"}))
+}
+
+// ── GetUsage ──────────────────────────────────────────────────────────────────
+
+const defaultDocumentQuota = 10_000
+
+// GetUsage handles GET /api/v1/auth/me/usage — returns document usage and quota.
+func (h *AuthHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
+	_, ok := r.Context().Value(domain.ContextKeyUser).(*domain.User)
+	if !ok {
+		domain.WriteJSON(w, http.StatusUnauthorized, domain.ErrorResponse("unauthorized"))
+		return
+	}
+
+	used, err := h.docRepo.Count(r.Context())
+	if err != nil {
+		slog.Error("get usage: count documents", "error", err)
+		domain.WriteJSON(w, http.StatusInternalServerError, domain.ErrorResponse("internal error"))
+		return
+	}
+
+	limit := int64(defaultDocumentQuota)
+	var percent float64
+	if limit > 0 {
+		percent = float64(used) / float64(limit) * 100
+	}
+
+	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(map[string]interface{}{
+		"used":    used,
+		"limit":   limit,
+		"percent": percent,
 	}))
 }
 

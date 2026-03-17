@@ -58,7 +58,7 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor, broker)
 
 	// --- Handlers ---
-	authH := handler.NewAuthHandler(userRepo, cfg)
+	authH := handler.NewAuthHandler(userRepo, docRepo, cfg)
 	docH := handler.NewDocumentHandler(docSvc)
 	dashH := handler.NewDashboardHandler(dashSvc)
 	pipeH := handler.NewPipelineHandler(pipeSvc)
@@ -89,6 +89,9 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 
 	// ── Auth routes (protected) ───────────────────────────────────────────────
 	mux.Handle("GET /api/v1/auth/me", requireAuth(http.HandlerFunc(authH.Me)))
+	mux.Handle("PATCH /api/v1/auth/me", requireAuth(http.HandlerFunc(authH.UpdateProfile)))
+	mux.Handle("POST /api/v1/auth/me/password", requireAuth(http.HandlerFunc(authH.ChangePassword)))
+	mux.Handle("GET /api/v1/auth/me/usage", requireAuth(http.HandlerFunc(authH.GetUsage)))
 
 	// ── WebSocket (protected) ─────────────────────────────────────────────────
 	mux.Handle("GET /api/v1/ws", requireAuth(http.HandlerFunc(wsH.HandleWS)))

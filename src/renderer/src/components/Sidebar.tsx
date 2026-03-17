@@ -4,9 +4,10 @@
  * Matches the aura_ai_dashboard_overview design.
  */
 
-import { type ReactElement, type ReactNode } from 'react'
+import { type ReactElement, type ReactNode, useState, useEffect } from 'react'
 import { LayoutDashboard, FileText, GitBranch, Diamond, Link, Sparkles, Settings, Download } from './Icons'
 import type { AuthUser } from '../contexts/AuthContext'
+import { getUserUsage, type UsageQuota } from '../data/data-service'
 
 interface SidebarProps {
   readonly activePage: string
@@ -36,6 +37,19 @@ const teamItems = [
 ]
 
 export function Sidebar({ activePage, onNavigate, onLogout, user }: SidebarProps): ReactElement {
+  const [usage, setUsage] = useState<UsageQuota | null>(null)
+
+  useEffect(() => {
+    getUserUsage().then(setUsage)
+    // Refresh usage every 60 seconds
+    const interval = setInterval(() => { getUserUsage().then(setUsage) }, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const usedDocs = usage?.used ?? 0
+  const limitDocs = usage?.limit ?? 10_000
+  const percent = usage ? Math.min(usage.percent, 100) : 0
+
   return (
     <aside className="sidebar">
       <div>
@@ -86,10 +100,14 @@ export function Sidebar({ activePage, onNavigate, onLogout, user }: SidebarProps
           <div className="progress-bar">
             <div
               className="progress-bar-fill animate-bar-fill"
-              style={{ '--target-width': '75%' } as React.CSSProperties}
+              style={{ '--target-width': `${percent}%` } as React.CSSProperties}
             />
           </div>
-          <small>7,500 / 10,000 docs</small>
+          <small>
+            {usage
+              ? `${usedDocs.toLocaleString()} / ${limitDocs.toLocaleString()} docs`
+              : '— / — docs'}
+          </small>
         </div>
         <button className="sidebar-settings" onClick={() => onNavigate('settings')}>
           <span>

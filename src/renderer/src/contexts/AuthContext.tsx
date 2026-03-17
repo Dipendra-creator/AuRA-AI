@@ -14,7 +14,7 @@ import {
   type ReactNode,
   type ReactElement
 } from 'react'
-import { getAuthToken, setAuthToken, clearAuthToken } from '../data/api-client'
+import { getAuthToken, setAuthToken, clearAuthToken, apiPatch, apiPost } from '../data/api-client'
 
 const API_BASE = 'http://localhost:8080/api/v1'
 
@@ -45,6 +45,8 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>
   loginWithGitHub: () => Promise<void>
   logout: () => void
+  updateProfile: (updates: { name: string }) => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -195,8 +197,25 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
     setUser(null)
   }, [])
 
+  const updateProfile = useCallback(async (updates: { name: string }) => {
+    const updated = await apiPatch<AuthUser>('/auth/me', updates)
+    setUser(updated)
+  }, [])
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      await apiPost<{ message: string }>('/auth/me/password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+    },
+    []
+  )
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, loginWithGitHub, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, register, loginWithGitHub, logout, updateProfile, changePassword }}
+    >
       {children}
     </AuthContext.Provider>
   )
