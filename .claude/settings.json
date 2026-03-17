@@ -4,7 +4,10 @@
       "Bash(go build:*)",
       "Bash(npx tsc:*)",
       "Bash(go vet:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity -maxdepth 2 -type f -name *.json -o -name README* -o -name Dockerfile* -o -name .env*)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(cat /Users/dipendrabhardwaj/Desktop/projects/antigravity/backend/internal/ocr/*.go)"
     ]
   }
 }
