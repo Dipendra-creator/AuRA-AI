@@ -15,12 +15,30 @@ import { LoadingSpinner } from '../components/LoadingSpinner'
 import { getDashboardData, uploadDocument, type DashboardDataBundle } from '../data/data-service'
 import type { ToastType } from '../components/Toast'
 import { FileText, CheckCircle, Clock, Zap, Bell, Sparkles } from '../components/Icons'
+import { useAuth } from '../contexts/AuthContext'
+
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
 
 interface DashboardProps {
   readonly addToast: (type: ToastType, text: string) => void
 }
 
 export function Dashboard({ addToast }: DashboardProps): ReactElement {
+  const { user } = useAuth()
   const [showBubble, setShowBubble] = useState(true)
   const [data, setData] = useState<DashboardDataBundle | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,7 +88,10 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
       <header className="page-header">
         <div>
           <h2>Overview</h2>
-          <p>Good morning, Alex. Aura AI is performing at {stats.accuracyRate}% accuracy today.</p>
+          <p>
+            {getGreeting()}, {user?.name ?? 'there'}. Aura AI is performing at{' '}
+            {stats.accuracyRate}% accuracy today.
+          </p>
         </div>
         <div className="user-chip">
           <button className="notification-bell">
@@ -79,8 +100,17 @@ export function Dashboard({ addToast }: DashboardProps): ReactElement {
           </button>
           <div className="user-divider" />
           <div className="user-profile">
-            <div className="user-avatar">AR</div>
-            <span className="user-name">Alex Rivers</span>
+            {user?.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.name}
+                className="user-avatar"
+                style={{ objectFit: 'cover', borderRadius: '50%' }}
+              />
+            ) : (
+              <div className="user-avatar">{user ? getInitials(user.name) : '?'}</div>
+            )}
+            <span className="user-name">{user?.name ?? 'User'}</span>
           </div>
         </div>
       </header>

@@ -21,6 +21,7 @@ import { TrendingUp } from './components/Icons'
 import { Templates } from './pages/Templates'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AuthPage } from './pages/AuthPage'
+import { MockDataBanner } from './components/MockDataBanner'
 
 type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings' | 'downloads'
 
@@ -104,6 +105,7 @@ function AppShell(): ReactElement {
         {renderPage(activePage, addToast, (page) => setActivePage(page as PageId))}
       </main>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <MockDataBanner />
     </div>
   )
 }
