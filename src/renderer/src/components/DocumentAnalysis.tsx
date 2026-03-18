@@ -6,7 +6,7 @@
  * Export to CSV/Excel supported.
  */
 
-import { useState, useMemo, useCallback, type ReactElement, type ReactNode } from 'react'
+import { useState, useMemo, useCallback, useEffect, type ReactElement, type ReactNode } from 'react'
 import type { AnalysisProgress } from '../pages/Documents'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   Sparkles
 } from './Icons'
+import { getAuthToken, getAIProvider } from '../data/api-client'
 
 // Configure PDF.js worker — served from public/ directory
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -67,7 +68,11 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 function getFileUrl(filePath: string): string {
   const filename = filePath.split('/').pop() ?? filePath
-  return `${API_BASE}/files/${filename}`
+  const token = getAuthToken()
+  const base = `${API_BASE}/files/${filename}`
+  // react-pdf fetches this URL directly without custom headers,
+  // so the JWT must travel as a query param (middleware accepts both).
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
 
 function getStepLabel(step: string): ReactNode {
@@ -138,6 +143,13 @@ export function DocumentAnalysis({
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(100)
   const [rightPanelTab, setRightPanelTab] = useState<'data' | 'schema'>('data')
+  const [aiModel, setAiModel] = useState<string | null>(null)
+
+  useEffect(() => {
+    getAIProvider()
+      .then((p) => setAiModel(p?.model ?? null))
+      .catch(() => setAiModel(null))
+  }, [])
 
   const DEFAULT_WIDTH = 480
   const pageWidth = Math.round(DEFAULT_WIDTH * (zoomLevel / 100))
@@ -407,7 +419,7 @@ export function DocumentAnalysis({
           <ArrowLeft size={16} /> Back to Documents
         </button>
         <div className="doc-analysis-badges">
-          <span className="badge-model">MINIMAX M2.5</span>
+          {aiModel && <span className="badge-model">{aiModel}</span>}
           <span className="badge-ocr">OCR ACTIVE</span>
           {isProcessing && (
             <span className="badge-processing">

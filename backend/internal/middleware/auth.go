@@ -41,15 +41,22 @@ func RequireAuth(jwtSecret string, userRepo *repository.UserRepo) func(http.Hand
 	}
 }
 
-// extractBearerToken pulls the token from the Authorization header.
+// extractBearerToken pulls the JWT from the Authorization header first,
+// then falls back to the ?token= query parameter.
+// The query-param fallback is required for WebSocket connections: browsers
+// cannot send custom headers during the HTTP upgrade handshake, so the WS
+// client appends the token as ?token=<jwt> instead.
 func extractBearerToken(r *http.Request) string {
 	header := r.Header.Get("Authorization")
-	if header == "" {
-		return ""
+	if header != "" {
+		parts := strings.SplitN(header, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			return strings.TrimSpace(parts[1])
+		}
 	}
-	parts := strings.SplitN(header, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return ""
+	// Fallback: query param (used by WebSocket upgrade requests)
+	if token := r.URL.Query().Get("token"); token != "" {
+		return token
 	}
-	return strings.TrimSpace(parts[1])
+	return ""
 }

@@ -31,15 +31,16 @@ var internalFieldKeys = map[string]bool{
 }
 
 // AIExtractExecutor handles the ai_extract node — runs AI extraction via the
-// Kilo API using a user-supplied prompt describing which fields to extract.
+// configured AI provider using a user-supplied prompt describing which fields to extract.
 type AIExtractExecutor struct {
-	aiClient *aiservice.KiloClient
+	aiMgr *aiservice.ClientManager
 }
 
 // NewAIExtractExecutor creates a new AIExtractExecutor.
-// If aiClient is nil, the node will pass through without AI extraction.
-func NewAIExtractExecutor(aiClient *aiservice.KiloClient) *AIExtractExecutor {
-	return &AIExtractExecutor{aiClient: aiClient}
+// aiMgr is a shared, hot-swappable client holder; if no provider is configured,
+// the node passes through without extraction rather than failing the pipeline.
+func NewAIExtractExecutor(aiMgr *aiservice.ClientManager) *AIExtractExecutor {
+	return &AIExtractExecutor{aiMgr: aiMgr}
 }
 
 // Validate checks the AI extract node config.
@@ -73,18 +74,20 @@ func (e *AIExtractExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	// internal pipeline metadata and confidence mirror keys.
 	prevFields := collectPreviousFields(input.Fields)
 
+	ai := e.aiMgr.Get()
+
 	slog.Info("ai_extract: starting extraction",
 		"node", node.Name,
-		"hasAiClient", e.aiClient != nil,
+		"hasAiClient", ai != nil,
 		"rawTextLen", len(input.RawText),
 		"prevFieldCount", len(prevFields),
 		"prompt", userPrompt,
 	)
 
-	if e.aiClient == nil {
-		slog.Warn("ai_extract: no AI client configured (set KILO_API_KEY), passing through", "node", node.Name)
+	if ai == nil {
+		slog.Warn("ai_extract: no AI client configured, passing through", "node", node.Name)
 		output.Fields["extraction_model"] = "none"
-		output.Fields["extraction_error"] = "AI service not configured — set KILO_API_KEY in .env"
+		output.Fields["extraction_error"] = "AI service not configured — add your Kilo Code API key in API Configuration"
 		output.Fields["extraction_complete"] = false
 		return output, nil
 	}
@@ -112,7 +115,7 @@ func (e *AIExtractExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	defer cancel()
 
 	// Call Chat() directly with our pre-built prompt.
-	rawContent, err := e.aiClient.Chat(nodeCtx, prompt)
+	rawContent, err := ai.Chat(nodeCtx, prompt)
 	if err != nil {
 		slog.Error("ai_extract: AI extraction failed", "node", node.Name, "error", err)
 		output.Fields["extraction_model"] = "pipeline_ai_extract"

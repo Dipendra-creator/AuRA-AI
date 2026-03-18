@@ -27,12 +27,16 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	formTemplateRepo := repository.NewFormTemplateRepo(db)
 	schemaRepo := repository.NewSchemaRepo(db)
 	userRepo := repository.NewUserRepo(db)
+	aiProviderRepo := repository.NewAIProviderRepo(db)
 
-	// --- AI Client ---
-	var aiClient *aiservice.KiloClient
+	// --- AI Client Manager ---
+	// Initialise with env-var key for backward compatibility. If KILO_API_KEY is
+	// not set, the manager starts empty; the user configures it via the UI.
+	var initialClient aiservice.AIClient
 	if cfg.KiloAPIKey != "" {
-		aiClient = aiservice.NewKiloClient(cfg.KiloAPIKey)
+		initialClient = aiservice.NewKiloClient(cfg.KiloAPIKey)
 	}
+	aiMgr := aiservice.NewClientManager(initialClient)
 
 	// --- Pipeline Event Broker ---
 	broker := engine.NewPipelineEventBroker()
@@ -40,7 +44,7 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	// --- Engine: Node Registry ---
 	registry := engine.NewNodeRegistry()
 	registry.Register(domain.NodeTypeDocSelect, nodes.NewDocSelectExecutor(docRepo))
-	registry.Register(domain.NodeTypeAIExtract, nodes.NewAIExtractExecutor(aiClient))
+	registry.Register(domain.NodeTypeAIExtract, nodes.NewAIExtractExecutor(aiMgr))
 	registry.Register(domain.NodeTypeTransform, nodes.NewTransformExecutor())
 	registry.Register(domain.NodeTypeFormFill, nodes.NewFormFillExecutor())
 	registry.Register(domain.NodeTypeCustomAPI, nodes.NewCustomAPIExecutor())
@@ -52,10 +56,11 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	executor := engine.NewPipelineExecutor(registry, runRepo)
 
 	// --- Services ---
-	docSvc := service.NewDocumentService(docRepo, cfg.KiloAPIKey)
+	docSvc := service.NewDocumentService(docRepo, aiMgr)
 	dashSvc := service.NewDashboardService(docRepo, pipelineRepo)
 	pipeSvc := service.NewPipelineService(pipelineRepo)
 	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor, broker)
+	aiProviderSvc := service.NewAIProviderService(aiProviderRepo, cfg.EncryptionKey, aiMgr)
 
 	// --- Handlers ---
 	authH := handler.NewAuthHandler(userRepo, docRepo, cfg)
@@ -70,6 +75,7 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	formH := handler.NewFormTemplateHandler(formTemplateRepo)
 	schemaH := handler.NewSchemaHandler(schemaRepo)
 	fileH := handler.NewFileManagerHandler()
+	aiProviderH := handler.NewAIProviderHandler(aiProviderSvc)
 
 	// --- Auth middleware (protects all /api/v1/* routes below) ---
 	requireAuth := middleware.RequireAuth(cfg.JWTSecret, userRepo)
@@ -155,6 +161,13 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	// ── Activity (protected) ──────────────────────────────────────────────────
 	mux.Handle("GET /api/v1/activity", requireAuth(http.HandlerFunc(actH.List)))
 	mux.Handle("POST /api/v1/activity", requireAuth(http.HandlerFunc(actH.Create)))
+
+	// ── AI Provider Configuration (protected) ─────────────────────────────────
+	mux.Handle("GET /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.GetProvider)))
+	mux.Handle("POST /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.SaveProvider)))
+	mux.Handle("PATCH /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.UpdateModel)))
+	mux.Handle("DELETE /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.DeleteProvider)))
+	mux.Handle("POST /api/v1/ai-providers/test", requireAuth(http.HandlerFunc(aiProviderH.TestProvider)))
 
 	// --- Middleware Chain ---
 	var h http.Handler = mux

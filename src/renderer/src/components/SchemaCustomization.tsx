@@ -281,10 +281,9 @@ export function SchemaCustomization({
       {/* Fields List */}
       <div className="schema-fields-list">
         {fields.map((field, index) => {
-          const fieldKey = field.field ? `${field.field}-${index}` : `field-${index}`
           return (
             <div
-              key={fieldKey}
+              key={index}
               className={`schema-field-card ${expandedField === index ? 'expanded' : ''}`}
             >
               <div className="schema-field-header">

@@ -19,11 +19,12 @@ import { ToastContainer, type ToastType } from './components/Toast'
 import { useToast } from './components/useToast'
 import { TrendingUp } from './components/Icons'
 import { Templates } from './pages/Templates'
+import { APIConfig } from './pages/APIConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AuthPage } from './pages/AuthPage'
 import { MockDataBanner } from './components/MockDataBanner'
 
-type PageId = 'dashboard' | 'documents' | 'workflows' | 'ai-models' | 'analytics' | 'settings' | 'downloads'
+type PageId = 'dashboard' | 'documents' | 'workflows' | 'pipeline-templates' | 'api-config' | 'analytics' | 'settings' | 'downloads'
 
 function renderPage(
   page: PageId,
@@ -41,8 +42,10 @@ function renderPage(
       return <Downloads addToast={addToast} />
     case 'settings':
       return <Settings />
-    case 'ai-models':
+    case 'pipeline-templates':
       return <Templates addToast={addToast} onNavigate={onNavigate} />
+    case 'api-config':
+      return <APIConfig />
     case 'analytics':
       return (
         <div>

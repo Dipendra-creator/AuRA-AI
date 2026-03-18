@@ -69,5 +69,6 @@ export {
   GitFork,
   Edit3,
   Eye,
-  GripVertical
+  GripVertical,
+  KeyRound
 } from 'lucide-react'

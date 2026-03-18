@@ -11,7 +11,12 @@
       "mcp__claude_ai_Context7__resolve-library-id",
       "mcp__claude_ai_Context7__query-docs",
       "Bash(go get:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity/src -type d -not -path */node_modules*)",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity/src/renderer/public -type f -name *pdf*)",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity/backend -type f -name *.ts)",
+      "Bash(find /Users/dipendrabhardwaj/Desktop/projects/antigravity/backend -type f -name *.go -path */routes/* -o -name *.go -path */handler*)"
     ]
   }
 }

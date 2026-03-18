@@ -17,6 +17,7 @@ import (
 	"github.com/aura-ai/backend/internal/repository"
 )
 
+
 // DocumentRepository defines the interface for database operations on documents.
 type DocumentRepository interface {
 	List(ctx context.Context, f domain.DocumentFilter) ([]domain.Document, int64, error)
@@ -33,18 +34,15 @@ type DocumentRepository interface {
 
 // DocumentService encapsulates document business logic.
 type DocumentService struct {
-	repo     DocumentRepository
-	aiClient *aiservice.KiloClient
+	repo  DocumentRepository
+	aiMgr *aiservice.ClientManager
 }
 
 // NewDocumentService creates a new DocumentService.
-// If apiKey is empty, AI analysis will return an error when called.
-func NewDocumentService(repo DocumentRepository, apiKey string) *DocumentService {
-	var client *aiservice.KiloClient
-	if apiKey != "" {
-		client = aiservice.NewKiloClient(apiKey)
-	}
-	return &DocumentService{repo: repo, aiClient: client}
+// aiMgr is a thread-safe holder for the active AI client; it may be nil-initialised
+// and populated later when the user saves a provider key via the API Configuration page.
+func NewDocumentService(repo DocumentRepository, aiMgr *aiservice.ClientManager) *DocumentService {
+	return &DocumentService{repo: repo, aiMgr: aiMgr}
 }
 
 // List returns filtered, paginated documents.
@@ -157,11 +155,11 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{ProcessingStep: &stepAI, RawText: &rawText})
 
 	// 4. Check AI client
-	if s.aiClient == nil {
+	if !s.aiMgr.IsConfigured() {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — set KILO_API_KEY in .env"})
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add your Kilo Code API key in API Configuration"})
 		return
 	}
 
@@ -189,12 +187,13 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 			defer func() { <-sem }()
 
 			slog.Info("processing page with AI", "id", id.Hex(), "page", p.PageNumber)
-			fields, err := s.aiClient.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
+			ai := s.aiMgr.Get()
+			fields, err := ai.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
 
 			// Retry once on failure
 			if err != nil {
 				slog.Warn("page analysis failed, retrying", "id", id.Hex(), "page", p.PageNumber, "error", err)
-				fields, err = s.aiClient.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
+				fields, err = ai.ExtractFieldsFromPage(ctx, p.Text, p.PageNumber, totalPages, doc.Type)
 			}
 
 			resultsCh <- pageResult{pageNum: p.PageNumber, fields: fields, err: err}
@@ -343,11 +342,11 @@ func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id b
 	_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{ProcessingStep: &stepAI, RawText: &rawText})
 
 	// 4. Check AI client
-	if s.aiClient == nil {
+	if !s.aiMgr.IsConfigured() {
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — set KILO_API_KEY in .env"})
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add your Kilo Code API key in API Configuration"})
 		return
 	}
 
@@ -373,11 +372,12 @@ func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id b
 			defer func() { <-sem }()
 
 			slog.Info("processing page with AI (schema mode)", "id", id.Hex(), "page", p.PageNumber)
-			fields, err := s.aiClient.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
+			ai := s.aiMgr.Get()
+			fields, err := ai.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
 
 			if err != nil {
 				slog.Warn("schema page analysis failed, retrying", "id", id.Hex(), "page", p.PageNumber, "error", err)
-				fields, err = s.aiClient.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
+				fields, err = ai.ExtractFieldsFromPageWithSchema(ctx, p.Text, p.PageNumber, len(pages), schema)
 			}
 
 			resultsCh <- pageResult{pageNum: p.PageNumber, fields: fields, err: err}

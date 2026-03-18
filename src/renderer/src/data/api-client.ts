@@ -142,6 +142,70 @@ export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
   return res.blob()
 }
 
+// ── AI Provider endpoints ─────────────────────────────────────────────────────
+
+import type { AIProvider, ProviderTestResult, SaveProviderInput } from '../../../shared/types/ai-provider.types'
+
+/** Returns the current Kilo Code provider config (API key masked), or null if not configured. */
+export async function getAIProvider(): Promise<AIProvider | null> {
+  const res = await fetch(`${API_BASE}/ai-providers`, {
+    headers: { ...authHeaders() }
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<AIProvider | null> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data ?? null
+}
+
+/** Saves (creates or updates) the Kilo Code API key. */
+export async function saveAIProvider(input: SaveProviderInput): Promise<AIProvider> {
+  const res = await fetch(`${API_BASE}/ai-providers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(input)
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<AIProvider> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data!
+}
+
+/** Updates only the model for an existing Kilo Code provider config. */
+export async function updateAIProviderModel(model: string): Promise<AIProvider> {
+  const res = await fetch(`${API_BASE}/ai-providers`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ model })
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<AIProvider> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data!
+}
+
+/** Removes the Kilo Code provider config. */
+export async function deleteAIProvider(): Promise<void> {
+  const res = await fetch(`${API_BASE}/ai-providers`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+}
+
+/** Tests connectivity to the Kilo API using the stored key. */
+export async function testAIProvider(): Promise<ProviderTestResult> {
+  const res = await fetch(`${API_BASE}/ai-providers/test`, {
+    method: 'POST',
+    headers: { ...authHeaders() }
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<ProviderTestResult> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data!
+}
+
+// ── Analysis events ───────────────────────────────────────────────────────────
+
 /** Analysis progress event from SSE stream */
 export interface AnalysisEvent {
   readonly type: 'start' | 'page_done' | 'error' | 'complete'

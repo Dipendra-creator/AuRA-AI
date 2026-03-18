@@ -13,6 +13,7 @@
  */
 
 import type { AnalysisEvent } from './api-client'
+import { getAuthToken } from './api-client'
 import type { SchemaField } from '../../../shared/types/document.types'
 
 /** A pipeline execution event received from the backend */
@@ -28,7 +29,15 @@ export interface PipelineEvent {
   readonly durationMs?: number
 }
 
-const WS_URL = 'ws://localhost:8080/api/v1/ws'
+const WS_BASE = 'ws://localhost:8080/api/v1/ws'
+
+// Builds the WebSocket URL with the JWT appended as ?token=<jwt>.
+// Browsers cannot send custom headers during the WebSocket upgrade handshake,
+// so the token is passed via query param instead.
+function buildWsUrl(): string {
+  const token = getAuthToken()
+  return token ? `${WS_BASE}?token=${encodeURIComponent(token)}` : WS_BASE
+}
 
 type ConnectionState = 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED'
 
@@ -91,10 +100,11 @@ class WebSocketClient {
 
     this.connectPromise = new Promise<void>((resolve, reject) => {
       this.state = 'CONNECTING'
-      console.log('[WS] Connecting to', WS_URL)
+      const url = buildWsUrl()
+      console.log('[WS] Connecting to', WS_BASE)
 
       try {
-        this.ws = new WebSocket(WS_URL)
+        this.ws = new WebSocket(url)
       } catch (err) {
         this.state = 'DISCONNECTED'
         this.connectPromise = null
