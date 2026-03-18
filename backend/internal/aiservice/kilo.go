@@ -34,11 +34,19 @@ type KiloClient struct {
 	httpClient *http.Client
 }
 
-// NewKiloClient creates a new KiloClient with the given API key.
+// NewKiloClient creates a new KiloClient with the given API key and default model.
 func NewKiloClient(apiKey string) *KiloClient {
+	return NewKiloClientWithModel(apiKey, defaultModel)
+}
+
+// NewKiloClientWithModel creates a new KiloClient with the given API key and model.
+func NewKiloClientWithModel(apiKey, model string) *KiloClient {
+	if model == "" {
+		model = defaultModel
+	}
 	return &KiloClient{
 		apiKey: apiKey,
-		model:  defaultModel,
+		model:  model,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},

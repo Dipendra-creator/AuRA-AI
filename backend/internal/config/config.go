@@ -2,30 +2,33 @@
 package config
 
 import (
+	"encoding/hex"
+	"log/slog"
 	"os"
 	"time"
 )
 
 // Config holds all application configuration values.
 type Config struct {
-	Port                string
-	MongoURI            string
-	MongoDB             string
-	LogLevel            string
-	CORSOrigins         string
-	RequestTimeout      time.Duration
-	KiloAPIKey          string
-	TesseractPath       string
-	JWTSecret           string
-	JWTExpiry           time.Duration
-	GitHubClientID      string
-	GitHubClientSecret  string
-	GitHubCallbackURL   string
+	Port               string
+	MongoURI           string
+	MongoDB            string
+	LogLevel           string
+	CORSOrigins        string
+	RequestTimeout     time.Duration
+	KiloAPIKey         string // kept for backward-compat bootstrap; prefer DB-stored key
+	TesseractPath      string
+	JWTSecret          string
+	JWTExpiry          time.Duration
+	GitHubClientID     string
+	GitHubClientSecret string
+	GitHubCallbackURL  string
+	EncryptionKey      []byte // 32-byte AES-256 key for encrypting stored API keys
 }
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		Port:               getEnv("PORT", "8080"),
 		MongoURI:           getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:            getEnv("MONGO_DB", "aura_ai"),
@@ -40,6 +43,27 @@ func Load() *Config {
 		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
 		GitHubCallbackURL:  getEnv("GITHUB_CALLBACK_URL", "http://localhost:8080/api/v1/auth/github/callback"),
 	}
+
+	cfg.EncryptionKey = loadEncryptionKey()
+	return cfg
+}
+
+// loadEncryptionKey reads ENCRYPTION_KEY from env (64-char hex → 32 bytes).
+// Falls back to a deterministic dev-only key with a warning if not set.
+func loadEncryptionKey() []byte {
+	raw := getEnv("ENCRYPTION_KEY", "")
+	if raw != "" {
+		key, err := hex.DecodeString(raw)
+		if err != nil || len(key) != 32 {
+			slog.Warn("ENCRYPTION_KEY is set but invalid (must be 64-char hex = 32 bytes) — using dev fallback")
+		} else {
+			return key
+		}
+	} else {
+		slog.Warn("ENCRYPTION_KEY not set — using insecure dev-only fallback key (set a real key in production)")
+	}
+	// Dev fallback: 32 zero bytes. NOT safe for production.
+	return make([]byte, 32)
 }
 
 func getEnv(key, fallback string) string {

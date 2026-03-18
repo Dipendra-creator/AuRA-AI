@@ -5,7 +5,7 @@
  */
 
 import { type ReactElement, type ReactNode, useState, useEffect } from 'react'
-import { LayoutDashboard, FileText, GitBranch, Diamond, Link, Sparkles, Settings, Download } from './Icons'
+import { LayoutDashboard, FileText, GitBranch, Diamond, KeyRound, Sparkles, Settings, Download } from './Icons'
 import type { AuthUser } from '../contexts/AuthContext'
 import { getUserUsage, type UsageQuota } from '../data/data-service'
 
@@ -27,8 +27,8 @@ const mainNavItems: readonly NavItem[] = [
   { id: 'documents', label: 'Documents', icon: <FileText size={18} /> },
   { id: 'workflows', label: 'Pipelines', icon: <GitBranch size={18} /> },
   { id: 'downloads', label: 'Downloads', icon: <Download size={18} /> },
-  { id: 'ai-models', label: 'Templates', icon: <Diamond size={18} /> },
-  { id: 'analytics', label: 'API', icon: <Link size={18} /> }
+  { id: 'pipeline-templates', label: 'Templates', icon: <Diamond size={18} /> },
+  { id: 'api-config', label: 'API Configuration', icon: <KeyRound size={18} /> }
 ]
 
 const teamItems = [

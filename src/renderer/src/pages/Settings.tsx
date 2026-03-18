@@ -475,28 +475,6 @@ export function Settings(): ReactElement {
         </div>
       </div>
 
-      {/* AI Configuration */}
-      <div className="settings-section">
-        <h3>AI Configuration</h3>
-        <div className="settings-card glass-panel">
-          <div className="settings-row">
-            <span className="settings-label">AI Core Version</span>
-            <span className="settings-value">v3.4</span>
-          </div>
-          <div className="settings-row">
-            <span className="settings-label">Model</span>
-            <span className="settings-value">Stable Model 4.2</span>
-          </div>
-          <div className="settings-row">
-            <span className="settings-label">OCR Engine</span>
-            <div className="settings-status">
-              <span className="status-dot connected" />
-              <span style={{ color: 'var(--color-accent-emerald)' }}>Active</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* General */}
       <div className="settings-section">
         <h3>General</h3>
