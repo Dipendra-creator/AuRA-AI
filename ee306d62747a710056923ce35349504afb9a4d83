@@ -1,0 +1,89 @@
+backend/internal/aiservice/client.go
+  558fa0c321f3d76e 1-58
+src/renderer/src/components/DocumentAnalysis.tsx
+  558fa0c321f3d76e 9,35,71-75,146-152,422
+src/renderer/src/components/SchemaCustomization.tsx
+  558fa0c321f3d76e 286
+src/renderer/src/components/Icons.tsx
+  558fa0c321f3d76e 72-73
+src/renderer/src/data/api-client.ts
+  558fa0c321f3d76e 145-208
+backend/internal/config/config.go
+  558fa0c321f3d76e 5-6,19,26,31,46-66
+backend/internal/domain/ai_provider.go
+  558fa0c321f3d76e 1-30
+backend/internal/service/document_svc.go
+  558fa0c321f3d76e 20,38,42-45,158,162,190-191,196,345,349,375-376,380
+backend/internal/service/ai_provider.service.go
+  558fa0c321f3d76e 1-166
+backend/internal/engine/nodes/ai_extract.go
+  558fa0c321f3d76e 34,36,40-43,77-78,81,87-88,90,118
+src/renderer/src/App.tsx
+  558fa0c321f3d76e 22,27,45,47-48
+backend/internal/aiservice/kilo.go
+  558fa0c321f3d76e 37,39-46,49
+backend/internal/crypto/encryption.go
+  558fa0c321f3d76e 1-90
+src/renderer/src/components/Sidebar.tsx
+  558fa0c321f3d76e 8,30-31
+src/shared/types/ai-provider.types.ts
+  558fa0c321f3d76e 1-28
+src/renderer/src/pages/APIConfig.tsx
+  558fa0c321f3d76e 1-345,350-419
+src/renderer/src/data/ws-client.ts
+  558fa0c321f3d76e 16,32-40,103-104,107
+backend/internal/repository/ai_provider.repository.go
+  558fa0c321f3d76e 1-120
+backend/internal/handler/ai_provider.handler.go
+  558fa0c321f3d76e 1-123
+backend/internal/server/router.go
+  558fa0c321f3d76e 30,32-35,37,39,47,59,63,78,165-170
+backend/internal/middleware/auth.go
+  558fa0c321f3d76e 44-48,51-55,57-59,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "ee306d62747a710056923ce35349504afb9a4d83",
+  "prompts": {
+    "1cfa6d33e5570a3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5578af0-4199-42e6-b6f3-0c6608695494",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Dipendra Bhardwaj <dipu.sharma.1122@gmail.com>",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 2,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    },
+    "558fa0c321f3d76e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3e26b2e5-ff17-498c-abdb-256512226e6b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Dipendra Bhardwaj <dipu.sharma.1122@gmail.com>",
+      "messages": [],
+      "total_additions": 1271,
+      "total_deletions": 115,
+      "accepted_lines": 1231,
+      "overriden_lines": 4
+    },
+    "590bfdc7df71a0af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "932b9d5d-da39-43bf-a83b-96847bdb9a61",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Dipendra Bhardwaj <dipu.sharma.1122@gmail.com>",
+      "messages": [],
+      "total_additions": 3480,
+      "total_deletions": 90,
+      "accepted_lines": 2848,
+      "overriden_lines": 0
+    }
+  }
+}
