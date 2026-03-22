@@ -43,7 +43,7 @@ func (m *mockDocumentRepo) Recent(ctx context.Context, limit int) ([]domain.Docu
 func (m *mockDocumentRepo) InsertMany(ctx context.Context, docs []domain.Document) error { return nil }
 
 func TestExportXLSX(t *testing.T) {
-	h := NewExportHandler(service.NewDocumentService(&mockDocumentRepo{}, ""))
+	h := NewExportHandler(service.NewDocumentService(&mockDocumentRepo{}, nil))
 	doc := &domain.Document{
 		Name: "testexcel",
 		ExtractedFields: []domain.ExtractedField{
@@ -71,7 +71,7 @@ func TestExportXLSX(t *testing.T) {
 }
 
 func TestExportCSV(t *testing.T) {
-	h := NewExportHandler(service.NewDocumentService(&mockDocumentRepo{}, "")) // service not needed for internal methods
+	h := NewExportHandler(service.NewDocumentService(&mockDocumentRepo{}, nil)) // service not needed for internal methods
 	doc := &domain.Document{
 		Name: "testdoc",
 		ExtractedFields: []domain.ExtractedField{
@@ -157,7 +157,7 @@ func TestExport(t *testing.T) {
 			return nil, domain.ErrNotFound
 		},
 	}
-	svc := service.NewDocumentService(mockRepo, "")
+	svc := service.NewDocumentService(mockRepo, nil)
 	h := NewExportHandler(svc)
 
 	const (
