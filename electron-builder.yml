@@ -95,4 +95,3 @@ appImage:
 npmRebuild: false
 publish:
   provider: github
-  overwrite: true
