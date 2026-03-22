@@ -62,3 +62,14 @@ build-mac-universal: build-mac-arm64 build-mac-amd64
 	  bin/aura-api-darwin-amd64
 	@echo "✅  Universal binary → bin/aura-api-darwin-universal"
 	@lipo -info bin/aura-api-darwin-universal
+
+# ---------------------------------------------------------------------------
+# Windows production builds  
+# ---------------------------------------------------------------------------
+
+# Windows x64
+build-windows-amd64:
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
+	  $(GO) build $(LDFLAGS) -o bin/aura-api-windows-amd64.exe ./cmd/server
+	@echo "✅  windows/amd64 binary → bin/aura-api-windows-amd64.exe"
