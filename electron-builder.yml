@@ -26,6 +26,7 @@ asarUnpack:
 
 # ─── macOS ───────────────────────────────────────────────────────────────────
 mac:
+  x64ArchFiles: "**/node_modules/@napi-rs/**"
   extraResources:
     - from: backend/bin/aura-api-darwin-universal
       to: bin/aura-api
