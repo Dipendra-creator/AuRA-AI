@@ -34,7 +34,7 @@ jobs:
         run: cd backend && make build-mac-universal
 
       - name: Build and Release Electron macOS
-        run: npm run build:mac
+        run: npm run build:mac -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Uncomment and configure these for code signing (Apple Developer Program)
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         
       - name: Build and Release Electron Windows
-        run: npm run build:win
+        run: npm run build:win -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Uncomment and configure these for Windows code signing
