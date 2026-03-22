@@ -260,17 +260,15 @@ export default function ExecutionLogPanel({
                 {/* Duration / running clock */}
                 {log.status === 'running' ? (
                   <RunningClock startedAt={log.startedAt} />
-                ) : (
-                  log.durationMs > 0 && (
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
-                      {formatDuration(log.durationMs)}
-                    </span>
-                  )
-                )}
+                ) : log.durationMs > 0 ? (
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+                    {formatDuration(log.durationMs)}
+                  </span>
+                ) : null}
               </button>
 
               {/* Expanded details */}
-              {isExpanded && (
+              {isExpanded ? (
                 <div
                   style={{
                     margin: '4px 0 4px 20px',
@@ -282,7 +280,7 @@ export default function ExecutionLogPanel({
                   }}
                 >
                   {/* Error message */}
-                  {log.error && (
+                  {log.error ? (
                     <div style={{ marginBottom: 8 }}>
                       <span style={{ color: '#ef4444', fontWeight: 600 }}>Error: </span>
                       <span
@@ -292,10 +290,10 @@ export default function ExecutionLogPanel({
                           fontSize: 10
                         }}
                       >
-                        {log.error}
+                        {String(log.error)}
                       </span>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Timestamps */}
                   <div style={{ display: 'flex', gap: 16, color: 'rgba(255,255,255,0.4)' }}>
@@ -307,7 +305,7 @@ export default function ExecutionLogPanel({
                   </div>
 
                   {/* Export download button */}
-                  {log.output?.export_path && (
+                  {log.output?.export_path ? (
                     <div style={{ marginTop: 8 }}>
                       <button
                         onClick={async () => {
@@ -347,10 +345,10 @@ export default function ExecutionLogPanel({
                         Download {(log.output.export_format as string | undefined)?.toUpperCase() ?? 'File'}
                       </button>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Output data */}
-                  {log.output && Object.keys(log.output).length > 0 && (
+                  {log.output && Object.keys(log.output).length > 0 ? (
                     <div style={{ marginTop: 8 }}>
                       <span
                         style={{
@@ -380,9 +378,9 @@ export default function ExecutionLogPanel({
                         {JSON.stringify(log.output, null, 2)}
                       </pre>
                     </div>
-                  )}
+                  ) : null}
                 </div>
-              )}
+              ) : null}
             </div>
           )
         })}

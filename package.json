@@ -17,8 +17,13 @@
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
-    "build:mac": "electron-vite build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:linux": "electron-vite build && electron-builder --linux",
+
+    "build:backend:mac": "cd backend && make build-mac-universal",
+    "build:mac": "npm run build:backend:mac && electron-vite build && electron-builder --mac --universal",
+    "build:mac:arm64": "npm run build:backend:mac && electron-vite build && electron-builder --mac --arm64",
+    "build:mac:x64": "npm run build:backend:mac && electron-vite build && electron-builder --mac --x64",
+    "build:mac:dir": "npm run build:backend:mac && electron-vite build && electron-builder --mac --dir"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
