@@ -13,3 +13,4 @@ server
 *.out
 coverage.html
 repo_cov.html
+bin/

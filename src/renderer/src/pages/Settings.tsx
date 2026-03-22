@@ -48,12 +48,6 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box' as const
 }
 
-const inputReadonlyStyle: React.CSSProperties = {
-  ...inputStyle,
-  background: 'rgba(15, 23, 42, 0.3)',
-  color: '#64748b',
-  cursor: 'default'
-}
 
 // ── Profile Section ───────────────────────────────────────────────────────────
 

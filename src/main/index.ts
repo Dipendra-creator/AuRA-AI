@@ -3,6 +3,7 @@
  *
  * Responsibilities:
  * - Window creation with macOS-native settings
+ * - Go backend lifecycle (start on launch, stop on quit)
  * - MongoDB connection lifecycle
  * - IPC handler registration
  * - Native menu bar
@@ -12,6 +13,7 @@ import { app, shell, BrowserWindow, Menu } from 'electron'
 import { join } from 'node:path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { startBackend, stopBackend } from './services/backend.service'
 import { connectToDatabase, disconnectFromDatabase } from './services/mongodb.service'
 import { registerDocumentIPC } from './ipc/document.ipc'
 import { registerWindowIPC } from './ipc/window.ipc'
@@ -145,7 +147,17 @@ app.whenReady().then(async () => {
   registerDocumentIPC()
   registerWindowIPC()
 
-  // Connect to MongoDB
+  // ── Start the embedded Go backend ──────────────────────────────────────────
+  // In dev this targets backend/bin/aura-api-darwin-{arch}.
+  // In production the universal binary is at process.resourcesPath/bin/aura-api.
+  try {
+    await startBackend()
+  } catch (err) {
+    console.error('[Aura AI] Backend failed to start:', err)
+    console.warn('[Aura AI] App will run in degraded mode — API features unavailable')
+  }
+
+  // ── Connect to MongoDB (Electron-side direct connection for IPC handlers) ──
   const dbResult = await connectToDatabase()
   if (!dbResult.success) {
     console.warn('[Aura AI] MongoDB connection failed:', dbResult.error)
@@ -166,5 +178,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async () => {
+  stopBackend()
   await disconnectFromDatabase()
 })

@@ -1,7 +1,13 @@
-appId: com.electron.app
-productName: anti-docu-read
+# ─── Aura AI — electron-builder configuration ────────────────────────────────
+# Docs: https://www.electron.build/configuration/configuration
+
+appId: com.aura-ai.desktop
+productName: Aura AI
+
 directories:
   buildResources: build
+
+# ─── Files included in the ASAR ──────────────────────────────────────────────
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -9,25 +15,71 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+
+# ─── ASAR unpacking — resources accessed at runtime ─────────────────────────
 asarUnpack:
   - resources/**
+
+# ─── Extra resources bundled alongside the ASAR ──────────────────────────────
+#   <app>.app/Contents/Resources/bin/aura-api
+# At runtime: path.join(process.resourcesPath, 'bin', 'aura-api')
+
+# ─── macOS ───────────────────────────────────────────────────────────────────
+mac:
+  extraResources:
+    - from: backend/bin/aura-api-darwin-universal
+      to: bin/aura-api
+  # Universal binary: runs natively on Apple Silicon (M1→M5) AND Intel Macs
+  target:
+    - target: dmg
+      arch:
+        - universal   # fat binary embedding arm64 + x86_64
+    - target: zip
+      arch:
+        - universal   # for Squirrel auto-update
+
+  # App metadata
+  category: public.app-category.productivity
+  icon: build/icon.icns
+
+  # Code signing & Gatekeeper
+  hardenedRuntime: true      # required for notarisation
+  gatekeeperAssess: false    # skip local Gatekeeper re-assessment during build
+  notarize: false            # ← set to true + add credentials for distribution
+
+  # Privacy usage strings (required by macOS if the permission is requested)
+  extendInfo:
+    - NSCameraUsageDescription: Aura AI requests access to the camera for document scanning.
+    - NSMicrophoneUsageDescription: Aura AI requests access to the microphone.
+    - NSDocumentsFolderUsageDescription: Aura AI requests access to the Documents folder to import files.
+    - NSDownloadsFolderUsageDescription: Aura AI requests access to the Downloads folder to import files.
+
+  # Entitlements
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+# ─── DMG installer ───────────────────────────────────────────────────────────
+dmg:
+  artifactName: ${productName}-${version}.${ext}
+  title: Aura AI ${version}
+  # Optional: add background image by placing build/dmg-background.png
+  # background: build/dmg-background.png
+  # window: { width: 660, height: 400 }
+
+# ─── Windows (unchanged) ─────────────────────────────────────────────────────
 win:
-  executableName: anti-docu-read
+  target: nsis
+  executableName: aura-ai
+  extraResources:
+    - from: backend/bin/aura-api-windows-amd64.exe
+      to: bin/aura-api.exe
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-mac:
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
-dmg:
-  artifactName: ${name}-${version}.${ext}
+
+# ─── Linux (unchanged) ───────────────────────────────────────────────────────
 linux:
   target:
     - AppImage
@@ -37,6 +89,8 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
 npmRebuild: false
 publish:
   provider: generic
