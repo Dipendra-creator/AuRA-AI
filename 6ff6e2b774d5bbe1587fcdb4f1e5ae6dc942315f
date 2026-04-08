@@ -1,0 +1,59 @@
+src/renderer/src/contexts/AIProviderContext.tsx
+  0aad7e4a62fe7842 1-105
+src/renderer/src/App.tsx
+  0aad7e4a62fe7842 24,120-122
+backend/internal/service/document_svc.go
+  0aad7e4a62fe7842 161,348
+backend/internal/server/router.go
+  0aad7e4a62fe7842 5,64,66-67,170-171,173-176
+src/renderer/src/data/api-client.ts
+  0aad7e4a62fe7842 147,149-150,155-165,171,184-198,209-211,218-220
+backend/internal/handler/auth_handler.go
+  0aad7e4a62fe7842 458-461,464,466-485,487-516
+backend/internal/repository/ai_provider.repository.go
+  0aad7e4a62fe7842 121-160
+src/renderer/src/pages/Documents.tsx
+  0aad7e4a62fe7842 23,43,322-352
+backend/internal/aiservice/copilot.go
+  0aad7e4a62fe7842 1-301
+electron-builder.yml
+  0aad7e4a62fe7842 7-12
+backend/internal/handler/ai_provider.handler.go
+  0aad7e4a62fe7842 23-42,45-49,51,66,71-73,79-82,84,93-99,103,112-113,116-120,130,139-140,143-147,149,157-158,161-165,167
+src/main/index.ts
+  0aad7e4a62fe7842 135-160
+src/shared/types/ai-provider.types.ts
+  0aad7e4a62fe7842 3,6-7,11,28,32-43
+src/renderer/src/contexts/AuthContext.tsx
+  0aad7e4a62fe7842 117-120,127,129,131-137,145-146,150,154-157,159-161,163-172,182,184,187,198,201
+backend/internal/service/ai_provider.service.go
+  0aad7e4a62fe7842 19,22-39,56,58-79,82-85,90-92,100-105,110,113,123-145,148-152,158,163,168,171,176-181,187-192,194,197-212,217-219,224,232,249-264,267-268,270
+src/renderer/src/pages/APIConfig.tsx
+  0aad7e4a62fe7842 2-5,9-15,17-65,117-129,132-136,138-139,149-150,163,165-169,171-173,177,185,193-194,196-199,211,213-214,220,226,230,237,244,246,252,258,262,268,270-280,283-293,295-300,302-318,320-322,324-325,327-343,345-353,355-369,371-373,375,377-381,383-385,387-413,416-433,436-524,532,535,538
+backend/internal/domain/ai_provider.go
+  0aad7e4a62fe7842 10
+backend/internal/engine/nodes/ai_extract.go
+  0aad7e4a62fe7842 90
+src/renderer/src/components/DocumentAnalysis.tsx
+  0aad7e4a62fe7842 35-36,147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "6ff6e2b774d5bbe1587fcdb4f1e5ae6dc942315f",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 1278,
+      "total_deletions": 368,
+      "accepted_lines": 1261,
+      "overriden_lines": 2
+    }
+  }
+}
