@@ -11,6 +11,11 @@ export default defineConfig({
     }
   },
   preload: {
+    build: {
+      externalizeDeps: {
+        exclude: ['@electron-toolkit/preload']
+      }
+    },
     resolve: {
       alias: {
         '@shared': resolve('src/shared')
