@@ -21,6 +21,7 @@ import { TrendingUp } from './components/Icons'
 import { Templates } from './pages/Templates'
 import { APIConfig } from './pages/APIConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AIProviderProvider } from './contexts/AIProviderContext'
 import { AuthPage } from './pages/AuthPage'
 import { MockDataBanner } from './components/MockDataBanner'
 
@@ -116,7 +117,9 @@ function AppShell(): ReactElement {
 export default function App(): ReactElement {
   return (
     <AuthProvider>
-      <AppShell />
+      <AIProviderProvider>
+        <AppShell />
+      </AIProviderProvider>
     </AuthProvider>
   )
 }

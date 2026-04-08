@@ -20,19 +20,41 @@ func NewAIProviderHandler(svc *service.AIProviderService) *AIProviderHandler {
 	return &AIProviderHandler{svc: svc}
 }
 
-// GetProvider handles GET /api/v1/ai-providers
-// Returns the current Kilo Code configuration for the authenticated user (key masked).
-func (h *AIProviderHandler) GetProvider(w http.ResponseWriter, r *http.Request) {
+// ListProviders handles GET /api/v1/ai-providers
+// Returns all configured AI providers for the authenticated user.
+func (h *AIProviderHandler) ListProviders(w http.ResponseWriter, r *http.Request) {
 	userID := mustUserID(r)
 
-	provider, err := h.svc.GetProvider(r.Context(), userID)
+	providers, err := h.svc.GetAllProviders(r.Context(), userID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	if providers == nil {
+		providers = []domain.AIProvider{}
+	}
+
+	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(providers))
+}
+
+// GetProvider handles GET /api/v1/ai-providers/{type}
+// Returns a specific provider config for the authenticated user (key masked).
+func (h *AIProviderHandler) GetProvider(w http.ResponseWriter, r *http.Request) {
+	userID := mustUserID(r)
+	providerType := r.PathValue("type")
+	if providerType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("provider type is required"))
+		return
+	}
+
+	provider, err := h.svc.GetProvider(r.Context(), userID, providerType)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 
 	if provider == nil {
-		// No config yet — return an empty state so the frontend can show "Not configured"
 		domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(nil))
 		return
 	}
@@ -41,20 +63,25 @@ func (h *AIProviderHandler) GetProvider(w http.ResponseWriter, r *http.Request) 
 }
 
 // SaveProvider handles POST /api/v1/ai-providers
-// Saves (creates or updates) the Kilo Code API key.
+// Saves (creates or updates) an AI provider API key.
 func (h *AIProviderHandler) SaveProvider(w http.ResponseWriter, r *http.Request) {
 	userID := mustUserID(r)
 
 	var body struct {
-		APIKey string `json:"apiKey"`
-		Model  string `json:"model"`
+		ProviderType string `json:"providerType"`
+		APIKey       string `json:"apiKey"`
+		Model        string `json:"model"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("invalid request body"))
 		return
 	}
+	if body.ProviderType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("providerType is required"))
+		return
+	}
 
-	saved, err := h.svc.SaveProvider(r.Context(), userID, body.APIKey, body.Model)
+	saved, err := h.svc.SaveProvider(r.Context(), userID, body.ProviderType, body.APIKey, body.Model)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -63,10 +90,34 @@ func (h *AIProviderHandler) SaveProvider(w http.ResponseWriter, r *http.Request)
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(saved))
 }
 
-// UpdateModel handles PATCH /api/v1/ai-providers
-// Updates only the model for an existing Kilo Code configuration.
+// SetActive handles POST /api/v1/ai-providers/{type}/activate
+// Marks the specified provider as active and deactivates others.
+func (h *AIProviderHandler) SetActive(w http.ResponseWriter, r *http.Request) {
+	userID := mustUserID(r)
+	providerType := r.PathValue("type")
+	if providerType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("provider type is required"))
+		return
+	}
+
+	saved, err := h.svc.SetActiveProvider(r.Context(), userID, providerType)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(saved))
+}
+
+// UpdateModel handles PATCH /api/v1/ai-providers/{type}
+// Updates only the model for an existing provider configuration.
 func (h *AIProviderHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 	userID := mustUserID(r)
+	providerType := r.PathValue("type")
+	if providerType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("provider type is required"))
+		return
+	}
 
 	var body struct {
 		Model string `json:"model"`
@@ -76,7 +127,7 @@ func (h *AIProviderHandler) UpdateModel(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	saved, err := h.svc.UpdateModel(r.Context(), userID, body.Model)
+	saved, err := h.svc.UpdateModel(r.Context(), userID, providerType, body.Model)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -85,12 +136,17 @@ func (h *AIProviderHandler) UpdateModel(w http.ResponseWriter, r *http.Request) 
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(saved))
 }
 
-// DeleteProvider handles DELETE /api/v1/ai-providers
-// Removes the Kilo Code configuration for the authenticated user.
+// DeleteProvider handles DELETE /api/v1/ai-providers/{type}
+// Removes a specific provider configuration for the authenticated user.
 func (h *AIProviderHandler) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	userID := mustUserID(r)
+	providerType := r.PathValue("type")
+	if providerType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("provider type is required"))
+		return
+	}
 
-	if err := h.svc.DeleteProvider(r.Context(), userID); err != nil {
+	if err := h.svc.DeleteProvider(r.Context(), userID, providerType); err != nil {
 		handleError(w, err)
 		return
 	}
@@ -98,12 +154,17 @@ func (h *AIProviderHandler) DeleteProvider(w http.ResponseWriter, r *http.Reques
 	domain.WriteJSON(w, http.StatusOK, domain.SuccessResponse(nil))
 }
 
-// TestProvider handles POST /api/v1/ai-providers/test
-// Tests connectivity to the Kilo API using the stored API key.
+// TestProvider handles POST /api/v1/ai-providers/{type}/test
+// Tests connectivity using the stored API key for the specified provider.
 func (h *AIProviderHandler) TestProvider(w http.ResponseWriter, r *http.Request) {
 	userID := mustUserID(r)
+	providerType := r.PathValue("type")
+	if providerType == "" {
+		domain.WriteJSON(w, http.StatusBadRequest, domain.ErrorResponse("provider type is required"))
+		return
+	}
 
-	result, err := h.svc.TestProvider(r.Context(), userID)
+	result, err := h.svc.TestProvider(r.Context(), userID, providerType)
 	if err != nil {
 		handleError(w, err)
 		return

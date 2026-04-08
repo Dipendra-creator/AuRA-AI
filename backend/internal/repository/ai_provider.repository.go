@@ -118,3 +118,43 @@ func (r *AIProviderRepo) Delete(ctx context.Context, userID bson.ObjectID, provi
 	_, err := r.col.DeleteOne(ctx, bson.M{"user_id": userID, "type": providerType})
 	return err
 }
+
+// DeactivateAll sets is_active=false for all providers belonging to a user.
+func (r *AIProviderRepo) DeactivateAll(ctx context.Context, userID bson.ObjectID) error {
+	_, err := r.col.UpdateMany(ctx, bson.M{"user_id": userID}, bson.M{
+		"$set": bson.M{"is_active": false, "updated_at": time.Now()},
+	})
+	return err
+}
+
+// SetActive marks a specific provider as active for a user. Returns the updated document.
+func (r *AIProviderRepo) SetActive(ctx context.Context, userID bson.ObjectID, providerType string) (*domain.AIProvider, error) {
+	filter := bson.M{"user_id": userID, "type": providerType}
+	update := bson.M{
+		"$set": bson.M{"is_active": true, "updated_at": time.Now()},
+	}
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	var result domain.AIProvider
+	err := r.col.FindOneAndUpdate(ctx, filter, update, opts).Decode(&result)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// FindAllActive returns all provider configs across all users where is_active=true.
+func (r *AIProviderRepo) FindAllActive(ctx context.Context) ([]domain.AIProvider, error) {
+	cur, err := r.col.Find(ctx, bson.M{"is_active": true})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var providers []domain.AIProvider
+	if err := cur.All(ctx, &providers); err != nil {
+		return nil, err
+	}
+	return providers, nil
+}

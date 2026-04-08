@@ -4,6 +4,12 @@
 appId: com.aura-ai.desktop
 productName: Aura AI
 
+# ─── Deep-link protocol (OAuth callback redirect) ────────────────────────────
+protocols:
+  - name: Aura AI
+    schemes:
+      - aura-ai
+
 directories:
   buildResources: build
 

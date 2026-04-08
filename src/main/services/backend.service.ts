@@ -101,7 +101,7 @@ function buildEnv(): NodeJS.ProcessEnv {
     MONGO_URI: process.env['MONGO_URI'] ?? 'mongodb://127.0.0.1:27017',
     MONGO_DB: process.env['MONGO_DB'] ?? 'AuraAI',
     LOG_LEVEL: is.dev ? 'debug' : 'info',
-    CORS_ORIGINS: `http://localhost:${BACKEND_PORT}`,
+    CORS_ORIGINS: `http://localhost:5173,http://localhost:${BACKEND_PORT}`,
     REQUEST_TIMEOUT: '30s',
     // KILO_API_KEY must be set by the user via preferences / env
     KILO_API_KEY: process.env['KILO_API_KEY'] ?? '',

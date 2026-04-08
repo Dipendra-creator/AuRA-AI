@@ -7,13 +7,13 @@ import (
 )
 
 // AIProvider stores an AI provider configuration for a user.
-// Currently supports only Kilo Code (type = "kilo_code").
+// Supports Kilo Code ("kilo_code") and GitHub Copilot ("github_copilot").
 type AIProvider struct {
 	ID              bson.ObjectID `bson:"_id,omitempty"               json:"id"`
 	UserID          bson.ObjectID `bson:"user_id"                     json:"userId"`
-	Type            string        `bson:"type"                        json:"type"`                          // e.g. "kilo_code"
-	APIKeyEncrypted string        `bson:"api_key_encrypted,omitempty" json:"-"`                             // AES-256-GCM — never returned to client
-	APIKeyPreview   string        `bson:"api_key_preview,omitempty"   json:"apiKeyPreview,omitempty"`       // e.g. "...sk3f"
+	Type            string        `bson:"type"                        json:"type"`                    // e.g. "kilo_code"
+	APIKeyEncrypted string        `bson:"api_key_encrypted,omitempty" json:"-"`                       // AES-256-GCM — never returned to client
+	APIKeyPreview   string        `bson:"api_key_preview,omitempty"   json:"apiKeyPreview,omitempty"` // e.g. "...sk3f"
 	BaseURL         string        `bson:"base_url,omitempty"          json:"baseUrl,omitempty"`
 	Model           string        `bson:"model,omitempty"             json:"model,omitempty"`
 	IsActive        bool          `bson:"is_active"                   json:"isActive"`

@@ -17,7 +17,6 @@ import (
 	"github.com/aura-ai/backend/internal/repository"
 )
 
-
 // DocumentRepository defines the interface for database operations on documents.
 type DocumentRepository interface {
 	List(ctx context.Context, f domain.DocumentFilter) ([]domain.Document, int64, error)
@@ -159,7 +158,7 @@ func (s *DocumentService) AnalyzeWithProgress(ctx context.Context, id bson.Objec
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add your Kilo Code API key in API Configuration"})
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add an API key in API Configuration"})
 		return
 	}
 
@@ -346,7 +345,7 @@ func (s *DocumentService) AnalyzeWithProgressAndSchema(ctx context.Context, id b
 		errStatus := domain.StatusError
 		stepFailed := "failed"
 		_, _ = s.Update(ctx, id, domain.UpdateDocumentInput{Status: &errStatus, ProcessingStep: &stepFailed})
-		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add your Kilo Code API key in API Configuration"})
+		send(domain.AnalysisEvent{Type: "error", Error: "AI service not configured — add an API key in API Configuration"})
 		return
 	}
 

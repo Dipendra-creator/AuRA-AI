@@ -32,7 +32,8 @@ import {
   ArrowLeft,
   Sparkles
 } from './Icons'
-import { getAuthToken, getAIProvider } from '../data/api-client'
+import { getAuthToken } from '../data/api-client'
+import { useAIProvider } from '../contexts/AIProviderContext'
 
 // Configure PDF.js worker — served from public/ directory
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -143,13 +144,7 @@ export function DocumentAnalysis({
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(100)
   const [rightPanelTab, setRightPanelTab] = useState<'data' | 'schema'>('data')
-  const [aiModel, setAiModel] = useState<string | null>(null)
-
-  useEffect(() => {
-    getAIProvider()
-      .then((p) => setAiModel(p?.model ?? null))
-      .catch(() => setAiModel(null))
-  }, [])
+  const { activeModelName: aiModel, isConfigured: aiConfigured, activeProviderName } = useAIProvider()
 
   const DEFAULT_WIDTH = 480
   const pageWidth = Math.round(DEFAULT_WIDTH * (zoomLevel / 100))

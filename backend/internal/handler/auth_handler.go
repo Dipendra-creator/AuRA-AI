@@ -455,18 +455,65 @@ func (h *AuthHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// renderCallbackResult renders an HTML page that closes the popup window
-// and posts the result back to the opener via postMessage.
+// renderCallbackResult renders an HTML page that:
+//  1. Tries postMessage to window.opener (browser popup mode)
+//  2. Redirects to aura-ai://auth/complete to bring the Electron app to front
+//  3. Shows a nice fallback page with auto-close
 func (h *AuthHandler) renderCallbackResult(w http.ResponseWriter, token, errMsg string) {
-	var script string
-	if errMsg != "" {
-		script = fmt.Sprintf(`window.opener && window.opener.postMessage({type:'github-auth-error',error:%q},'*'); window.close();`, errMsg)
-	} else {
-		script = fmt.Sprintf(`window.opener && window.opener.postMessage({type:'github-auth-success',token:%q},'*'); window.close();`, token)
-	}
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>Authenticating...</title></head>`+
-		`<body><script>%s</script><p>Authentication complete. You can close this window.</p></body></html>`, script)
+
+	if errMsg != "" {
+		fmt.Fprintf(w, `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Authentication Failed</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: rgba(30,41,59,0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 40px; text-align: center; max-width: 400px; }
+  .icon { font-size: 48px; margin-bottom: 16px; }
+  h2 { margin: 0 0 8px; color: #f87171; }
+  p { color: #94a3b8; margin: 0; font-size: 14px; }
+</style></head>
+<body><div class="card">
+  <div class="icon">✗</div>
+  <h2>Authentication Failed</h2>
+  <p>%s</p>
+  <p style="margin-top:16px">You can close this tab and try again.</p>
+</div>
+<script>
+  if (window.opener) { window.opener.postMessage({type:'github-auth-error',error:%q},'*'); }
+  setTimeout(function(){ window.close(); }, 3000);
+</script></body></html>`, errMsg, errMsg)
+		return
+	}
+
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Authentication Successful</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: rgba(30,41,59,0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 40px; text-align: center; max-width: 400px; }
+  .icon { font-size: 48px; margin-bottom: 16px; }
+  h2 { margin: 0 0 8px; color: #34d399; }
+  p { color: #94a3b8; margin: 0; font-size: 14px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(52,211,153,0.3); border-top-color: #34d399; border-radius: 50%%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style></head>
+<body><div class="card">
+  <div class="icon">✓</div>
+  <h2>Authentication Successful</h2>
+  <p><span class="spinner"></span>Returning to Aura AI…</p>
+  <p style="margin-top:16px;font-size:12px;color:#64748b">This tab will close automatically.</p>
+</div>
+<script>
+  // 1. Try postMessage for browser-popup mode
+  if (window.opener) {
+    window.opener.postMessage({type:'github-auth-success',token:%q},'*');
+  }
+  // 2. Redirect to deep link to bring Electron app to front
+  setTimeout(function(){
+    window.location.href = 'aura-ai://auth/complete';
+  }, 500);
+  // 3. Try to close this tab after a short delay
+  setTimeout(function(){ window.close(); }, 2000);
+</script></body></html>`, token)
 }
 
 // cleanupSessions removes stale OAuth sessions older than 5 minutes.
@@ -539,9 +586,9 @@ func fetchGitHubPrimaryEmail(ctx context.Context, accessToken string) string {
 	defer resp.Body.Close()
 
 	var emails []struct {
-		Email   string `json:"email"`
-		Primary bool   `json:"primary"`
-		Verified bool  `json:"verified"`
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
 		return ""

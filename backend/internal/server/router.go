@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/aura-ai/backend/internal/aiservice"
@@ -60,7 +61,10 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	dashSvc := service.NewDashboardService(docRepo, pipelineRepo)
 	pipeSvc := service.NewPipelineService(pipelineRepo)
 	pipeExecSvc := service.NewPipelineExecService(pipelineRepo, runRepo, executor, broker)
+	// --- AI Provider Service (bootstrap from DB, fallback to env) ---
 	aiProviderSvc := service.NewAIProviderService(aiProviderRepo, cfg.EncryptionKey, aiMgr)
+	aiProviderSvc.BootstrapFromDB(context.Background())
+	aiProviderSvc.BootstrapFromEnv(cfg.KiloAPIKey)
 
 	// --- Handlers ---
 	authH := handler.NewAuthHandler(userRepo, docRepo, cfg)
@@ -163,11 +167,13 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	mux.Handle("POST /api/v1/activity", requireAuth(http.HandlerFunc(actH.Create)))
 
 	// ── AI Provider Configuration (protected) ─────────────────────────────────
-	mux.Handle("GET /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.GetProvider)))
+	mux.Handle("GET /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.ListProviders)))
+	mux.Handle("GET /api/v1/ai-providers/{type}", requireAuth(http.HandlerFunc(aiProviderH.GetProvider)))
 	mux.Handle("POST /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.SaveProvider)))
-	mux.Handle("PATCH /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.UpdateModel)))
-	mux.Handle("DELETE /api/v1/ai-providers", requireAuth(http.HandlerFunc(aiProviderH.DeleteProvider)))
-	mux.Handle("POST /api/v1/ai-providers/test", requireAuth(http.HandlerFunc(aiProviderH.TestProvider)))
+	mux.Handle("POST /api/v1/ai-providers/{type}/activate", requireAuth(http.HandlerFunc(aiProviderH.SetActive)))
+	mux.Handle("PATCH /api/v1/ai-providers/{type}", requireAuth(http.HandlerFunc(aiProviderH.UpdateModel)))
+	mux.Handle("DELETE /api/v1/ai-providers/{type}", requireAuth(http.HandlerFunc(aiProviderH.DeleteProvider)))
+	mux.Handle("POST /api/v1/ai-providers/{type}/test", requireAuth(http.HandlerFunc(aiProviderH.TestProvider)))
 
 	// --- Middleware Chain ---
 	var h http.Handler = mux

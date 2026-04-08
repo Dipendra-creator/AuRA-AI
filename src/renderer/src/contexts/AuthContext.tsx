@@ -114,45 +114,62 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
       throw new Error(envelope.error ?? 'GitHub OAuth not available')
     }
 
-    // Open a popup window for GitHub auth
+    // Open the GitHub auth URL.
+    // In Electron, window.open() returns null because setWindowOpenHandler
+    // redirects to shell.openExternal and denies the popup. This is expected —
+    // the URL still opens in the user's default browser.
     const popup = window.open(
       envelope.data.url,
       'github-auth',
       'width=600,height=700,scrollbars=yes,resizable=yes'
     )
 
-    if (!popup) {
-      throw new Error('Could not open GitHub auth popup. Please allow popups for this app.')
-    }
+    const isElectron = !popup // null means Electron denied the popup but opened externally
 
-    // Listen for postMessage from the callback page
+    // Listen for the result via postMessage (works in browser popup) or polling (Electron / fallback)
     await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const settle = (fn: () => void) => {
+        if (settled) return
+        settled = true
+        fn()
+      }
+
       const messageHandler = (event: MessageEvent) => {
         if (event.data?.type === 'github-auth-success') {
           window.removeEventListener('message', messageHandler)
           clearInterval(pollInterval)
           const token: string = event.data.token
           setAuthToken(token)
-          // Fetch user info with the new token
           apiGetAuth<AuthUser>('/auth/me', token)
-            .then((u) => {
-              setUser(u)
-              resolve()
-            })
-            .catch(reject)
+            .then((u) => settle(() => { setUser(u); resolve() }))
+            .catch((err) => settle(() => reject(err)))
         } else if (event.data?.type === 'github-auth-error') {
           window.removeEventListener('message', messageHandler)
           clearInterval(pollInterval)
-          reject(new Error(event.data.error ?? 'GitHub authentication failed'))
+          settle(() => reject(new Error(event.data.error ?? 'GitHub authentication failed')))
         }
       }
 
-      window.addEventListener('message', messageHandler)
+      // Only listen for postMessage if we have a real popup (browser context)
+      if (!isElectron) {
+        window.addEventListener('message', messageHandler)
+      }
 
-      // Also poll the status endpoint as a fallback (in case postMessage is blocked)
+      // Poll the status endpoint (primary mechanism in Electron, fallback in browser)
+      const POLL_TIMEOUT_MS = 120_000 // 2 minutes
+      const pollStart = Date.now()
       const pollInterval = setInterval(async () => {
-        if (popup.closed) {
-          // Popup closed — check status one last time
+        // Timeout guard
+        if (Date.now() - pollStart > POLL_TIMEOUT_MS) {
+          clearInterval(pollInterval)
+          window.removeEventListener('message', messageHandler)
+          settle(() => reject(new Error('GitHub authentication timed out')))
+          return
+        }
+
+        // In browser mode, check if popup was closed without completing
+        if (!isElectron && popup && popup.closed) {
           clearInterval(pollInterval)
           window.removeEventListener('message', messageHandler)
           try {
@@ -162,13 +179,12 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
             if (statusEnv.data?.ready && statusEnv.data.token) {
               setAuthToken(statusEnv.data.token)
               const u = await apiGetAuth<AuthUser>('/auth/me', statusEnv.data.token)
-              setUser(u)
-              resolve()
+              settle(() => { setUser(u); resolve() })
             } else {
-              reject(new Error('GitHub authentication was cancelled'))
+              settle(() => reject(new Error('GitHub authentication was cancelled')))
             }
           } catch {
-            reject(new Error('GitHub authentication failed'))
+            settle(() => reject(new Error('GitHub authentication failed')))
           }
           return
         }
@@ -179,11 +195,10 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactElemen
           if (statusEnv.data?.ready && statusEnv.data.token) {
             clearInterval(pollInterval)
             window.removeEventListener('message', messageHandler)
-            popup.close()
+            if (popup && !popup.closed) popup.close()
             setAuthToken(statusEnv.data.token)
             const u = await apiGetAuth<AuthUser>('/auth/me', statusEnv.data.token)
-            setUser(u)
-            resolve()
+            settle(() => { setUser(u); resolve() })
           }
         } catch {
           // ignore poll errors, keep waiting

@@ -87,7 +87,7 @@ func (e *AIExtractExecutor) Execute(ctx context.Context, node domain.PipelineNod
 	if ai == nil {
 		slog.Warn("ai_extract: no AI client configured, passing through", "node", node.Name)
 		output.Fields["extraction_model"] = "none"
-		output.Fields["extraction_error"] = "AI service not configured — add your Kilo Code API key in API Configuration"
+		output.Fields["extraction_error"] = "AI service not configured — add an API key in API Configuration"
 		output.Fields["extraction_complete"] = false
 		return output, nil
 	}

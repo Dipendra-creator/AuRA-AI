@@ -132,6 +132,32 @@ function createMenu(): void {
   Menu.setApplicationMenu(menu)
 }
 
+// ── Deep-link protocol (aura-ai://) for OAuth callback redirect ──────────────
+// Must be registered before app.whenReady() so macOS associates the scheme.
+if (is.dev) {
+  // In dev, Electron runs via the electron binary; pass the app path so the
+  // running dev instance receives the URL.
+  app.setAsDefaultProtocolClient('aura-ai', process.execPath, [
+    app.getAppPath()
+  ])
+} else {
+  app.setAsDefaultProtocolClient('aura-ai')
+}
+
+// On macOS, open-url fires on the *running* instance when a aura-ai:// link is opened.
+app.on('open-url', (event, _url) => {
+  event.preventDefault()
+  // Bring the main window to front so the user sees the now-logged-in app.
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+    // macOS: also activate the app (important when switching from browser)
+    app.focus({ steal: true })
+  }
+})
+
 // App lifecycle
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.aura-ai.desktop')

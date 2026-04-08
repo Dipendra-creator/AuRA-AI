@@ -144,11 +144,22 @@ export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
 
 // ── AI Provider endpoints ─────────────────────────────────────────────────────
 
-import type { AIProvider, ProviderTestResult, SaveProviderInput } from '../../../shared/types/ai-provider.types'
+import type { AIProvider, ProviderTestResult, ProviderType, SaveProviderInput } from '../../../shared/types/ai-provider.types'
 
-/** Returns the current Kilo Code provider config (API key masked), or null if not configured. */
-export async function getAIProvider(): Promise<AIProvider | null> {
+/** Returns all configured AI providers for the current user. */
+export async function listAIProviders(): Promise<AIProvider[]> {
   const res = await fetch(`${API_BASE}/ai-providers`, {
+    headers: { ...authHeaders() }
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<AIProvider[]> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data ?? []
+}
+
+/** Returns a specific provider config (API key masked), or null if not configured. */
+export async function getAIProvider(providerType: ProviderType): Promise<AIProvider | null> {
+  const res = await fetch(`${API_BASE}/ai-providers/${providerType}`, {
     headers: { ...authHeaders() }
   })
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
@@ -157,7 +168,7 @@ export async function getAIProvider(): Promise<AIProvider | null> {
   return envelope.data ?? null
 }
 
-/** Saves (creates or updates) the Kilo Code API key. */
+/** Saves (creates or updates) an AI provider API key. Also sets it as active. */
 export async function saveAIProvider(input: SaveProviderInput): Promise<AIProvider> {
   const res = await fetch(`${API_BASE}/ai-providers`, {
     method: 'POST',
@@ -170,9 +181,21 @@ export async function saveAIProvider(input: SaveProviderInput): Promise<AIProvid
   return envelope.data!
 }
 
-/** Updates only the model for an existing Kilo Code provider config. */
-export async function updateAIProviderModel(model: string): Promise<AIProvider> {
-  const res = await fetch(`${API_BASE}/ai-providers`, {
+/** Marks a specific provider as the active one. */
+export async function activateAIProvider(providerType: ProviderType): Promise<AIProvider> {
+  const res = await fetch(`${API_BASE}/ai-providers/${providerType}/activate`, {
+    method: 'POST',
+    headers: { ...authHeaders() }
+  })
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
+  const envelope: APIEnvelope<AIProvider> = await res.json()
+  if (!envelope.success) throw new Error(envelope.error ?? 'Unknown API error')
+  return envelope.data!
+}
+
+/** Updates only the model for an existing provider config. */
+export async function updateAIProviderModel(providerType: ProviderType, model: string): Promise<AIProvider> {
+  const res = await fetch(`${API_BASE}/ai-providers/${providerType}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ model })
@@ -183,18 +206,18 @@ export async function updateAIProviderModel(model: string): Promise<AIProvider> 
   return envelope.data!
 }
 
-/** Removes the Kilo Code provider config. */
-export async function deleteAIProvider(): Promise<void> {
-  const res = await fetch(`${API_BASE}/ai-providers`, {
+/** Removes a specific provider config. */
+export async function deleteAIProvider(providerType: ProviderType): Promise<void> {
+  const res = await fetch(`${API_BASE}/ai-providers/${providerType}`, {
     method: 'DELETE',
     headers: { ...authHeaders() }
   })
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`)
 }
 
-/** Tests connectivity to the Kilo API using the stored key. */
-export async function testAIProvider(): Promise<ProviderTestResult> {
-  const res = await fetch(`${API_BASE}/ai-providers/test`, {
+/** Tests connectivity to a specific provider using the stored key. */
+export async function testAIProvider(providerType: ProviderType): Promise<ProviderTestResult> {
+  const res = await fetch(`${API_BASE}/ai-providers/${providerType}/test`, {
     method: 'POST',
     headers: { ...authHeaders() }
   })

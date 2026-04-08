@@ -20,6 +20,7 @@ import type { AnalysisEvent } from '../data/data-service'
 import type { AuraDocument, SchemaField } from '../../../shared/types/document.types'
 import type { ToastType } from '../components/Toast'
 import { Search } from '../components/Icons'
+import { useAIProvider } from '../contexts/AIProviderContext'
 
 type FilterType = 'all' | 'processed' | 'reviewing' | 'pending' | 'error'
 
@@ -39,6 +40,7 @@ interface DocumentsProps {
 }
 
 export function Documents({ addToast }: DocumentsProps): ReactElement {
+  const { isConfigured: aiConfigured, activeProviderName } = useAIProvider()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [selectedDocument, setSelectedDocument] = useState<AuraDocument | null>(null)
@@ -316,6 +318,37 @@ export function Documents({ addToast }: DocumentsProps): ReactElement {
           />
         </div>
       </header>
+
+      {/* AI provider banner */}
+      {!aiConfigured && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '12px 16px', marginBottom: '16px',
+          background: 'rgba(234,179,8,0.06)',
+          border: '1px solid rgba(234,179,8,0.18)',
+          borderRadius: '10px',
+          fontSize: '13px', color: '#eab308'
+        }}>
+          <span style={{ fontSize: '16px' }}>⚠️</span>
+          <span>
+            No AI provider configured — document analysis requires an active provider.{' '}
+            <span style={{ color: '#94a3b8' }}>Go to <strong style={{ color: '#21d5ed' }}>API Configuration</strong> to set one up.</span>
+          </span>
+        </div>
+      )}
+      {aiConfigured && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '10px 16px', marginBottom: '16px',
+          background: 'rgba(16,185,129,0.05)',
+          border: '1px solid rgba(16,185,129,0.15)',
+          borderRadius: '10px',
+          fontSize: '13px', color: '#10b981'
+        }}>
+          <span style={{ fontSize: '14px' }}>✓</span>
+          <span>AI powered by <strong>{activeProviderName}</strong></span>
+        </div>
+      )}
 
       {/* Upload Zone */}
       <FileDropZone onFilesSelected={handleFilesSelected} />
