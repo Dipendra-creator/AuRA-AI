@@ -1,0 +1,27 @@
+src/renderer/src/pages/APIConfig.tsx
+  0aad7e4a62fe7842 47,49-52,54,58-67
+src/renderer/index.html
+  0aad7e4a62fe7842 10
+electron.vite.config.ts
+  0aad7e4a62fe7842 14-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6",
+  "base_commit_sha": "23454335ffb1f5d417a3747dd6d014d41f9e74ae",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 22,
+      "total_deletions": 9,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    }
+  }
+}
