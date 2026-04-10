@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6",
+  "base_commit_sha": "bac0eb7da2f436eb913e8b33b98ecdbb179c2d34",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
