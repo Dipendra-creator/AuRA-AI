@@ -7,6 +7,7 @@
  * - MongoDB connection lifecycle
  * - IPC handler registration
  * - Native menu bar
+ * 
  */
 
 import { app, shell, BrowserWindow, Menu } from 'electron'
