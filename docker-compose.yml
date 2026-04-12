@@ -46,7 +46,7 @@ services:
       MONGO_URI: 'mongodb://mongodb:27017'
       MONGO_DB: 'antigravity'
       PORT: '8080'
-      CORS_ORIGINS: '*'
+      CORS_ORIGINS: 'http://localhost:5173'
     depends_on:
       mongodb:
         condition: service_healthy

@@ -2,7 +2,9 @@
 package config
 
 import (
+	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -37,7 +39,7 @@ func Load() *Config {
 		RequestTimeout:     parseDuration(getEnv("REQUEST_TIMEOUT", "30s"), 30*time.Second),
 		KiloAPIKey:         getEnv("KILO_API_KEY", ""),
 		TesseractPath:      getEnv("TESSERACT_PATH", "tesseract"),
-		JWTSecret:          getEnv("JWT_SECRET", "change-me-in-production-use-32-chars"),
+		JWTSecret:          requireEnv("JWT_SECRET"),
 		JWTExpiry:          parseDuration(getEnv("JWT_EXPIRY", "72h"), 72*time.Hour),
 		GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
 		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
@@ -60,10 +62,22 @@ func loadEncryptionKey() []byte {
 			return key
 		}
 	} else {
-		slog.Warn("ENCRYPTION_KEY not set — using insecure dev-only fallback key (set a real key in production)")
+		slog.Warn("ENCRYPTION_KEY not set — generating ephemeral random key (data encrypted this run won't be decryptable after restart)")
 	}
-	// Dev fallback: 32 zero bytes. NOT safe for production.
-	return make([]byte, 32)
+	// Generate a crypto-random ephemeral key instead of predictable zero bytes.
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		panic("failed to generate random encryption key: " + err.Error())
+	}
+	return key
+}
+
+func requireEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		panic(fmt.Sprintf("required environment variable %s is not set", key))
+	}
+	return v
 }
 
 func getEnv(key, fallback string) string {
