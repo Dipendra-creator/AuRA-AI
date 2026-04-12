@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 4" width="900" height="4">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#21d5ed" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#21d5ed" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#a855f7" stop-opacity="1"/>
+      <stop offset="70%" stop-color="#21d5ed" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#21d5ed" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="4" fill="transparent"/>
+  <line x1="0" y1="2" x2="900" y2="2" stroke="url(#g)" stroke-width="1.5">
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="3s" repeatCount="indefinite"/>
+  </line>
+  <circle cx="450" cy="2" r="2.5" fill="#a855f7">
+    <animate attributeName="r" values="1.5;3;1.5" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+</svg>

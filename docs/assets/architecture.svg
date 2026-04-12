@@ -1,0 +1,410 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" width="960" height="720">
+  <defs>
+    <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b14"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#070b14"/>
+    </linearGradient>
+    <linearGradient id="cyanG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e7490"/>
+      <stop offset="100%" stop-color="#21d5ed"/>
+    </linearGradient>
+    <linearGradient id="purpleG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="greenG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="orangeG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="roseG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+    <linearGradient id="flowLine1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#21d5ed" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#21d5ed" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#21d5ed" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="flowLine2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#a855f7" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#21d5ed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="bigGlow">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="nodeGlow">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dropShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+    @keyframes softPulse{0%,100%{opacity:.6}50%{opacity:1}}
+    @keyframes flowDown{0%{transform:translateY(-30px);opacity:0}50%{opacity:1}100%{transform:translateY(30px);opacity:0}}
+    @keyframes flowRight{0%{transform:translateX(-20px);opacity:0}50%{opacity:1}100%{transform:translateX(20px);opacity:0}}
+    @keyframes nodePulse{0%,100%{stroke-opacity:.3}50%{stroke-opacity:.8}}
+    @keyframes dash{0%{stroke-dashoffset:12}100%{stroke-dashoffset:0}}
+    @keyframes dataFlow{0%{offset-distance:0%}100%{offset-distance:100%}}
+    @keyframes rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    @keyframes blink{0%,100%{opacity:.3}50%{opacity:.9}}
+    @keyframes slideIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+    @keyframes borderGlow{0%,100%{stroke-opacity:.15}50%{stroke-opacity:.4}}
+    @keyframes particleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .node-border{animation:nodePulse 3s ease-in-out infinite}
+    .flow-particle{animation:pulse 2s ease-in-out infinite}
+    .conn-dash{stroke-dasharray:6 6;animation:dash 1.5s linear infinite}
+    .blink-dot{animation:blink 2s ease-in-out infinite}
+    .floating{animation:particleFloat 4s ease-in-out infinite}
+    text{font-family:'SF Pro Display','Inter','Segoe UI',system-ui,sans-serif}
+    .mono{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
+  </style>
+
+  <!-- Background -->
+  <rect width="960" height="720" fill="url(#bgG)" rx="16"/>
+  <rect x="1" y="1" width="958" height="718" rx="16" fill="none" stroke="#21d5ed" stroke-width="0.5" stroke-opacity="0.15">
+    <animate attributeName="stroke-opacity" values="0.1;0.3;0.1" dur="5s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Grid -->
+  <g opacity="0.03">
+    <line x1="0" y1="120" x2="960" y2="120" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="0" y1="240" x2="960" y2="240" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="0" y1="360" x2="960" y2="360" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="0" y1="480" x2="960" y2="480" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="0" y1="600" x2="960" y2="600" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="192" y1="0" x2="192" y2="720" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="384" y1="0" x2="384" y2="720" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="576" y1="0" x2="576" y2="720" stroke="#21d5ed" stroke-width="0.5"/>
+    <line x1="768" y1="0" x2="768" y2="720" stroke="#21d5ed" stroke-width="0.5"/>
+  </g>
+
+  <!-- Title -->
+  <text x="480" y="38" text-anchor="middle" font-size="16" font-weight="700" fill="url(#titleGrad)" letter-spacing="4" filter="url(#glow)">SYSTEM ARCHITECTURE</text>
+  <line x1="340" y1="48" x2="620" y2="48" stroke="url(#titleGrad)" stroke-width="0.8" stroke-opacity="0.4">
+    <animate attributeName="stroke-opacity" values="0.2;0.6;0.2" dur="3s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 1: ELECTRON SHELL (top)                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="30" y="62" width="900" height="290" rx="14" fill="#0c1525" stroke="#21d5ed" stroke-width="1" class="node-border" filter="url(#dropShadow)"/>
+  <rect x="30" y="62" width="900" height="290" rx="14" fill="none" stroke="#21d5ed" stroke-width="0.5" stroke-opacity="0.08"/>
+
+  <!-- Electron label -->
+  <rect x="40" y="55" width="160" height="20" rx="4" fill="#0c1525"/>
+  <text x="50" y="69" font-size="11" font-weight="700" fill="#21d5ed" letter-spacing="2" class="mono">⚡ ELECTRON SHELL</text>
+
+  <!-- Main Process box -->
+  <rect x="50" y="88" width="170" height="245" rx="10" fill="#111b2e" stroke="#0e7490" stroke-width="0.8" class="node-border" style="animation-delay:0.5s"/>
+  <text x="135" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#21d5ed" letter-spacing="1">Main Process</text>
+  <line x1="65" y1="118" x2="205" y2="118" stroke="#0e7490" stroke-width="0.3" stroke-opacity="0.4"/>
+
+  <!-- Main process items -->
+  <g font-size="9" fill="#94a3b8" class="mono">
+    <circle cx="68" cy="135" r="3" fill="#21d5ed" opacity="0.6" class="blink-dot"/>
+    <text x="78" y="138">IPC Handlers</text>
+    <circle cx="68" cy="157" r="3" fill="#21d5ed" opacity="0.6" class="blink-dot" style="animation-delay:0.3s"/>
+    <text x="78" y="160">Window Mgmt</text>
+    <circle cx="68" cy="179" r="3" fill="#21d5ed" opacity="0.6" class="blink-dot" style="animation-delay:0.6s"/>
+    <text x="78" y="182">Deep Links</text>
+    <circle cx="68" cy="201" r="3" fill="#21d5ed" opacity="0.6" class="blink-dot" style="animation-delay:0.9s"/>
+    <text x="78" y="204">Auto Update</text>
+    <circle cx="68" cy="223" r="3" fill="#21d5ed" opacity="0.6" class="blink-dot" style="animation-delay:1.2s"/>
+    <text x="78" y="226">File Services</text>
+  </g>
+
+  <!-- Preload Bridge box -->
+  <rect x="50" y="250" width="170" height="65" rx="8" fill="#111b2e" stroke="#67e8f9" stroke-width="0.8" class="node-border" style="animation-delay:1s"/>
+  <text x="135" y="273" text-anchor="middle" font-size="10" font-weight="600" fill="#67e8f9">🔒 Preload Bridge</text>
+  <text x="135" y="298" text-anchor="middle" font-size="8" fill="#64748b" class="mono">contextIsolation: true</text>
+  <!-- Arrow from main to preload -->
+  <line x1="135" y1="240" x2="135" y2="248" stroke="#21d5ed" stroke-width="0.8" stroke-opacity="0.5" marker-end="url(#arrowCyan)"/>
+
+  <!-- ─── Renderer (React 19) ─── -->
+  <rect x="240" y="88" width="670" height="245" rx="10" fill="#111b2e" stroke="#22d3ee" stroke-width="0.8" class="node-border" style="animation-delay:0.2s"/>
+  <text x="575" y="108" text-anchor="middle" font-size="11" font-weight="700" fill="#22d3ee" letter-spacing="1">Renderer — React 19 + TypeScript 5.9</text>
+  <line x1="255" y1="116" x2="895" y2="116" stroke="#22d3ee" stroke-width="0.3" stroke-opacity="0.3"/>
+
+  <!-- Pages column -->
+  <rect x="258" y="125" width="175" height="195" rx="8" fill="#0f1a2e" stroke="#0e7490" stroke-width="0.5" stroke-opacity="0.3"/>
+  <text x="345" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#67e8f9" letter-spacing="1">Pages</text>
+  <g font-size="8.5" class="mono">
+    <text x="273" y="162" fill="#cbd5e1">📊 Dashboard</text>
+    <text x="273" y="178" fill="#cbd5e1">📄 Documents</text>
+    <text x="273" y="194" fill="#cbd5e1">🤖 AI Assistant</text>
+    <text x="273" y="210" fill="#cbd5e1">⚡ Pipelines</text>
+    <text x="273" y="226" fill="#cbd5e1">📋 Templates</text>
+    <text x="273" y="242" fill="#cbd5e1">⚙️ API Config</text>
+    <text x="273" y="258" fill="#cbd5e1">📦 Downloads</text>
+    <text x="273" y="274" fill="#cbd5e1">🔧 Settings</text>
+    <text x="273" y="290" fill="#cbd5e1">🔐 Auth</text>
+  </g>
+
+  <!-- Components column -->
+  <rect x="448" y="125" width="170" height="195" rx="8" fill="#0f1a2e" stroke="#0e7490" stroke-width="0.5" stroke-opacity="0.3"/>
+  <text x="533" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#67e8f9" letter-spacing="1">Components</text>
+  <g font-size="8.5" class="mono">
+    <text x="463" y="162" fill="#cbd5e1">Sidebar</text>
+    <text x="463" y="178" fill="#cbd5e1">Workflow Canvas</text>
+    <text x="463" y="194" fill="#cbd5e1">DataTable</text>
+    <text x="463" y="210" fill="#cbd5e1">FileDropZone</text>
+    <text x="463" y="226" fill="#cbd5e1">Toast System</text>
+    <text x="463" y="242" fill="#cbd5e1">StatCard</text>
+    <text x="463" y="258" fill="#cbd5e1">Charts</text>
+    <text x="463" y="274" fill="#cbd5e1">PDF Viewer</text>
+  </g>
+
+  <!-- Contexts column -->
+  <rect x="633" y="125" width="145" height="120" rx="8" fill="#0f1a2e" stroke="#0e7490" stroke-width="0.5" stroke-opacity="0.3"/>
+  <text x="705" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#67e8f9" letter-spacing="1">Contexts</text>
+  <g font-size="8.5" class="mono">
+    <text x="648" y="162" fill="#cbd5e1">AuthContext</text>
+    <text x="648" y="178" fill="#cbd5e1">AIProviderCtx</text>
+    <text x="648" y="194" fill="#cbd5e1">ToastContext</text>
+    <text x="648" y="210" fill="#cbd5e1">ThemeContext</text>
+  </g>
+
+  <!-- Data/API column -->
+  <rect x="793" y="125" width="100" height="120" rx="8" fill="#0f1a2e" stroke="#0e7490" stroke-width="0.5" stroke-opacity="0.3"/>
+  <text x="843" y="143" text-anchor="middle" font-size="10" font-weight="700" fill="#67e8f9" letter-spacing="1">Data</text>
+  <g font-size="8.5" class="mono">
+    <text x="808" y="162" fill="#cbd5e1">api.ts</text>
+    <text x="808" y="178" fill="#cbd5e1">auth.ts</text>
+    <text x="808" y="194" fill="#cbd5e1">pipeline.ts</text>
+    <text x="808" y="210" fill="#cbd5e1">agent.ts</text>
+  </g>
+
+  <!-- React Flow badge -->
+  <rect x="633" y="260" width="145" height="50" rx="8" fill="#0f1a2e" stroke="#a855f7" stroke-width="0.6" class="node-border" style="animation-delay:1.5s"/>
+  <text x="705" y="280" text-anchor="middle" font-size="9" font-weight="600" fill="#c084fc">⚛️ React Flow 12</text>
+  <text x="705" y="296" text-anchor="middle" font-size="7.5" fill="#64748b" class="mono">Pipeline Canvas</text>
+
+  <!-- Zod badge -->
+  <rect x="793" y="260" width="100" height="50" rx="8" fill="#0f1a2e" stroke="#3b82f6" stroke-width="0.6" class="node-border" style="animation-delay:2s"/>
+  <text x="843" y="280" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">🛡 Zod 4</text>
+  <text x="843" y="296" text-anchor="middle" font-size="7.5" fill="#64748b" class="mono">Validation</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- CONNECTION: Electron ↔ Backend (HTTP + WebSocket)          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Main connection line -->
+  <line x1="480" y1="352" x2="480" y2="395" stroke="#334155" stroke-width="2"/>
+  <line x1="480" y1="352" x2="480" y2="395" stroke="#21d5ed" stroke-width="1.2" class="conn-dash"/>
+
+  <!-- Connection label -->
+  <rect x="395" y="362" width="170" height="22" rx="11" fill="#0f172a" stroke="#21d5ed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="480" y="377" text-anchor="middle" font-size="9" font-weight="600" fill="#21d5ed" class="mono">HTTP + WebSocket</text>
+
+  <!-- Animated flow dots on connection -->
+  <circle r="3" fill="#21d5ed" filter="url(#nodeGlow)">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M480,352 L480,395"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="3" fill="#a855f7" filter="url(#nodeGlow)">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M480,395 L480,352" begin="1s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" begin="1s"/>
+  </circle>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 2: GO BACKEND                                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="30" y="395" width="900" height="215" rx="14" fill="#0c1525" stroke="#a855f7" stroke-width="1" class="node-border" style="animation-delay:0.8s" filter="url(#dropShadow)"/>
+  <rect x="40" y="388" width="190" height="20" rx="4" fill="#0c1525"/>
+  <text x="50" y="402" font-size="11" font-weight="700" fill="#a855f7" letter-spacing="2" class="mono">🚀 GO BACKEND (net/http)</text>
+
+  <!-- Handlers box -->
+  <rect x="50" y="418" width="170" height="178" rx="8" fill="#111b2e" stroke="#a855f7" stroke-width="0.6" class="node-border" style="animation-delay:1.2s"/>
+  <text x="135" y="438" text-anchor="middle" font-size="10" font-weight="700" fill="#c084fc" letter-spacing="1">Handlers</text>
+  <line x1="60" y1="445" x2="210" y2="445" stroke="#a855f7" stroke-width="0.3" stroke-opacity="0.3"/>
+  <g font-size="8" class="mono" fill="#94a3b8">
+    <text x="65" y="461">auth_handler</text>
+    <text x="65" y="475">document_handler</text>
+    <text x="65" y="489">pipeline_handler</text>
+    <text x="65" y="503">agent_handler</text>
+    <text x="65" y="517">export_handler</text>
+    <text x="65" y="531">dashboard_handler</text>
+    <text x="65" y="545">schema_handler</text>
+    <text x="65" y="559">ws_handler</text>
+    <text x="65" y="573">review_handler</text>
+    <text x="65" y="587">health_handler</text>
+  </g>
+
+  <!-- Services box -->
+  <rect x="240" y="418" width="160" height="178" rx="8" fill="#111b2e" stroke="#a855f7" stroke-width="0.6" class="node-border" style="animation-delay:1.4s"/>
+  <text x="320" y="438" text-anchor="middle" font-size="10" font-weight="700" fill="#c084fc" letter-spacing="1">Services</text>
+  <line x1="250" y1="445" x2="390" y2="445" stroke="#a855f7" stroke-width="0.3" stroke-opacity="0.3"/>
+  <g font-size="8" class="mono" fill="#94a3b8">
+    <text x="255" y="461">document_svc</text>
+    <text x="255" y="475">pipeline_svc</text>
+    <text x="255" y="489">agent_svc</text>
+    <text x="255" y="503">schema_svc</text>
+    <text x="255" y="517">export_svc</text>
+    <text x="255" y="531">activity_svc</text>
+    <text x="255" y="545">user_svc</text>
+  </g>
+
+  <!-- Engine box -->
+  <rect x="420" y="418" width="160" height="178" rx="8" fill="#111b2e" stroke="#f59e0b" stroke-width="0.6" class="node-border" style="animation-delay:1.6s"/>
+  <text x="500" y="438" text-anchor="middle" font-size="10" font-weight="700" fill="#fbbf24" letter-spacing="1">⚡ Engine</text>
+  <line x1="430" y1="445" x2="570" y2="445" stroke="#f59e0b" stroke-width="0.3" stroke-opacity="0.3"/>
+  <g font-size="8" class="mono" fill="#94a3b8">
+    <text x="435" y="461">Executor (DAG)</text>
+    <text x="435" y="475">Registry</text>
+    <text x="435" y="489">Broker (WS)</text>
+    <text x="435" y="506">── Node Types ──</text>
+  </g>
+  <g font-size="7.5" class="mono" fill="#fbbf24" opacity="0.7">
+    <text x="435" y="521">📥 Document Select</text>
+    <text x="435" y="535">🧠 AI Extract</text>
+    <text x="435" y="549">🔄 Transform</text>
+    <text x="435" y="563">✅ Review Gate</text>
+    <text x="435" y="577">🔀 Condition</text>
+    <text x="435" y="591">📤 Export</text>
+  </g>
+
+  <!-- AI Service box -->
+  <rect x="600" y="418" width="200" height="178" rx="8" fill="#111b2e" stroke="#f472b6" stroke-width="0.6" class="node-border" style="animation-delay:1.8s"/>
+  <text x="700" y="438" text-anchor="middle" font-size="10" font-weight="700" fill="#fb7185" letter-spacing="1">🧠 AI Service</text>
+  <line x1="610" y1="445" x2="790" y2="445" stroke="#f472b6" stroke-width="0.3" stroke-opacity="0.3"/>
+  <text x="700" y="463" text-anchor="middle" font-size="8" fill="#94a3b8" class="mono">ClientManager (hot-swap)</text>
+  <text x="700" y="478" text-anchor="middle" font-size="7.5" fill="#64748b" class="mono">mutex-protected provider swap</text>
+
+  <!-- Kilo AI provider -->
+  <rect x="615" y="490" width="80" height="45" rx="6" fill="#0f1a2e" stroke="#21d5ed" stroke-width="0.5" class="node-border" style="animation-delay:2.2s"/>
+  <text x="655" y="509" text-anchor="middle" font-size="8" font-weight="600" fill="#21d5ed">Kilo AI</text>
+  <text x="655" y="524" text-anchor="middle" font-size="6.5" fill="#64748b" class="mono">OpenRouter</text>
+
+  <!-- GitHub Copilot provider -->
+  <rect x="705" y="490" width="80" height="45" rx="6" fill="#0f1a2e" stroke="#a855f7" stroke-width="0.5" class="node-border" style="animation-delay:2.4s"/>
+  <text x="745" y="509" text-anchor="middle" font-size="8" font-weight="600" fill="#c084fc">GitHub</text>
+  <text x="745" y="524" text-anchor="middle" font-size="6.5" fill="#64748b" class="mono">Copilot</text>
+
+  <!-- AIClient interface -->
+  <rect x="615" y="545" width="170" height="45" rx="6" fill="#0f1a2e" stroke="#f472b6" stroke-width="0.4" stroke-opacity="0.4"/>
+  <text x="700" y="562" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fb7185" class="mono">interface AIClient</text>
+  <text x="700" y="578" text-anchor="middle" font-size="6.5" fill="#64748b" class="mono">Chat · Extract · Conversation</text>
+
+  <!-- Middleware / Auth / Config column -->
+  <rect x="820" y="418" width="95" height="178" rx="8" fill="#111b2e" stroke="#64748b" stroke-width="0.5" class="node-border" style="animation-delay:2s"/>
+  <text x="867" y="438" text-anchor="middle" font-size="9" font-weight="700" fill="#94a3b8" letter-spacing="1">Infra</text>
+  <line x1="830" y1="445" x2="905" y2="445" stroke="#64748b" stroke-width="0.3" stroke-opacity="0.3"/>
+  <g font-size="7.5" class="mono" fill="#64748b">
+    <text x="835" y="461">Middleware</text>
+    <text x="835" y="476">JWT Auth</text>
+    <text x="835" y="491">Config</text>
+    <text x="835" y="506">Logger</text>
+    <text x="835" y="521">Crypto</text>
+    <text x="835" y="536">OCR</text>
+    <text x="835" y="551">CORS</text>
+    <text x="835" y="566">Recovery</text>
+  </g>
+
+  <!-- Internal flow arrows between backend boxes -->
+  <!-- Handler → Service -->
+  <line x1="220" y1="500" x2="240" y2="500" stroke="#a855f7" stroke-width="0.8" stroke-opacity="0.5"/>
+  <polygon points="238,497 244,500 238,503" fill="#a855f7" opacity="0.5"/>
+
+  <!-- Service → Engine -->
+  <line x1="400" y1="500" x2="420" y2="500" stroke="#f59e0b" stroke-width="0.8" stroke-opacity="0.5"/>
+  <polygon points="418,497 424,500 418,503" fill="#f59e0b" opacity="0.5"/>
+
+  <!-- Service → AI Service -->
+  <path d="M400,470 C420,470 590,450 600,450" fill="none" stroke="#f472b6" stroke-width="0.8" stroke-opacity="0.4" stroke-dasharray="3 3"/>
+
+  <!-- Animated data flowing between handler → service -->
+  <circle r="2.5" fill="#c084fc" filter="url(#nodeGlow)">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M220,500 L240,500"/>
+    <animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- CONNECTION: Backend ↔ Database                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <line x1="480" y1="610" x2="480" y2="645" stroke="#334155" stroke-width="2"/>
+  <line x1="480" y1="610" x2="480" y2="645" stroke="#34d399" stroke-width="1.2" class="conn-dash" style="animation-delay:0.5s"/>
+
+  <!-- Flow dots -->
+  <circle r="3" fill="#34d399" filter="url(#nodeGlow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M480,610 L480,645"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="2.5" fill="#a78bfa" filter="url(#nodeGlow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M480,645 L480,610" begin="0.7s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" begin="0.7s"/>
+  </circle>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 3: MONGODB                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="100" y="645" width="760" height="55" rx="12" fill="#0c1525" stroke="#34d399" stroke-width="1" class="node-border" style="animation-delay:2.5s" filter="url(#dropShadow)"/>
+
+  <text x="155" y="678" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399" letter-spacing="1">🗄 MongoDB v7</text>
+
+  <!-- Collection badges -->
+  <g font-size="8" class="mono">
+    <rect x="220" y="662" width="70" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="255" y="676" text-anchor="middle" fill="#6ee7b7">users</text>
+
+    <rect x="300" y="662" width="85" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="342" y="676" text-anchor="middle" fill="#6ee7b7">documents</text>
+
+    <rect x="395" y="662" width="80" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="435" y="676" text-anchor="middle" fill="#6ee7b7">pipelines</text>
+
+    <rect x="485" y="662" width="110" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="540" y="676" text-anchor="middle" fill="#6ee7b7">agent_sessions</text>
+
+    <rect x="605" y="662" width="75" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="642" y="676" text-anchor="middle" fill="#6ee7b7">schemas</text>
+
+    <rect x="690" y="662" width="80" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="730" y="676" text-anchor="middle" fill="#6ee7b7">activities</text>
+
+    <rect x="780" y="662" width="65" height="20" rx="4" fill="#0f2a1e" stroke="#34d399" stroke-width="0.4" stroke-opacity="0.4"/>
+    <text x="812" y="676" text-anchor="middle" fill="#6ee7b7">exports</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- FLOATING DECORATIVE ELEMENTS                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Ambient particles -->
+  <circle cx="25" cy="400" r="2" fill="#21d5ed" opacity="0.3" class="floating"/>
+  <circle cx="935" cy="200" r="2" fill="#a855f7" opacity="0.3" class="floating" style="animation-delay:1s"/>
+  <circle cx="15" cy="600" r="1.5" fill="#34d399" opacity="0.3" class="floating" style="animation-delay:2s"/>
+  <circle cx="945" cy="500" r="1.5" fill="#f59e0b" opacity="0.2" class="floating" style="animation-delay:1.5s"/>
+
+  <!-- Legend -->
+  <g transform="translate(30,710)" font-size="7" class="mono" fill="#475569">
+    <rect x="0" y="-8" width="8" height="8" rx="2" fill="#21d5ed" opacity="0.5"/>
+    <text x="12" y="0">Frontend</text>
+    <rect x="65" y="-8" width="8" height="8" rx="2" fill="#a855f7" opacity="0.5"/>
+    <text x="77" y="0">Backend</text>
+    <rect x="130" y="-8" width="8" height="8" rx="2" fill="#34d399" opacity="0.5"/>
+    <text x="142" y="0">Database</text>
+    <rect x="200" y="-8" width="8" height="8" rx="2" fill="#fbbf24" opacity="0.5"/>
+    <text x="212" y="0">Engine</text>
+    <rect x="260" y="-8" width="8" height="8" rx="2" fill="#fb7185" opacity="0.5"/>
+    <text x="272" y="0">AI Service</text>
+  </g>
+</svg>

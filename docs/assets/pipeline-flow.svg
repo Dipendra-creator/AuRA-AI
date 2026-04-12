@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" width="900" height="340">
+  <defs>
+    <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b14"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#070b14"/>
+    </linearGradient>
+    <linearGradient id="titleG" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#21d5ed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="drop">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#21d5ed" opacity="0.7"/>
+    </marker>
+    <marker id="arrowYellow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24" opacity="0.7"/>
+    </marker>
+    <marker id="arrowRose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#fb7185" opacity="0.7"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#34d399" opacity="0.7"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a855f7" opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <style>
+    @keyframes nodePulse{0%,100%{stroke-opacity:.3}50%{stroke-opacity:.9}}
+    @keyframes flowDash{0%{stroke-dashoffset:16}100%{stroke-dashoffset:0}}
+    @keyframes particleMove{0%{opacity:0}20%{opacity:1}80%{opacity:1}100%{opacity:0}}
+    @keyframes iconBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    @keyframes statusBlink{0%,100%{fill-opacity:.3}50%{fill-opacity:1}}
+    .np{animation:nodePulse 3s ease-in-out infinite}
+    .fd{stroke-dasharray:8 8;animation:flowDash 2s linear infinite}
+    .ib{animation:iconBounce 3s ease-in-out infinite}
+    text{font-family:'SF Pro Display','Inter','Segoe UI',system-ui,sans-serif}
+    .mono{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
+  </style>
+
+  <!-- Background -->
+  <rect width="900" height="340" fill="url(#bgG)" rx="14"/>
+  <rect x="1" y="1" width="898" height="338" rx="14" fill="none" stroke="url(#titleG)" stroke-width="0.5" stroke-opacity="0.15">
+    <animate attributeName="stroke-opacity" values="0.1;0.25;0.1" dur="5s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="url(#titleG)" letter-spacing="3" filter="url(#glow)">PIPELINE EXECUTION FLOW</text>
+
+  <!-- ═══ ROW 1: Document Select → Ingest → AI Extract → Transform ═══ -->
+
+  <!-- Node 1: Document Select -->
+  <rect x="30" y="55" width="140" height="65" rx="10" fill="#111b2e" stroke="#21d5ed" stroke-width="1" class="np" filter="url(#drop)"/>
+  <text x="100" y="77" text-anchor="middle" font-size="16" class="ib">📥</text>
+  <text x="100" y="95" text-anchor="middle" font-size="9" font-weight="700" fill="#21d5ed">Document Select</text>
+  <text x="100" y="110" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Source picker</text>
+  <!-- Status dot -->
+  <circle cx="158" cy="62" r="4" fill="#34d399">
+    <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Arrow 1→2 -->
+  <line x1="170" y1="87" x2="205" y2="87" stroke="#21d5ed" stroke-width="1.5" class="fd" marker-end="url(#arrowCyan)"/>
+  <circle r="3" fill="#21d5ed" filter="url(#glow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M170,87 L205,87"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Node 2: Ingest -->
+  <rect x="210" y="55" width="120" height="65" rx="10" fill="#111b2e" stroke="#0ea5e9" stroke-width="1" class="np" style="animation-delay:0.3s" filter="url(#drop)"/>
+  <text x="270" y="77" text-anchor="middle" font-size="16" class="ib" style="animation-delay:0.3s">📄</text>
+  <text x="270" y="95" text-anchor="middle" font-size="9" font-weight="700" fill="#0ea5e9">Ingest</text>
+  <text x="270" y="110" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Bulk loading</text>
+  <circle cx="318" cy="62" r="4" fill="#34d399">
+    <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+  </circle>
+
+  <!-- Arrow 2→3 -->
+  <line x1="330" y1="87" x2="375" y2="87" stroke="#22d3ee" stroke-width="1.5" class="fd" style="animation-delay:0.3s" marker-end="url(#arrowCyan)"/>
+  <circle r="3" fill="#22d3ee" filter="url(#glow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M330,87 L375,87" begin="0.3s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
+  </circle>
+
+  <!-- Node 3: AI Extract -->
+  <rect x="380" y="55" width="130" height="65" rx="10" fill="#111b2e" stroke="#f472b6" stroke-width="1" class="np" style="animation-delay:0.6s" filter="url(#drop)"/>
+  <text x="445" y="77" text-anchor="middle" font-size="16" class="ib" style="animation-delay:0.6s">🧠</text>
+  <text x="445" y="95" text-anchor="middle" font-size="9" font-weight="700" fill="#fb7185">AI Extract</text>
+  <text x="445" y="110" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Field extraction</text>
+  <circle cx="498" cy="62" r="4" fill="#fbbf24">
+    <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.6s"/>
+  </circle>
+
+  <!-- Arrow 3→4 -->
+  <line x1="510" y1="87" x2="555" y2="87" stroke="#f472b6" stroke-width="1.5" class="fd" style="animation-delay:0.6s" marker-end="url(#arrowRose)"/>
+  <circle r="3" fill="#f472b6" filter="url(#glow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M510,87 L555,87" begin="0.6s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" begin="0.6s"/>
+  </circle>
+
+  <!-- Node 4: Transform -->
+  <rect x="560" y="55" width="130" height="65" rx="10" fill="#111b2e" stroke="#a855f7" stroke-width="1" class="np" style="animation-delay:0.9s" filter="url(#drop)"/>
+  <text x="625" y="77" text-anchor="middle" font-size="16" class="ib" style="animation-delay:0.9s">🔄</text>
+  <text x="625" y="95" text-anchor="middle" font-size="9" font-weight="700" fill="#c084fc">Transform</text>
+  <text x="625" y="110" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Map/Filter/Reshape</text>
+  <circle cx="678" cy="62" r="4" fill="#34d399">
+    <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" begin="0.9s"/>
+  </circle>
+
+  <!-- Arrow 4→5 (down to Condition) -->
+  <line x1="625" y1="120" x2="625" y2="155" stroke="#a855f7" stroke-width="1.5" class="fd" style="animation-delay:1s" marker-end="url(#arrowPurple)"/>
+  <circle r="3" fill="#a855f7" filter="url(#glow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M625,120 L625,155" begin="1s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" begin="1s"/>
+  </circle>
+
+  <!-- Node 5: Form Fill (separate branch) -->
+  <rect x="740" y="55" width="130" height="65" rx="10" fill="#111b2e" stroke="#3b82f6" stroke-width="1" class="np" style="animation-delay:1.2s" filter="url(#drop)"/>
+  <text x="805" y="77" text-anchor="middle" font-size="16" class="ib" style="animation-delay:1.2s">📝</text>
+  <text x="805" y="95" text-anchor="middle" font-size="9" font-weight="700" fill="#60a5fa">Form Fill</text>
+  <text x="805" y="110" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Template populate</text>
+  <!-- Connect from Transform -->
+  <line x1="690" y1="87" x2="740" y2="87" stroke="#3b82f6" stroke-width="1" class="fd" style="animation-delay:1.2s" marker-end="url(#arrowCyan)"/>
+
+  <!-- ═══ ROW 2: Condition Branch (center) ═══ -->
+
+  <!-- Node 6: Condition -->
+  <g transform="translate(625,185)">
+    <polygon points="0,-30 55,0 0,30 -55,0" fill="#111b2e" stroke="#fbbf24" stroke-width="1" class="np" style="animation-delay:1.3s" filter="url(#drop)"/>
+    <text x="0" y="-8" text-anchor="middle" font-size="14" class="ib" style="animation-delay:1.3s">🔀</text>
+    <text x="0" y="8" text-anchor="middle" font-size="8" font-weight="700" fill="#fbbf24">Condition</text>
+  </g>
+
+  <!-- Arrow Condition → Review (left branch: ✅) -->
+  <path d="M570,185 L430,185 L430,235" fill="none" stroke="#34d399" stroke-width="1.5" class="fd" style="animation-delay:1.5s" marker-end="url(#arrowGreen)"/>
+  <text x="490" y="178" text-anchor="middle" font-size="8" font-weight="700" fill="#34d399">✅ Pass</text>
+  <circle r="3" fill="#34d399" filter="url(#glow)">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M570,185 L430,185 L430,235" begin="1.5s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" begin="1.5s"/>
+  </circle>
+
+  <!-- Arrow Condition → Custom API (right branch: ❌) -->
+  <path d="M680,185 L805,185 L805,235" fill="none" stroke="#fb7185" stroke-width="1.5" class="fd" style="animation-delay:1.7s" marker-end="url(#arrowRose)"/>
+  <text x="745" y="178" text-anchor="middle" font-size="8" font-weight="700" fill="#fb7185">❌ Fail</text>
+  <circle r="3" fill="#fb7185" filter="url(#glow)">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M680,185 L805,185 L805,235" begin="1.7s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" begin="1.7s"/>
+  </circle>
+
+  <!-- ═══ ROW 3: Review → Export  |  Custom API ═══ -->
+
+  <!-- Node 7: Review Gate -->
+  <rect x="365" y="240" width="130" height="65" rx="10" fill="#111b2e" stroke="#34d399" stroke-width="1" class="np" style="animation-delay:1.8s" filter="url(#drop)"/>
+  <text x="430" y="262" text-anchor="middle" font-size="16" class="ib" style="animation-delay:1.8s">✅</text>
+  <text x="430" y="280" text-anchor="middle" font-size="9" font-weight="700" fill="#34d399">Review Gate</text>
+  <text x="430" y="295" text-anchor="middle" font-size="7" fill="#64748b" class="mono">Human approval</text>
+
+  <!-- Arrow Review → Export -->
+  <line x1="365" y1="272" x2="280" y2="272" stroke="#34d399" stroke-width="1.5" class="fd" style="animation-delay:2s" marker-end="url(#arrowGreen)"/>
+  <circle r="3" fill="#34d399" filter="url(#glow)">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M365,272 L280,272" begin="2s"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" begin="2s"/>
+  </circle>
+
+  <!-- Node 8: Export -->
+  <rect x="140" y="240" width="130" height="65" rx="10" fill="#111b2e" stroke="#21d5ed" stroke-width="1" class="np" style="animation-delay:2.2s" filter="url(#drop)"/>
+  <text x="205" y="262" text-anchor="middle" font-size="16" class="ib" style="animation-delay:2.2s">📤</text>
+  <text x="205" y="280" text-anchor="middle" font-size="9" font-weight="700" fill="#21d5ed">Export</text>
+  <text x="205" y="295" text-anchor="middle" font-size="7" fill="#64748b" class="mono">CSV / Excel</text>
+  <!-- Done checkmark -->
+  <circle cx="258" cy="247" r="4" fill="#34d399">
+    <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" begin="2.2s"/>
+  </circle>
+
+  <!-- Node 9: Custom API -->
+  <rect x="740" y="240" width="130" height="65" rx="10" fill="#111b2e" stroke="#f59e0b" stroke-width="1" class="np" style="animation-delay:2s" filter="url(#drop)"/>
+  <text x="805" y="262" text-anchor="middle" font-size="16" class="ib" style="animation-delay:2s">🌐</text>
+  <text x="805" y="280" text-anchor="middle" font-size="9" font-weight="700" fill="#fbbf24">Custom API</text>
+  <text x="805" y="295" text-anchor="middle" font-size="7" fill="#64748b" class="mono">External HTTP</text>
+
+  <!-- ═══ BOTTOM: WebSocket streaming indicator ═══ -->
+  <rect x="250" y="318" width="400" height="16" rx="8" fill="#0f172a" stroke="#21d5ed" stroke-width="0.5" stroke-opacity="0.3"/>
+  <text x="450" y="330" text-anchor="middle" font-size="7.5" fill="#21d5ed" class="mono" opacity="0.7">
+    📡 Real-time progress streaming via WebSocket
+  </text>
+  <circle cx="262" cy="326" r="2" fill="#21d5ed">
+    <animate attributeName="fill-opacity" values="0.2;1;0.2" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="638" cy="326" r="2" fill="#21d5ed">
+    <animate attributeName="fill-opacity" values="0.2;1;0.2" dur="1.5s" repeatCount="indefinite" begin="0.7s"/>
+  </circle>
+</svg>
