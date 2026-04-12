@@ -1,0 +1,36 @@
+docs/assets/features.svg
+  7c8077c8a2db39d3 24-27,33,37-40,46,50-53,59,63-66,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "8904d266aba2c1b8261852fa98814b96f02700e8",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "7c8077c8a2db39d3": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "eab5652c-164e-4777-8776-80fcdabbedec",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 15,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    }
+  }
+}
