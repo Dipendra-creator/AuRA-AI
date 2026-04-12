@@ -24,8 +24,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AIProviderProvider } from './contexts/AIProviderContext'
 import { AuthPage } from './pages/AuthPage'
 import { MockDataBanner } from './components/MockDataBanner'
+import { AIAssistant } from './pages/AIAssistant'
 
-type PageId = 'dashboard' | 'documents' | 'workflows' | 'pipeline-templates' | 'api-config' | 'analytics' | 'settings' | 'downloads'
+type PageId = 'dashboard' | 'documents' | 'workflows' | 'pipeline-templates' | 'api-config' | 'analytics' | 'settings' | 'downloads' | 'ai-assistant'
 
 function renderPage(
   page: PageId,
@@ -47,6 +48,8 @@ function renderPage(
       return <Templates addToast={addToast} onNavigate={onNavigate} />
     case 'api-config':
       return <APIConfig />
+    case 'ai-assistant':
+      return <AIAssistant />
     case 'analytics':
       return (
         <div>

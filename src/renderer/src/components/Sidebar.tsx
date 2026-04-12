@@ -5,7 +5,7 @@
  */
 
 import { type ReactElement, type ReactNode, useState, useEffect } from 'react'
-import { LayoutDashboard, FileText, GitBranch, Diamond, KeyRound, Sparkles, Settings, Download } from './Icons'
+import { LayoutDashboard, FileText, GitBranch, Diamond, KeyRound, Sparkles, Settings, Download, MessageSquare } from './Icons'
 import type { AuthUser } from '../contexts/AuthContext'
 import { getUserUsage, type UsageQuota } from '../data/data-service'
 
@@ -25,6 +25,7 @@ interface NavItem {
 const mainNavItems: readonly NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'documents', label: 'Documents', icon: <FileText size={18} /> },
+  { id: 'ai-assistant', label: 'AI Assistant', icon: <MessageSquare size={18} /> },
   { id: 'workflows', label: 'Pipelines', icon: <GitBranch size={18} /> },
   { id: 'downloads', label: 'Downloads', icon: <Download size={18} /> },
   { id: 'pipeline-templates', label: 'Templates', icon: <Diamond size={18} /> },

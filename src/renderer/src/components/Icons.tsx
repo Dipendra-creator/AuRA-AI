@@ -62,6 +62,10 @@ export {
   ArrowUpRight,
   ArrowDown,
 
+  // Chat / Agent
+  Send,
+  MessageSquare,
+
   // Workflow node types (extended)
   Cpu,
   Plug,

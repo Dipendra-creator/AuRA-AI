@@ -175,6 +175,16 @@ func NewRouter(db *mongo.Database, cfg *config.Config) http.Handler {
 	mux.Handle("DELETE /api/v1/ai-providers/{type}", requireAuth(http.HandlerFunc(aiProviderH.DeleteProvider)))
 	mux.Handle("POST /api/v1/ai-providers/{type}/test", requireAuth(http.HandlerFunc(aiProviderH.TestProvider)))
 
+	// AI Agent (protected)
+	agentSessionRepo := repository.NewAgentSessionRepo(db)
+	agentSvc := service.NewAgentService(docSvc, aiMgr, agentSessionRepo)
+	agentH := handler.NewAgentHandler(agentSvc)
+	mux.Handle("GET /api/v1/agent/sessions", requireAuth(http.HandlerFunc(agentH.ListSessions)))
+	mux.Handle("POST /api/v1/agent/sessions", requireAuth(http.HandlerFunc(agentH.CreateSession)))
+	mux.Handle("POST /api/v1/agent/chat", requireAuth(http.HandlerFunc(agentH.Chat)))
+	mux.Handle("GET /api/v1/agent/sessions/{id}", requireAuth(http.HandlerFunc(agentH.GetSession)))
+	mux.Handle("DELETE /api/v1/agent/sessions/{id}", requireAuth(http.HandlerFunc(agentH.DeleteSession)))
+
 	// --- Middleware Chain ---
 	var h http.Handler = mux
 	h = middleware.CORS(cfg.CORSOrigins)(h)

@@ -117,6 +117,66 @@ func (c *CopilotClient) Chat(ctx context.Context, prompt string) (string, error)
 }
 
 // ExtractFields sends document text to GitHub Models and returns structured fields.
+// ChatConversation sends a multi-turn conversation with custom system/user messages.
+func (c *CopilotClient) ChatConversation(ctx context.Context, messages []ConversationMessage) (string, error) {
+	if len(messages) == 0 {
+		return "", fmt.Errorf("messages cannot be empty")
+	}
+
+	chatMsgs := make([]chatMessage, len(messages))
+	for i, m := range messages {
+		chatMsgs[i] = chatMessage{Role: m.Role, Content: m.Content}
+	}
+
+	reqBody := chatRequest{
+		Model:    c.model,
+		Messages: chatMsgs,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf(errMsgMarshalReq, err)
+	}
+
+	url := copilotBaseURL + chatCompletionsPath
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf(errMsgCreateReq, err)
+	}
+	req.Header.Set(headerContentType, contentTypeJSON)
+	req.Header.Set("Authorization", authBearerPrefix+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("GitHub Models API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read GitHub Models response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub Models API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var chatResp chatResponse
+	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+		return "", fmt.Errorf("failed to parse GitHub Models response: %w", err)
+	}
+
+	if chatResp.Error != nil {
+		return "", fmt.Errorf("GitHub Models API error: %s", chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("GitHub Models returned no choices")
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
+}
+
 func (c *CopilotClient) ExtractFields(ctx context.Context, documentText string, documentType domain.DocumentType) ([]domain.ExtractedField, error) {
 	if strings.TrimSpace(documentText) == "" {
 		return nil, fmt.Errorf("document text is empty")

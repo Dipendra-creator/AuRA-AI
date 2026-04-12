@@ -10,10 +10,16 @@ import (
 	"github.com/aura-ai/backend/internal/domain"
 )
 
+// ConversationMessage is an exported chat message for multi-turn conversations.
+type ConversationMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 // AIClient is the interface all AI providers must implement.
-// Currently only KiloClient satisfies this interface.
 type AIClient interface {
 	Chat(ctx context.Context, prompt string) (string, error)
+	ChatConversation(ctx context.Context, messages []ConversationMessage) (string, error)
 	ExtractFields(ctx context.Context, documentText string, documentType domain.DocumentType) ([]domain.ExtractedField, error)
 	ExtractFieldsFromPage(ctx context.Context, pageText string, pageNum, totalPages int, documentType domain.DocumentType) ([]domain.ExtractedField, error)
 	ExtractFieldsFromPageWithSchema(ctx context.Context, pageText string, pageNum, totalPages int, schema []domain.SchemaField) ([]domain.ExtractedField, error)
