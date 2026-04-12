@@ -1,0 +1,64 @@
+backend/internal/server/router.go
+  7c8077c8a2db39d3 178-187
+src/shared/types/agent.types.ts
+  7c8077c8a2db39d3 1-81
+backend/internal/aiservice/copilot.go
+  7c8077c8a2db39d3 120-179
+src/renderer/src/App.tsx
+  7c8077c8a2db39d3 27,29,51-52
+backend/internal/service/agent_svc.go
+  7c8077c8a2db39d3 1-679
+backend/internal/repository/agent_session_repo.go
+  7c8077c8a2db39d3 1-153
+backend/internal/aiservice/kilo.go
+  7c8077c8a2db39d3 152-195
+src/renderer/src/data/agent-api.ts
+  7c8077c8a2db39d3 1-39
+src/renderer/src/app.css
+  7c8077c8a2db39d3 852,911-1567
+src/renderer/src/components/Icons.tsx
+  7c8077c8a2db39d3 65-68
+src/renderer/src/pages/AIAssistant.tsx
+  7c8077c8a2db39d3 1-655
+backend/internal/domain/agent.go
+  7c8077c8a2db39d3 1-105
+src/renderer/src/components/Sidebar.tsx
+  7c8077c8a2db39d3 8,28
+backend/internal/handler/agent_handler.go
+  7c8077c8a2db39d3 1-126
+backend/internal/aiservice/client.go
+  7c8077c8a2db39d3 13-18,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "20cd639dd117e963b0252892fb478785e8768c04",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "7c8077c8a2db39d3": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "eab5652c-164e-4777-8776-80fcdabbedec",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 4731,
+      "total_deletions": 58,
+      "accepted_lines": 2646,
+      "overriden_lines": 0
+    }
+  }
+}
