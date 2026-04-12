@@ -1,0 +1,36 @@
+LICENSE
+  7c8077c8a2db39d3 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "655b6c3e656da2090e849c04c5a128ec3fa55a69",
+  "prompts": {
+    "0aad7e4a62fe7842": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "927e237d-9a88-4ead-b698-c97bc04f8405",
+        "model": "copilot/claude-opus-4.6-fast"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "7c8077c8a2db39d3": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "eab5652c-164e-4777-8776-80fcdabbedec",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 21,
+      "total_deletions": 0,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
