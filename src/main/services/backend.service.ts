@@ -349,8 +349,14 @@ export async function startBackend(): Promise<void> {
   const binaryPath = resolveBinaryPath()
   console.info('[BackendService] Starting backend:', binaryPath)
 
-  // Ensure the binary is executable (important after extraResources copy)
-  await chmod(binaryPath, 0o755)
+  // Ensure the binary is executable (important after extraResources copy).
+  // In PKG installs the binary is owned by root and already executable,
+  // so chmod will fail with EPERM — that's fine, we can skip it.
+  try {
+    await chmod(binaryPath, 0o755)
+  } catch {
+    // Binary is likely already executable (root-owned from PKG install)
+  }
 
   backendProcess = spawn(binaryPath, [], {
     env: buildEnv(),
