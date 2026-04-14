@@ -1,0 +1,23 @@
+src/main/services/backend.service.ts
+  59bfc5695d9dd338 352-359
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "f2f5a32556ea99746bf40799733a20cc15382a8b",
+  "prompts": {
+    "59bfc5695d9dd338": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d186bf26-091b-47b4-bc52-a0d557a12691",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 2,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}
