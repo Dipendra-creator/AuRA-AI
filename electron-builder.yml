@@ -41,6 +41,9 @@ mac:
     - target: dmg
       arch:
         - universal   # fat binary embedding arm64 + x86_64
+    - target: pkg
+      arch:
+        - universal   # PKG installer — runs postinstall script for deps
     - target: zip
       arch:
         - universal   # for Squirrel auto-update
@@ -69,9 +72,12 @@ mac:
 dmg:
   artifactName: ${productName}-${version}.${ext}
   title: Aura AI ${version}
-  # Optional: add background image by placing build/dmg-background.png
-  # background: build/dmg-background.png
-  # window: { width: 660, height: 400 }
+
+# ─── PKG installer (macOS — includes postinstall for OCR + MongoDB) ──────────
+pkg:
+  scripts: build/pkg-scripts
+  installLocation: /Applications
+  isRelocatable: false
 
 # ─── Windows (unchanged) ─────────────────────────────────────────────────────
 win:
@@ -85,6 +91,11 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
 
 # ─── Linux (unchanged) ───────────────────────────────────────────────────────
 linux:
@@ -94,6 +105,9 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Utility
+  extraResources:
+    - from: backend/bin/aura-api-linux-amd64
+      to: bin/aura-api
 appImage:
   artifactName: ${name}-${version}.${ext}
 

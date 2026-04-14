@@ -39,7 +39,7 @@ func Load() *Config {
 		RequestTimeout:     parseDuration(getEnv("REQUEST_TIMEOUT", "30s"), 30*time.Second),
 		KiloAPIKey:         getEnv("KILO_API_KEY", ""),
 		TesseractPath:      getEnv("TESSERACT_PATH", "tesseract"),
-		JWTSecret:          requireEnv("JWT_SECRET"),
+		JWTSecret:          getEnvOrGenerate("JWT_SECRET"),
 		JWTExpiry:          parseDuration(getEnv("JWT_EXPIRY", "72h"), 72*time.Hour),
 		GitHubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
 		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
@@ -78,6 +78,24 @@ func requireEnv(key string) string {
 		panic(fmt.Sprintf("required environment variable %s is not set", key))
 	}
 	return v
+}
+
+// getEnvOrGenerate returns the value of the given environment variable.
+// If it is empty, a random 64-char hex string is generated and a warning is
+// logged. This allows the packaged desktop app to boot without a pre-set
+// JWT_SECRET — the Electron main process normally injects one, but in edge
+// cases (manual backend run without .env) this prevents a hard crash.
+func getEnvOrGenerate(key string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("failed to generate random value for %s: %v", key, err))
+	}
+	generated := hex.EncodeToString(b)
+	slog.Warn(fmt.Sprintf("%s not set — generated ephemeral value (restart will invalidate tokens)", key))
+	return generated
 }
 
 func getEnv(key, fallback string) string {

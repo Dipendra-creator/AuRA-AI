@@ -1,0 +1,28 @@
+# ─── Docker Compose — NATIVE-ONLY profile ────────────────────────────────────
+# This is a minimal compose file that ONLY runs MongoDB.
+# Use this if you want MongoDB in Docker but no other Docker containers.
+#
+#   docker compose -f docker-compose.native.yml up -d
+#
+# Everything else (Go backend, Tesseract, Poppler) runs natively on the host.
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: aura-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: aura_ai
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongo_data:

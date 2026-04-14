@@ -16,14 +16,23 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
-    "build:linux": "electron-vite build && electron-builder --linux",
+    "build:win": "npm run build:backend:win && npm run build && electron-builder --win",
+    "build:linux": "npm run build:backend:linux && electron-vite build && electron-builder --linux",
 
     "build:backend:mac": "cd backend && make build-mac-universal",
+    "build:backend:win": "cd backend && make build-windows-amd64",
+    "build:backend:linux": "cd backend && make build-linux-amd64",
+    "build:backend:all": "cd backend && make build-all",
     "build:mac": "npm run build:backend:mac && electron-vite build && electron-builder --mac --universal",
     "build:mac:arm64": "npm run build:backend:mac && electron-vite build && electron-builder --mac --arm64",
     "build:mac:x64": "npm run build:backend:mac && electron-vite build && electron-builder --mac --x64",
-    "build:mac:dir": "npm run build:backend:mac && electron-vite build && electron-builder --mac --dir"
+    "build:mac:dir": "npm run build:backend:mac && electron-vite build && electron-builder --mac --dir",
+    "setup:mac:native": "bash ./scripts/setup/macos-native-prereqs.sh",
+    "setup:mac:docker": "bash ./scripts/setup/macos-docker-prereqs.sh",
+    "infra:up": "docker compose up -d mongodb redis --wait",
+    "infra:down": "docker compose down",
+    "release:local:mac": "bash ./scripts/release/build-local-macos.sh docker",
+    "release:local:mac:native": "bash ./scripts/release/build-local-macos.sh native"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

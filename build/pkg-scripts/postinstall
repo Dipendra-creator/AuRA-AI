@@ -1,0 +1,71 @@
+#!/bin/sh
+# ─── Aura AI — macOS PKG Post-Install Script ────────────────────────────────
+# Runs after the .app bundle is placed in /Applications.
+#
+# Responsibilities:
+#   1. Install Homebrew if missing (optional — prompt user)
+#   2. Install Tesseract OCR + Poppler via Homebrew
+#   3. Install MongoDB Community via Homebrew and start the service
+#
+# This script runs as root, but Homebrew commands must run as the login user.
+
+set -e
+
+LOG="/tmp/aura-ai-postinstall.log"
+echo "Aura AI postinstall started at $(date)" >> "$LOG"
+
+# Resolve the real logged-in user (installer runs as root)
+REAL_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "${SUDO_USER:-$(logname 2>/dev/null || echo root)}")
+REAL_HOME=$(eval echo "~$REAL_USER")
+
+run_as_user() {
+  sudo -u "$REAL_USER" -H -- "$@"
+}
+
+# ─── Homebrew ────────────────────────────────────────────────────────────────
+
+BREW_PATH=""
+if run_as_user command -v brew >/dev/null 2>&1; then
+  BREW_PATH=$(run_as_user command -v brew)
+elif [ -x /opt/homebrew/bin/brew ]; then
+  BREW_PATH=/opt/homebrew/bin/brew
+elif [ -x /usr/local/bin/brew ]; then
+  BREW_PATH=/usr/local/bin/brew
+fi
+
+if [ -z "$BREW_PATH" ]; then
+  echo "Homebrew not found. Skipping OCR & MongoDB auto-install." >> "$LOG"
+  echo "User can install later: brew install tesseract poppler mongodb/brew/mongodb-community@7.0" >> "$LOG"
+  exit 0
+fi
+
+echo "Using Homebrew at: $BREW_PATH" >> "$LOG"
+
+# ─── Tesseract OCR ──────────────────────────────────────────────────────────
+
+if ! run_as_user "$BREW_PATH" list tesseract >/dev/null 2>&1; then
+  echo "Installing Tesseract OCR..." >> "$LOG"
+  run_as_user "$BREW_PATH" install tesseract >> "$LOG" 2>&1 || true
+fi
+
+# ─── Poppler (pdftoppm) ─────────────────────────────────────────────────────
+
+if ! run_as_user "$BREW_PATH" list poppler >/dev/null 2>&1; then
+  echo "Installing Poppler..." >> "$LOG"
+  run_as_user "$BREW_PATH" install poppler >> "$LOG" 2>&1 || true
+fi
+
+# ─── MongoDB Community 7.0 ──────────────────────────────────────────────────
+
+run_as_user "$BREW_PATH" tap mongodb/brew >> "$LOG" 2>&1 || true
+
+if ! run_as_user "$BREW_PATH" list mongodb-community@7.0 >/dev/null 2>&1; then
+  echo "Installing MongoDB Community 7.0..." >> "$LOG"
+  run_as_user "$BREW_PATH" install mongodb-community@7.0 >> "$LOG" 2>&1 || true
+fi
+
+# Start MongoDB service
+run_as_user "$BREW_PATH" services start mongodb-community@7.0 >> "$LOG" 2>&1 || true
+
+echo "Aura AI postinstall completed at $(date)" >> "$LOG"
+exit 0

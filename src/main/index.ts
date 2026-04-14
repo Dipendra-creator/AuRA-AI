@@ -16,6 +16,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { startBackend, stopBackend } from './services/backend.service'
 import { connectToDatabase, disconnectFromDatabase } from './services/mongodb.service'
+import { ensureMongoDB, stopManagedMongo } from './services/mongo-manager.service'
 import { registerDocumentIPC } from './ipc/document.ipc'
 import { registerWindowIPC } from './ipc/window.ipc'
 
@@ -174,6 +175,11 @@ app.whenReady().then(async () => {
   registerDocumentIPC()
   registerWindowIPC()
 
+  // ── Ensure MongoDB is available ─────────────────────────────────────────────
+  // Checks for existing instance first, then tries bundled/system mongod.
+  const mongoStatus = await ensureMongoDB()
+  console.info('[Aura AI] MongoDB status:', mongoStatus)
+
   // ── Start the embedded Go backend ──────────────────────────────────────────
   // In dev this targets backend/bin/aura-api-darwin-{arch}.
   // In production the universal binary is at process.resourcesPath/bin/aura-api.
@@ -206,5 +212,6 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', async () => {
   stopBackend()
+  stopManagedMongo()
   await disconnectFromDatabase()
 })

@@ -15,6 +15,8 @@ import { spawn, ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { chmod } from 'node:fs/promises'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
 
@@ -28,6 +30,11 @@ const HEALTH_TIMEOUT_MS = 15_000
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let backendProcess: ChildProcess | null = null
+
+type RuntimeSecrets = {
+  jwtSecret: string
+  encryptionKeyHex: string
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,18 +102,55 @@ async function waitForBackend(timeoutMs: number): Promise<void> {
  * Merges inherited env with sane production defaults.
  */
 function buildEnv(): NodeJS.ProcessEnv {
+  const runtimeSecrets = loadOrCreateRuntimeSecrets()
+
   return {
     ...process.env,
     PORT: BACKEND_PORT,
     MONGO_URI: process.env['MONGO_URI'] ?? 'mongodb://127.0.0.1:27017',
-    MONGO_DB: process.env['MONGO_DB'] ?? 'AuraAI',
+    MONGO_DB: process.env['MONGO_DB'] ?? 'aura_ai',
     LOG_LEVEL: is.dev ? 'debug' : 'info',
     CORS_ORIGINS: `http://localhost:5173,http://localhost:${BACKEND_PORT}`,
     REQUEST_TIMEOUT: '30s',
+    JWT_SECRET: process.env['JWT_SECRET'] ?? runtimeSecrets.jwtSecret,
+    ENCRYPTION_KEY: process.env['ENCRYPTION_KEY'] ?? runtimeSecrets.encryptionKeyHex,
     // KILO_API_KEY must be set by the user via preferences / env
     KILO_API_KEY: process.env['KILO_API_KEY'] ?? '',
     TESSERACT_PATH: process.env['TESSERACT_PATH'] ?? 'tesseract'
   }
+}
+
+/**
+ * Loads persisted runtime secrets from userData, or creates them on first run.
+ * This avoids backend boot failures when JWT_SECRET is not defined.
+ */
+function loadOrCreateRuntimeSecrets(): RuntimeSecrets {
+  const dir = join(app.getPath('userData'), 'runtime')
+  const file = join(dir, 'backend-secrets.json')
+
+  try {
+    if (existsSync(file)) {
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<RuntimeSecrets>
+      if (parsed.jwtSecret && parsed.encryptionKeyHex && parsed.encryptionKeyHex.length === 64) {
+        return {
+          jwtSecret: parsed.jwtSecret,
+          encryptionKeyHex: parsed.encryptionKeyHex
+        }
+      }
+    }
+  } catch {
+    // Fall through to regeneration below.
+  }
+
+  mkdirSync(dir, { recursive: true })
+
+  const generated: RuntimeSecrets = {
+    jwtSecret: randomBytes(48).toString('hex'),
+    encryptionKeyHex: randomBytes(32).toString('hex')
+  }
+
+  writeFileSync(file, JSON.stringify(generated, null, 2), 'utf8')
+  return generated
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

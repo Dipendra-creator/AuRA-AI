@@ -73,3 +73,27 @@ build-windows-amd64:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
 	  $(GO) build $(LDFLAGS) -o bin/aura-api-windows-amd64.exe ./cmd/server
 	@echo "✅  windows/amd64 binary → bin/aura-api-windows-amd64.exe"
+
+# ---------------------------------------------------------------------------
+# Linux production builds
+# ---------------------------------------------------------------------------
+
+# Linux x64
+build-linux-amd64:
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+	  $(GO) build $(LDFLAGS) -o bin/aura-api-linux-amd64 ./cmd/server
+	@echo "✅  linux/amd64 binary → bin/aura-api-linux-amd64"
+
+# Linux arm64
+build-linux-arm64:
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+	  $(GO) build $(LDFLAGS) -o bin/aura-api-linux-arm64 ./cmd/server
+	@echo "✅  linux/arm64 binary → bin/aura-api-linux-arm64"
+
+# ---------------------------------------------------------------------------
+# Cross-platform all (for CI or local release builds)
+# ---------------------------------------------------------------------------
+build-all: build-mac-universal build-windows-amd64 build-linux-amd64 build-linux-arm64
+	@echo "✅  All platform binaries built → bin/"
