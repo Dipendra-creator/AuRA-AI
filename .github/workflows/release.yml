@@ -1,81 +1,265 @@
-name: Build and Release
+# ─── Aura AI — Release Workflow ───────────────────────────────────────────────
+# Creates a GitHub Release with macOS universal DMG / PKG / ZIP artefacts.
+#
+# Trigger:
+#   • Push a tag:   git tag v1.2.3 && git push origin v1.2.3
+#   • Manual:       Actions → Release macOS → Run workflow
+#
+# Secrets (optional — needed for Gatekeeper-signed & notarised builds):
+#   MAC_CERTIFICATE_BASE64   — Base-64 encoded .p12 Developer ID certificate
+#   MAC_CERTIFICATE_PASSWORD — Password for the .p12 file
+#   APPLE_ID                 — Apple ID email for notarisation
+#   APPLE_APP_SPECIFIC_PASSWORD — App-specific password (appleid.apple.com)
+#   APPLE_TEAM_ID            — 10-char Apple Developer Team ID
+#   BACKEND_ENV              — Contents of backend/.env (GitHub OAuth creds etc.)
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Release macOS
 
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags like v1.0.0
+      - 'v*'                       # e.g. v1.0.0, v2.1.0-beta.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override version (e.g. 1.0.0). Leave blank to use package.json.'
+        required: false
+        type: string
+      publish:
+        description: 'Publish to GitHub Release?'
+        required: false
+        default: true
+        type: boolean
+
+# Only one release build per ref at a time
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write # Needed for creating GitHub Releases
+  contents: write                   # create / update GitHub Releases
 
+env:
+  NODE_VERSION: '20'
+  GO_VERSION: '1.25'
+
+# ─── Jobs ─────────────────────────────────────────────────────────────────────
 jobs:
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  macOS Universal Build (arm64 + x86_64)                                ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  build-macos:
+    name: 🍎 Build & Release (macOS Universal)
+    runs-on: macos-latest           # Apple Silicon runner — lipo is available
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history for changelog generation
+
+      # ── 2. Determine version ───────────────────────────────────────────────
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "### 📦 Version: \`$VERSION\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 3. Toolchain ──────────────────────────────────────────────────────
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Setup Go
+      - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
 
-      - name: Install dependencies
+      # ── 4. Install npm dependencies ────────────────────────────────────────
+      - name: Install npm dependencies
         run: npm ci
 
-      - name: Build macOS Backend
-        run: cd backend && make build-mac-universal
+      # ── 5. Create backend .env ─────────────────────────────────────────────
+      #   electron-builder bundles backend/.env as an extraResource.
+      #   In CI we either pull from the BACKEND_ENV secret or create a minimal
+      #   placeholder so the build doesn't fail.
+      - name: Seed backend/.env
+        run: |
+          if [[ -n "$BACKEND_ENV" ]]; then
+            echo "$BACKEND_ENV" > backend/.env
+            echo "✅ backend/.env created from secret"
+          elif [[ ! -f backend/.env ]]; then
+            cat > backend/.env << 'EOF'
+          # Placeholder — replace with real values at first launch
+          MONGODB_URI=mongodb://localhost:27017
+          JWT_SECRET=change-me
+          PORT=8080
+          EOF
+            echo "⚠️  backend/.env created with placeholder values"
+          else
+            echo "✅ backend/.env already exists"
+          fi
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
 
-      - name: Build and Release Electron macOS
-        run: npm run build:mac -- --publish always
+      # ── 6. Build Go backend (universal binary) ────────────────────────────
+      - name: Build Go backend — arm64
+        working-directory: backend
+        run: make build-mac-arm64
+
+      - name: Build Go backend — amd64
+        working-directory: backend
+        run: make build-mac-amd64
+
+      - name: Create universal binary (lipo)
+        working-directory: backend
+        run: |
+          make build-mac-universal
+          echo ""
+          echo "📋 Binary details:"
+          ls -lh bin/aura-api-darwin-universal
+          file bin/aura-api-darwin-universal
+          lipo -info bin/aura-api-darwin-universal
+
+      # ── 7. Build Electron app ──────────────────────────────────────────────
+      - name: Build Electron renderer + main + preload
+        run: npx electron-vite build
+
+      # ── 8. Package & Publish ───────────────────────────────────────────────
+      - name: Package macOS universal & publish to GitHub
+        run: |
+          PUBLISH_FLAG="always"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.publish }}" == "false" ]]; then
+            PUBLISH_FLAG="never"
+          fi
+          npx electron-builder --mac --universal --publish "$PUBLISH_FLAG"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Uncomment and configure these for code signing (Apple Developer Program)
-          # CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          # ── Code Signing (uncomment when Apple Developer certs are configured) ──
+          # CSC_LINK: ${{ secrets.MAC_CERTIFICATE_BASE64 }}
           # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          # ── Notarisation (uncomment for Gatekeeper-approved distribution) ──
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-  build-windows:
-    runs-on: windows-latest
+      # ── 9. List built artefacts ────────────────────────────────────────────
+      - name: Report built artefacts
+        run: |
+          echo "### 📦 macOS Artefacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -lhS dist/*.{dmg,pkg,zip,blockmap,yml} 2>/dev/null || echo "No artefacts found"
+          ls -lhS dist/*.{dmg,pkg,zip,blockmap,yml} 2>/dev/null >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 10. Upload artefacts (backup — also available on the Release page) ─
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aura-AI-${{ steps.version.outputs.version }}-macOS-DMG
+          path: dist/*.dmg
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload PKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aura-AI-${{ steps.version.outputs.version }}-macOS-PKG
+          path: dist/*.pkg
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aura-AI-${{ steps.version.outputs.version }}-macOS-ZIP
+          path: dist/*.zip
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ╔══════════════════════════════════════════════════════════════════════════╗
+  # ║  Finalise GitHub Release (add release notes)                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════╝
+  publish-release:
+    name: 📝 Publish Release Notes
+    needs: build-macos
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Extract version
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+
+          {
+            echo "body<<RELEASE_EOF"
+            echo "## Aura AI ${TAG}"
+            echo ""
+
+            if [[ -n "$PREV_TAG" ]]; then
+              echo "### What's Changed"
+              echo ""
+              git log --pretty=format:"- %s (%h)" "${PREV_TAG}..${TAG}" 2>/dev/null || echo "- Initial release"
+            else
+              echo "### 🎉 Initial Release"
+            fi
+
+            echo ""
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Installation (macOS)"
+            echo ""
+            echo "| Installer | Best for |"
+            echo "|-----------|----------|"
+            echo "| **DMG** | Drag-and-drop into Applications |"
+            echo "| **PKG** | One-click install with automatic dependency setup (MongoDB, Tesseract, Poppler) |"
+            echo "| **ZIP** | Portable — extract and run |"
+            echo ""
+            echo "> **Recommended:** Use the **PKG** installer — it automatically installs all required"
+            echo "> dependencies via Homebrew (MongoDB 7, Tesseract OCR, Poppler)."
+            echo ""
+            echo "### System Requirements"
+            echo ""
+            echo "- macOS 12 Monterey or later"
+            echo "- Apple Silicon (M1–M4) or Intel Mac"
+            echo "- ~500 MB disk space"
+            echo ""
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          go-version: '1.25'
-          cache-dependency-path: backend/go.sum
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Windows Backend
-        run: cd backend && mingw32-make build-windows-amd64 || make build-windows-amd64
-        # Note: on windows-latest GitHub Actions runner, 'make' usually corresponds to mingw32-make or similar.
-        # Alternatively we can just run the go command directly if make is missing, but make is usually installed via choco or git bash.
-        # Let's ensure using bash to run `make`:
-        shell: bash
-        
-      - name: Build and Release Electron Windows
-        run: npm run build:win -- --publish always
+          tag_name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.changelog.outputs.body }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Uncomment and configure these for Windows code signing
-          # WIN_CSC_LINK: ${{ secrets.WIN_CERTIFICATE }}
-          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
