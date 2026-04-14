@@ -34,6 +34,10 @@ let backendProcess: ChildProcess | null = null
 type RuntimeSecrets = {
   jwtSecret: string
   encryptionKeyHex: string
+  githubClientId: string
+  githubClientSecret: string
+  githubCallbackUrl: string
+  kiloApiKey: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,7 +106,7 @@ async function waitForBackend(timeoutMs: number): Promise<void> {
  * Merges inherited env with sane production defaults.
  */
 function buildEnv(): NodeJS.ProcessEnv {
-  const runtimeSecrets = loadOrCreateRuntimeSecrets()
+  const runtimeCfg = loadOrCreateRuntimeConfig()
 
   return {
     ...process.env,
@@ -112,21 +116,35 @@ function buildEnv(): NodeJS.ProcessEnv {
     LOG_LEVEL: is.dev ? 'debug' : 'info',
     CORS_ORIGINS: `http://localhost:5173,http://localhost:${BACKEND_PORT}`,
     REQUEST_TIMEOUT: '30s',
-    JWT_SECRET: process.env['JWT_SECRET'] ?? runtimeSecrets.jwtSecret,
-    ENCRYPTION_KEY: process.env['ENCRYPTION_KEY'] ?? runtimeSecrets.encryptionKeyHex,
-    // KILO_API_KEY must be set by the user via preferences / env
-    KILO_API_KEY: process.env['KILO_API_KEY'] ?? '',
+    JWT_SECRET: process.env['JWT_SECRET'] ?? runtimeCfg.jwtSecret,
+    ENCRYPTION_KEY: process.env['ENCRYPTION_KEY'] ?? runtimeCfg.encryptionKeyHex,
+
+    // ── GitHub OAuth ──────────────────────────────────────────────────────
+    GITHUB_CLIENT_ID: process.env['GITHUB_CLIENT_ID'] ?? runtimeCfg.githubClientId,
+    GITHUB_CLIENT_SECRET: process.env['GITHUB_CLIENT_SECRET'] ?? runtimeCfg.githubClientSecret,
+    GITHUB_CALLBACK_URL:
+      process.env['GITHUB_CALLBACK_URL'] ??
+      (runtimeCfg.githubCallbackUrl ||
+        `http://localhost:${BACKEND_PORT}/api/v1/auth/github/callback`),
+
+    // ── AI API Keys ───────────────────────────────────────────────────────
+    KILO_API_KEY: process.env['KILO_API_KEY'] ?? runtimeCfg.kiloApiKey,
+
+    // ── OCR ───────────────────────────────────────────────────────────────
     TESSERACT_PATH: process.env['TESSERACT_PATH'] ?? 'tesseract'
   }
 }
 
 /**
- * Loads persisted runtime secrets from userData, or creates them on first run.
- * This avoids backend boot failures when JWT_SECRET is not defined.
+ * Loads persisted runtime config from userData, or creates it on first run.
+ *
+ * On first launch the function seeds GitHub OAuth credentials from the
+ * backend/.env file (dev) so they survive into the packaged app's config
+ * directory. Subsequent launches just read the persisted file.
  */
-function loadOrCreateRuntimeSecrets(): RuntimeSecrets {
+function loadOrCreateRuntimeConfig(): RuntimeSecrets {
   const dir = join(app.getPath('userData'), 'runtime')
-  const file = join(dir, 'backend-secrets.json')
+  const file = join(dir, 'backend-config.json')
 
   try {
     if (existsSync(file)) {
@@ -134,7 +152,11 @@ function loadOrCreateRuntimeSecrets(): RuntimeSecrets {
       if (parsed.jwtSecret && parsed.encryptionKeyHex && parsed.encryptionKeyHex.length === 64) {
         return {
           jwtSecret: parsed.jwtSecret,
-          encryptionKeyHex: parsed.encryptionKeyHex
+          encryptionKeyHex: parsed.encryptionKeyHex,
+          githubClientId: parsed.githubClientId ?? '',
+          githubClientSecret: parsed.githubClientSecret ?? '',
+          githubCallbackUrl: parsed.githubCallbackUrl ?? '',
+          kiloApiKey: parsed.kiloApiKey ?? ''
         }
       }
     }
@@ -142,15 +164,145 @@ function loadOrCreateRuntimeSecrets(): RuntimeSecrets {
     // Fall through to regeneration below.
   }
 
+  // Seed values from the backend .env (dev) or from process.env (CI)
+  const seed = readDotEnvSeed()
+
   mkdirSync(dir, { recursive: true })
 
   const generated: RuntimeSecrets = {
-    jwtSecret: randomBytes(48).toString('hex'),
-    encryptionKeyHex: randomBytes(32).toString('hex')
+    jwtSecret: seed.JWT_SECRET || randomBytes(48).toString('hex'),
+    encryptionKeyHex: seed.ENCRYPTION_KEY || randomBytes(32).toString('hex'),
+    githubClientId: seed.GITHUB_CLIENT_ID || '',
+    githubClientSecret: seed.GITHUB_CLIENT_SECRET || '',
+    githubCallbackUrl:
+      seed.GITHUB_CALLBACK_URL || `http://localhost:${BACKEND_PORT}/api/v1/auth/github/callback`,
+    kiloApiKey: seed.KILO_API_KEY || ''
   }
 
   writeFileSync(file, JSON.stringify(generated, null, 2), 'utf8')
+  console.info('[BackendService] Runtime config created at', file)
   return generated
+}
+
+/**
+ * Best-effort parse of backend/.env to seed initial config values.
+ * Only used during first-run config generation.
+ */
+function readDotEnvSeed(): Record<string, string> {
+  const candidates = [
+    // Dev: repo-relative path
+    join(app.getAppPath(), '../../backend/.env'),
+    // Packaged: alongside the binary
+    join(process.resourcesPath ?? '', '.env')
+  ]
+  for (const p of candidates) {
+    try {
+      if (!existsSync(p)) continue
+      const lines = readFileSync(p, 'utf8').split('\n')
+      const env: Record<string, string> = {}
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx < 1) continue
+        const key = trimmed.slice(0, eqIdx).trim()
+        let val = trimmed.slice(eqIdx + 1).trim()
+        // Strip surrounding quotes
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1)
+        }
+        // Ignore inline comments
+        const commentIdx = val.indexOf(' #')
+        if (commentIdx > 0) val = val.slice(0, commentIdx).trim()
+        env[key] = val
+      }
+      console.info('[BackendService] Seeded config from', p)
+      return env
+    } catch {
+      // try next candidate
+    }
+  }
+  return {}
+}
+
+// ─── Port-conflict resolution ─────────────────────────────────────────────────
+
+/**
+ * Checks if a port is in use. If so, kills the occupying process.
+ * This prevents stale `go run` or crashed backend instances from blocking
+ * the port and causing mysterious 404 responses.
+ */
+async function ensurePortFree(port: number): Promise<void> {
+  const { execSync } = await import('node:child_process')
+
+  if (process.platform === 'win32') {
+    // Windows: use netstat + taskkill
+    try {
+      const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
+        encoding: 'utf8'
+      }).trim()
+      if (!out) return
+      const pids = new Set(
+        out
+          .split('\n')
+          .map((line) => parseInt(line.trim().split(/\s+/).pop() ?? '', 10))
+          .filter((n) => !isNaN(n) && n > 0)
+      )
+      for (const pid of pids) {
+        console.warn('[BackendService] Killing stale process on port %d (pid=%d)', port, pid)
+        try {
+          execSync(`taskkill /PID ${pid} /F`, { encoding: 'utf8' })
+        } catch { /* already gone */ }
+      }
+      await new Promise((r) => setTimeout(r, 1_000))
+    } catch {
+      // port is free or netstat unavailable
+    }
+    return
+  }
+
+  // macOS / Linux: use lsof
+  try {
+    // lsof returns lines like: "server  12345 user  9u  IPv6 ... TCP *:8080 (LISTEN)"
+    const out = execSync(`lsof -i :${port} -P -n -t 2>/dev/null`, { encoding: 'utf8' }).trim()
+    if (!out) return // port is free
+
+    const pids = out
+      .split('\n')
+      .map((p) => parseInt(p.trim(), 10))
+      .filter((n) => !isNaN(n) && n > 0)
+
+    for (const pid of pids) {
+      console.warn('[BackendService] Killing stale process on port %d (pid=%d)', port, pid)
+      try {
+        process.kill(pid, 'SIGTERM')
+      } catch {
+        // process already gone
+      }
+    }
+
+    // Wait briefly for the port to be released
+    await new Promise((r) => setTimeout(r, 1_000))
+
+    // Verify port is now free
+    try {
+      const check = execSync(`lsof -i :${port} -P -n -t 2>/dev/null`, { encoding: 'utf8' }).trim()
+      if (check) {
+        // Force kill remaining
+        const remaining = check.split('\n').map((p) => parseInt(p.trim(), 10)).filter(Boolean)
+        for (const pid of remaining) {
+          try {
+            process.kill(pid, 'SIGKILL')
+          } catch { /* already gone */ }
+        }
+        await new Promise((r) => setTimeout(r, 500))
+      }
+    } catch {
+      // lsof returned error → port is free
+    }
+  } catch {
+    // lsof not found or port already free — safe to proceed
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -165,6 +317,9 @@ export async function startBackend(): Promise<void> {
     console.warn('[BackendService] Backend is already running (pid=%d)', backendProcess.pid)
     return
   }
+
+  // Kill any stale process occupying the backend port
+  await ensurePortFree(Number(BACKEND_PORT))
 
   const binaryPath = resolveBinaryPath()
   console.info('[BackendService] Starting backend:', binaryPath)

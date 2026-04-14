@@ -36,6 +36,11 @@ mac:
   extraResources:
     - from: backend/bin/aura-api-darwin-universal
       to: bin/aura-api
+    # Bundle .env for first-run config seeding (GitHub OAuth, API keys, etc.)
+    - from: backend/.env
+      to: .env
+      filter:
+        - "**/*"
   # Universal binary: runs natively on Apple Silicon (M1→M5) AND Intel Macs
   target:
     - target: dmg
