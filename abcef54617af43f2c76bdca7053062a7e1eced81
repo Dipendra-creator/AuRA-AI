@@ -1,0 +1,53 @@
+build/pkg-scripts/postinstall
+  59bfc5695d9dd338 1-71
+backend/.env.example
+  59bfc5695d9dd338 8,15
+docs/local-production-build.md
+  59bfc5695d9dd338 1-95
+scripts/release/build-local-macos.sh
+  59bfc5695d9dd338 1-37
+src/main/index.ts
+  59bfc5695d9dd338 19,178-182,215
+scripts/setup/macos-docker-prereqs.sh
+  59bfc5695d9dd338 1-29
+scripts/setup/macos-native-prereqs.sh
+  59bfc5695d9dd338 1-25
+electron-builder.yml
+  59bfc5695d9dd338 44-46,76-80,94-98,108-110
+package.json
+  59bfc5695d9dd338 19-20,23-25,29-35
+backend/internal/config/config.go
+  59bfc5695d9dd338 42,83-100
+src/main/services/mongo-manager.service.ts
+  59bfc5695d9dd338 1-185
+build/installer.nsh
+  59bfc5695d9dd338 1-78
+docs/BUILD_GUIDE.md
+  59bfc5695d9dd338 1-250
+src/main/services/backend.service.ts
+  59bfc5695d9dd338 18-19,34-38,105-106,111,115-116,123-142,144-153
+docker-compose.native.yml
+  59bfc5695d9dd338 1-28
+backend/Makefile
+  59bfc5695d9dd338 76-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "abcef54617af43f2c76bdca7053062a7e1eced81",
+  "prompts": {
+    "59bfc5695d9dd338": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d186bf26-091b-47b4-bc52-a0d557a12691",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 925,
+      "total_deletions": 9,
+      "accepted_lines": 924,
+      "overriden_lines": 0
+    }
+  }
+}
