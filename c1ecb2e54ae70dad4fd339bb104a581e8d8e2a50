@@ -1,0 +1,25 @@
+package.json
+  59bfc5695d9dd338 3
+.github/workflows/release.yml
+  59bfc5695d9dd338 96-111,134,153,157,175,185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c1ecb2e54ae70dad4fd339bb104a581e8d8e2a50",
+  "prompts": {
+    "59bfc5695d9dd338": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d186bf26-091b-47b4-bc52-a0d557a12691",
+        "model": "copilot/claude-opus-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 22,
+      "total_deletions": 7,
+      "accepted_lines": 22,
+      "overriden_lines": 0
+    }
+  }
+}
