@@ -67,30 +67,49 @@ async function isMongoRunning(): Promise<boolean> {
 }
 
 /**
- * Resolves a bundled `mongod` binary path.
- * For production builds, you place mongod into extraResources:
- *   extraResources:
- *     - from: vendor/mongod
- *       to: bin/mongod
+ * Resolves a `mongod` binary path, checking bundled → Homebrew → system PATH.
+ *
+ * In production the Go binary is spawned from the Electron main process which
+ * may not inherit the user's full shell PATH. We explicitly check Homebrew's
+ * known install locations so the postinstall-installed mongod is always found.
  */
 function resolveMongodBinary(): string | null {
-  if (is.dev) {
-    // In dev, rely on system mongod.
-    const { execSync } = require('node:child_process')
-    try {
-      return execSync('command -v mongod', { encoding: 'utf8' }).trim()
-    } catch {
-      return null
+  // Bundled mongod in extraResources (Windows + future macOS/Linux bundles)
+  if (!is.dev) {
+    const candidates = [
+      join(process.resourcesPath, 'bin', 'mongod'),
+      join(process.resourcesPath, 'bin', 'mongod.exe')
+    ]
+    for (const c of candidates) {
+      if (existsSync(c)) return c
     }
   }
 
-  const candidates = [
-    join(process.resourcesPath, 'bin', 'mongod'),
-    join(process.resourcesPath, 'bin', 'mongod.exe')
+  // Well-known Homebrew mongod paths (Apple Silicon → /opt/homebrew, Intel → /usr/local)
+  const brewPaths = [
+    '/opt/homebrew/bin/mongod',
+    '/usr/local/bin/mongod',
+    '/opt/homebrew/opt/mongodb-community@7.0/bin/mongod',
+    '/usr/local/opt/mongodb-community@7.0/bin/mongod',
+    '/opt/homebrew/opt/mongodb-community/bin/mongod',
+    '/usr/local/opt/mongodb-community/bin/mongod'
   ]
-  for (const c of candidates) {
-    if (existsSync(c)) return c
+  for (const p of brewPaths) {
+    if (existsSync(p)) {
+      console.info('[MongoManager] Found mongod at Homebrew path:', p)
+      return p
+    }
   }
+
+  // Fallback: system PATH (works in dev when user's shell has mongod)
+  try {
+    const { execSync } = require('node:child_process')
+    const systemPath = execSync('command -v mongod', { encoding: 'utf8' }).trim()
+    if (systemPath) return systemPath
+  } catch {
+    // not on PATH
+  }
+
   return null
 }
 
@@ -108,10 +127,48 @@ async function waitForMongo(timeoutMs: number): Promise<boolean> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/**
+ * Try to start MongoDB via `brew services start`. This is the cleanest path
+ * on macOS since the PKG postinstall already installed it via Homebrew.
+ */
+async function tryBrewServicesStart(): Promise<boolean> {
+  const brewPaths = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew']
+  let brewBin: string | null = null
+  for (const p of brewPaths) {
+    if (existsSync(p)) {
+      brewBin = p
+      break
+    }
+  }
+  if (!brewBin) return false
+
+  try {
+    const { execSync } = require('node:child_process')
+    console.info('[MongoManager] Attempting: brew services start mongodb-community@7.0')
+    execSync(`${brewBin} services start mongodb-community@7.0`, {
+      encoding: 'utf8',
+      timeout: 10_000
+    })
+
+    // Wait for it to come up
+    const ready = await waitForMongo(HEALTH_TIMEOUT_MS)
+    return ready
+  } catch (err) {
+    console.warn('[MongoManager] brew services start failed:', err)
+    return false
+  }
+}
+
 export type MongoStatus = 'external' | 'managed' | 'unavailable'
 
 /**
  * Ensures a MongoDB instance is available. Returns the connection status.
+ *
+ * Strategy:
+ *   1. Check if already running externally (user/Docker/brew service).
+ *   2. Try `brew services start mongodb-community@7.0` (installed by PKG postinstall).
+ *   3. Spawn mongod directly from a known binary path.
+ *   4. Give up gracefully → backend starts in degraded mode.
  */
 export async function ensureMongoDB(): Promise<MongoStatus> {
   // 1) Already running externally (user's own, Docker, brew service, etc.)
@@ -120,7 +177,13 @@ export async function ensureMongoDB(): Promise<MongoStatus> {
     return 'external'
   }
 
-  // 2) Try spawning bundled / system mongod
+  // 2) Try starting via brew services (postinstall installed it)
+  if (await tryBrewServicesStart()) {
+    console.info('[MongoManager] MongoDB started via brew services')
+    return 'external'
+  }
+
+  // 3) Try spawning mongod directly
   const mongodBin = resolveMongodBinary()
   if (!mongodBin) {
     console.warn('[MongoManager] No mongod binary found — MongoDB unavailable')

@@ -108,8 +108,18 @@ async function waitForBackend(timeoutMs: number): Promise<void> {
 function buildEnv(): NodeJS.ProcessEnv {
   const runtimeCfg = loadOrCreateRuntimeConfig()
 
+  // Ensure Homebrew bin dirs are in PATH so Go backend can find
+  // tesseract, pdftoppm, mongod etc. even when Electron doesn't
+  // inherit the user's full shell environment.
+  const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/opt/homebrew/sbin', '/usr/local/sbin']
+  const currentPath = process.env['PATH'] ?? '/usr/bin:/bin:/usr/sbin:/sbin'
+  const combinedPath = [...extraPaths, ...currentPath.split(':')].filter(
+    (v, i, a) => a.indexOf(v) === i
+  ).join(':')
+
   return {
     ...process.env,
+    PATH: combinedPath,
     PORT: BACKEND_PORT,
     MONGO_URI: process.env['MONGO_URI'] ?? 'mongodb://127.0.0.1:27017',
     MONGO_DB: process.env['MONGO_DB'] ?? 'aura_ai',
@@ -131,8 +141,23 @@ function buildEnv(): NodeJS.ProcessEnv {
     KILO_API_KEY: process.env['KILO_API_KEY'] ?? runtimeCfg.kiloApiKey,
 
     // ── OCR ───────────────────────────────────────────────────────────────
-    TESSERACT_PATH: process.env['TESSERACT_PATH'] ?? 'tesseract'
+    TESSERACT_PATH: process.env['TESSERACT_PATH'] ?? resolveTesseractPath()
   }
+}
+
+/**
+ * Resolves the tesseract binary path, checking Homebrew locations explicitly
+ * in case the packaged Electron app doesn't inherit the user's PATH.
+ */
+function resolveTesseractPath(): string {
+  const candidates = [
+    '/opt/homebrew/bin/tesseract',
+    '/usr/local/bin/tesseract'
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  return 'tesseract' // fallback to system PATH lookup
 }
 
 /**

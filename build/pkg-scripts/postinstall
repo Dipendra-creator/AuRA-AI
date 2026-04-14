@@ -2,70 +2,144 @@
 # ─── Aura AI — macOS PKG Post-Install Script ────────────────────────────────
 # Runs after the .app bundle is placed in /Applications.
 #
-# Responsibilities:
-#   1. Install Homebrew if missing (optional — prompt user)
-#   2. Install Tesseract OCR + Poppler via Homebrew
-#   3. Install MongoDB Community via Homebrew and start the service
+# This script ensures ALL dependencies are installed so the user has a
+# completely working app with zero manual setup:
+#   1. Xcode Command Line Tools (required by Homebrew)
+#   2. Homebrew (macOS package manager — auto-installed if missing)
+#   3. Tesseract OCR + language data
+#   4. Poppler (pdftoppm for PDF → image conversion)
+#   5. MongoDB Community 7.0 (database) + start as background service
 #
-# This script runs as root, but Homebrew commands must run as the login user.
+# Runs as root; Homebrew commands are delegated to the real login user.
+# All output is logged to /tmp/aura-ai-postinstall.log
 
 set -e
 
 LOG="/tmp/aura-ai-postinstall.log"
+echo "" >> "$LOG"
+echo "═══════════════════════════════════════════════════════════" >> "$LOG"
 echo "Aura AI postinstall started at $(date)" >> "$LOG"
+echo "═══════════════════════════════════════════════════════════" >> "$LOG"
 
-# Resolve the real logged-in user (installer runs as root)
+# ─── Resolve the real logged-in user ────────────────────────────────────────
 REAL_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "${SUDO_USER:-$(logname 2>/dev/null || echo root)}")
 REAL_HOME=$(eval echo "~$REAL_USER")
+echo "Real user: $REAL_USER, home: $REAL_HOME" >> "$LOG"
 
 run_as_user() {
   sudo -u "$REAL_USER" -H -- "$@"
 }
 
-# ─── Homebrew ────────────────────────────────────────────────────────────────
+# ─── 1. Xcode Command Line Tools ────────────────────────────────────────────
+
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo "Installing Xcode Command Line Tools..." >> "$LOG"
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  CLT_PKG=$(softwareupdate -l 2>/dev/null | grep -o ".*Command Line Tools.*" | head -1 | sed 's/^[* ]*//' | sed 's/ *$//')
+  if [ -n "$CLT_PKG" ]; then
+    softwareupdate -i "$CLT_PKG" --verbose >> "$LOG" 2>&1 || true
+  fi
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  echo "Xcode CLT install attempted" >> "$LOG"
+else
+  echo "Xcode CLT already installed" >> "$LOG"
+fi
+
+# ─── 2. Homebrew ─────────────────────────────────────────────────────────────
 
 BREW_PATH=""
-if run_as_user command -v brew >/dev/null 2>&1; then
-  BREW_PATH=$(run_as_user command -v brew)
-elif [ -x /opt/homebrew/bin/brew ]; then
-  BREW_PATH=/opt/homebrew/bin/brew
-elif [ -x /usr/local/bin/brew ]; then
-  BREW_PATH=/usr/local/bin/brew
+
+# Check common Homebrew locations
+if run_as_user bash -lc "command -v brew" >/dev/null 2>&1; then
+  BREW_PATH=$(run_as_user bash -lc "command -v brew" 2>/dev/null)
 fi
+[ -z "$BREW_PATH" ] && [ -x /opt/homebrew/bin/brew ] && BREW_PATH=/opt/homebrew/bin/brew
+[ -z "$BREW_PATH" ] && [ -x /usr/local/bin/brew ]    && BREW_PATH=/usr/local/bin/brew
 
 if [ -z "$BREW_PATH" ]; then
-  echo "Homebrew not found. Skipping OCR & MongoDB auto-install." >> "$LOG"
-  echo "User can install later: brew install tesseract poppler mongodb/brew/mongodb-community@7.0" >> "$LOG"
-  exit 0
+  echo "Homebrew not found — installing..." >> "$LOG"
+  run_as_user /bin/bash -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' >> "$LOG" 2>&1 || true
+
+  [ -x /opt/homebrew/bin/brew ] && BREW_PATH=/opt/homebrew/bin/brew
+  [ -z "$BREW_PATH" ] && [ -x /usr/local/bin/brew ] && BREW_PATH=/usr/local/bin/brew
+
+  if [ -z "$BREW_PATH" ]; then
+    echo "ERROR: Homebrew install failed. Manual install required:" >> "$LOG"
+    echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"" >> "$LOG"
+    echo "  brew install tesseract poppler mongodb/brew/mongodb-community@7.0" >> "$LOG"
+    exit 0
+  fi
+
+  # Add brew to user's shell profile for future sessions
+  BREW_SHELLENV="eval \"\$($BREW_PATH shellenv)\""
+  PROFILE_FILE="$REAL_HOME/.zprofile"
+  [ -f "$REAL_HOME/.bash_profile" ] && ! [ -f "$REAL_HOME/.zprofile" ] && PROFILE_FILE="$REAL_HOME/.bash_profile"
+  if ! grep -q "brew shellenv" "$PROFILE_FILE" 2>/dev/null; then
+    run_as_user bash -c "echo '$BREW_SHELLENV' >> '$PROFILE_FILE'"
+    echo "Added brew shellenv to $PROFILE_FILE" >> "$LOG"
+  fi
+  echo "Homebrew installed at: $BREW_PATH" >> "$LOG"
+else
+  echo "Homebrew found at: $BREW_PATH" >> "$LOG"
 fi
 
-echo "Using Homebrew at: $BREW_PATH" >> "$LOG"
-
-# ─── Tesseract OCR ──────────────────────────────────────────────────────────
+# ─── 3. Tesseract OCR ───────────────────────────────────────────────────────
 
 if ! run_as_user "$BREW_PATH" list tesseract >/dev/null 2>&1; then
   echo "Installing Tesseract OCR..." >> "$LOG"
-  run_as_user "$BREW_PATH" install tesseract >> "$LOG" 2>&1 || true
+  run_as_user "$BREW_PATH" install tesseract >> "$LOG" 2>&1 || {
+    echo "WARNING: Tesseract install failed — OCR features will be unavailable" >> "$LOG"
+  }
+else
+  echo "Tesseract already installed" >> "$LOG"
 fi
 
-# ─── Poppler (pdftoppm) ─────────────────────────────────────────────────────
+# ─── 4. Poppler (pdftoppm) ──────────────────────────────────────────────────
 
 if ! run_as_user "$BREW_PATH" list poppler >/dev/null 2>&1; then
   echo "Installing Poppler..." >> "$LOG"
-  run_as_user "$BREW_PATH" install poppler >> "$LOG" 2>&1 || true
+  run_as_user "$BREW_PATH" install poppler >> "$LOG" 2>&1 || {
+    echo "WARNING: Poppler install failed — PDF OCR will be unavailable" >> "$LOG"
+  }
+else
+  echo "Poppler already installed" >> "$LOG"
 fi
 
-# ─── MongoDB Community 7.0 ──────────────────────────────────────────────────
+# ─── 5. MongoDB Community 7.0 ───────────────────────────────────────────────
 
 run_as_user "$BREW_PATH" tap mongodb/brew >> "$LOG" 2>&1 || true
 
 if ! run_as_user "$BREW_PATH" list mongodb-community@7.0 >/dev/null 2>&1; then
   echo "Installing MongoDB Community 7.0..." >> "$LOG"
-  run_as_user "$BREW_PATH" install mongodb-community@7.0 >> "$LOG" 2>&1 || true
+  run_as_user "$BREW_PATH" install mongodb-community@7.0 >> "$LOG" 2>&1 || {
+    echo "WARNING: MongoDB install failed — app will attempt managed mode" >> "$LOG"
+  }
+else
+  echo "MongoDB Community 7.0 already installed" >> "$LOG"
 fi
 
-# Start MongoDB service
-run_as_user "$BREW_PATH" services start mongodb-community@7.0 >> "$LOG" 2>&1 || true
+# Start MongoDB as a background service
+echo "Starting MongoDB service..." >> "$LOG"
+run_as_user "$BREW_PATH" services start mongodb-community@7.0 >> "$LOG" 2>&1 || {
+  echo "WARNING: Could not start MongoDB service via brew" >> "$LOG"
+}
 
+# ─── Verification ────────────────────────────────────────────────────────────
+
+echo "" >> "$LOG"
+echo "── Post-install verification ──" >> "$LOG"
+BREW_PREFIX=$("$BREW_PATH" --prefix 2>/dev/null || echo "/opt/homebrew")
+for bin in tesseract pdftoppm mongod; do
+  p=$(run_as_user bash -c "export PATH=\"$BREW_PREFIX/bin:\$PATH\"; command -v $bin" 2>/dev/null || echo "")
+  if [ -n "$p" ]; then
+    echo "  ✅ $bin: $p" >> "$LOG"
+  else
+    echo "  ❌ $bin: NOT FOUND" >> "$LOG"
+  fi
+done
+
+echo "" >> "$LOG"
+echo "═══════════════════════════════════════════════════════════" >> "$LOG"
 echo "Aura AI postinstall completed at $(date)" >> "$LOG"
+echo "═══════════════════════════════════════════════════════════" >> "$LOG"
 exit 0
