@@ -93,7 +93,22 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # ── 5. Create backend .env ─────────────────────────────────────────────
+      # ── 5. Sync package.json version to the git tag ────────────────────────
+      #   electron-builder reads the version from package.json for artefact
+      #   names and GitHub Release titles.  Keep them in sync automatically.
+      - name: Sync version to package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          CURRENT=$(node -p "require('./package.json').version")
+          if [[ "$TAG_VERSION" != "$CURRENT" ]]; then
+            npm version "$TAG_VERSION" --no-git-tag-version --allow-same-version
+            echo "✅ package.json version updated: $CURRENT → $TAG_VERSION"
+          else
+            echo "✅ package.json version already matches tag ($CURRENT)"
+          fi
+
+      # ── 6. Create backend .env ─────────────────────────────────────────────
       #   electron-builder bundles backend/.env as an extraResource.
       #   In CI we either pull from the BACKEND_ENV secret or create a minimal
       #   placeholder so the build doesn't fail.
@@ -116,7 +131,7 @@ jobs:
         env:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
 
-      # ── 6. Build Go backend (universal binary) ────────────────────────────
+      # ── 7. Build Go backend (universal binary) ────────────────────────────
       - name: Build Go backend — arm64
         working-directory: backend
         run: make build-mac-arm64
@@ -135,11 +150,11 @@ jobs:
           file bin/aura-api-darwin-universal
           lipo -info bin/aura-api-darwin-universal
 
-      # ── 7. Build Electron app ──────────────────────────────────────────────
+      # ── 8. Build Electron app ──────────────────────────────────────────────
       - name: Build Electron renderer + main + preload
         run: npx electron-vite build
 
-      # ── 8. Package & Publish ───────────────────────────────────────────────
+      # ── 9. Package & Publish ───────────────────────────────────────────────
       - name: Package macOS universal & publish to GitHub
         run: |
           PUBLISH_FLAG="always"
@@ -157,7 +172,7 @@ jobs:
           # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      # ── 9. List built artefacts ────────────────────────────────────────────
+      # ── 10. List built artefacts ───────────────────────────────────────────
       - name: Report built artefacts
         run: |
           echo "### 📦 macOS Artefacts" >> "$GITHUB_STEP_SUMMARY"
@@ -167,7 +182,7 @@ jobs:
           ls -lhS dist/*.{dmg,pkg,zip,blockmap,yml} 2>/dev/null >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # ── 10. Upload artefacts (backup — also available on the Release page) ─
+      # ── 11. Upload artefacts (backup — also available on the Release page) ─
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
