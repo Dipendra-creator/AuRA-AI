@@ -1,0 +1,35 @@
+.github/ISSUE_TEMPLATE/config.yml
+  cbe6bb2d53dd8d21 1-5
+CONTRIBUTING.md
+  cbe6bb2d53dd8d21 1-65
+.github/ISSUE_TEMPLATE/feature_request.md
+  cbe6bb2d53dd8d21 1-27
+.github/ISSUE_TEMPLATE/bug_report.md
+  cbe6bb2d53dd8d21 1-40
+SECURITY.md
+  cbe6bb2d53dd8d21 1-35
+.github/PULL_REQUEST_TEMPLATE.md
+  cbe6bb2d53dd8d21 1-38
+CODE_OF_CONDUCT.md
+  cbe6bb2d53dd8d21 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "5bfd1b5b76c90a02f383b6d8164ef6272578012b",
+  "prompts": {
+    "cbe6bb2d53dd8d21": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "a51cf17e-a4a8-444c-94b8-ec1a7eb0b8a1",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "Dipendra Bhardwaj",
+      "messages": [],
+      "total_additions": 267,
+      "total_deletions": 0,
+      "accepted_lines": 267,
+      "overriden_lines": 0
+    }
+  }
+}
